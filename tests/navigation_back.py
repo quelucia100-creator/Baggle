@@ -50,14 +50,25 @@ async def main():
         await host.get_by_role("button", name="Start the journey").click()
         await host.wait_for_url("**" + party_path + "/map")
         await guest.wait_for_url("**" + party_path + "/map")
-        await guest.go_back()
-        assert urlparse(guest.url).path == "/"
-        assert parse_qs(urlparse(guest.url).query) == {"guest": ["true"]}
         await host.get_by_role("button", name="Team status", exact=True).click()
         await host.wait_for_url("**" + party_path)
-        await guest.goto(BASE + party_path)
+        await guest.wait_for_timeout(3500)
+        assert urlparse(guest.url).path == party_path + "/map"
+        await guest.get_by_role("button", name="Team status", exact=True).click()
+        await guest.wait_for_url("**" + party_path)
         await guest.get_by_role("button", name="Copy code", exact=True).wait_for()
         assert await guest.get_by_text("Navigation guest (you)", exact=True).count() == 1
+        assert await guest.get_by_role("button", name="Prompt vote", exact=True).count() == 0
+        assert await guest.get_by_role("button", name="Remove Navigation host", exact=True).count() == 0
+        assert await host.get_by_role("button", name="Prompt vote", exact=True).is_disabled()
+        assert await host.get_by_role("button", name="Reroll", exact=True).is_disabled()
+        await guest.get_by_role("button", name="Return to map", exact=True).click()
+        await guest.wait_for_url("**" + party_path + "/map")
+        await guest.reload()
+        await guest.get_by_role("button", name="Team status", exact=True).wait_for()
+        assert urlparse(host.url).path == party_path
+        await guest.get_by_role("button", name="Team status", exact=True).click()
+        await guest.wait_for_url("**" + party_path)
         await guest.get_by_role("link", name="Back", exact=True).click()
         await guest.get_by_role("link", name="Jump in as a guest").click()
         await guest.get_by_role("link", name="← Back", exact=True).click()
@@ -65,7 +76,7 @@ async def main():
         assert not urlparse(guest.url).query
         await host.go_back()
         assert urlparse(host.url).path == "/"
-        print("Guest, auth, recovery, synchronized journey, and membership-preserving Back checks passed.")
+        print("Guest, auth, recovery, independent team/map navigation, and host-only event controls passed.")
         await browser.close()
 
 

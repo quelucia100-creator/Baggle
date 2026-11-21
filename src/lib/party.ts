@@ -2,11 +2,12 @@ import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 
 export const MAX_PARTY_MEMBERS = 10;
-export const LOCATION_RADIUS_METRES = 500;
+export const LOCATION_RADIUS_METRES = 0;
 export const locationSchema = z.object({ lat: z.number(), lng: z.number(), updatedAt: z.string() });
 export const partySchema = z.object({
   code: z.string(), selfId: z.string(), isHost: z.boolean(),
   started: z.boolean().default(false),
+  view: z.enum(["team", "map"]).default("team"),
   hangout: z.object({ name: z.string(), lat: z.number(), lng: z.number() }).nullable().default(null),
   members: z.array(z.object({ id: z.string(), name: z.string(), host: z.boolean(), location: locationSchema.nullable().default(null) })),
 });
@@ -22,7 +23,7 @@ export function membershipToken() {
   return token;
 }
 
-export type PartyAction = "create" | "join" | "read" | "remove" | "start" | "team" | "location" | "clear_location" | "hangout" | "clear_hangout";
+export type PartyAction = "create" | "join" | "read" | "remove" | "start" | "team" | "map" | "location" | "clear_location" | "hangout" | "clear_hangout";
 export async function accessParty(action: PartyAction, code = "", name = "", memberId?: string, coords?: { lat: number; lng: number }) {
   const { data, error } = await supabase.rpc("party_journey", {
     p_action: action, p_code: code, p_token: membershipToken(), p_name: name,

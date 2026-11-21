@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           code: string
           created_at: string
+          event_state: Json | null
           hangout: Json | null
           id: string
           journey_started: boolean
@@ -28,6 +29,7 @@ export type Database = {
         Insert: {
           code: string
           created_at?: string
+          event_state?: Json | null
           hangout?: Json | null
           id?: string
           journey_started?: boolean
@@ -38,6 +40,7 @@ export type Database = {
         Update: {
           code?: string
           created_at?: string
+          event_state?: Json | null
           hangout?: Json | null
           id?: string
           journey_started?: boolean
@@ -50,6 +53,8 @@ export type Database = {
       party_members: {
         Row: {
           display_name: string
+          event_round: string | null
+          event_vote: string | null
           id: string
           is_host: boolean
           joined_at: string
@@ -58,10 +63,13 @@ export type Database = {
           longitude: number | null
           party_id: string
           removed: boolean
+          status_view: boolean
           token_hash: string
         }
         Insert: {
           display_name: string
+          event_round?: string | null
+          event_vote?: string | null
           id?: string
           is_host?: boolean
           joined_at?: string
@@ -70,10 +78,13 @@ export type Database = {
           longitude?: number | null
           party_id: string
           removed?: boolean
+          status_view?: boolean
           token_hash: string
         }
         Update: {
           display_name?: string
+          event_round?: string | null
+          event_vote?: string | null
           id?: string
           is_host?: boolean
           joined_at?: string
@@ -82,6 +93,7 @@ export type Database = {
           longitude?: number | null
           party_id?: string
           removed?: boolean
+          status_view?: boolean
           token_hash?: string
         }
         Relationships: [
@@ -123,6 +135,19 @@ export type Database = {
           p_code: string
           p_member?: string
           p_name?: string
+          p_token: string
+        }
+        Returns: Json
+      }
+      party_event: {
+        Args: {
+          p_action: string
+          p_code: string
+          p_lat?: number
+          p_lng?: number
+          p_member?: string
+          p_name?: string
+          p_round?: string
           p_token: string
         }
         Returns: Json

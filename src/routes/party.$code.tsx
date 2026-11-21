@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, useHydrated } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { Copy, Link2, Trash2, Crown, ArrowRight } from "lucide-react";
+import { Copy, Link2, Trash2, Crown, ArrowRight, Vote, Shuffle } from "lucide-react";
 import { toast } from "sonner";
 import { PartyHeader } from "@/components/PartyHeader";
 import bagel from "@/assets/bagel-single.png.asset.json";
@@ -36,8 +36,8 @@ function Party() {
   const error = query.error instanceof Error ? query.error.message : "";
   const joinable = error.includes("Join this party");
   useEffect(() => {
-    if (party?.started) void navigate({ to: "/party/$code/map", params: { code }, replace: true });
-  }, [party?.started, navigate, code]);
+    if (party?.started && party.view === "map") void navigate({ to: "/party/$code/map", params: { code }, replace: true });
+  }, [party?.started, party?.view, navigate, code]);
 
   const copy = async (kind: "code" | "link") => {
     try {
@@ -67,7 +67,8 @@ function Party() {
                 <PopButton tone="apricot" onClick={() => void copy("link")} className="flex items-center justify-center gap-2 text-sm"><Link2 className="h-4 w-4 shrink-0" />{copied === "link" ? "Copied!" : "Copy link"}</PopButton>
               </div>
               <p className="mt-5 text-sm text-muted-foreground">{party.members.length === MAX_PARTY_MEMBERS ? "The whole crew is here — your party is full." : "Send your code to friends and bring the crew together."}</p>
-              {party.isHost ? <PopButton className="mt-6 flex items-center justify-center gap-3" disabled={busy} onClick={async () => { setBusy(true); try { queryClient.setQueryData(queryKey, await accessParty("start", code)); } catch (err) { toast.error(err instanceof Error ? err.message : "Could not start journey."); } finally { setBusy(false); } }}>Start the journey<ArrowRight className="h-5 w-5" /></PopButton> : <p className="mt-6 font-bold">Waiting for the host to start the journey.</p>}
+              {party.started || party.isHost ? <PopButton className="mt-6 flex items-center justify-center gap-3" disabled={busy} onClick={async () => { setBusy(true); try { queryClient.setQueryData(queryKey, await accessParty(party.started ? "map" : "start", code)); } catch (err) { toast.error(err instanceof Error ? err.message : "Could not open journey."); } finally { setBusy(false); } }}>{party.started ? "Return to map" : "Start the journey"}<ArrowRight className="h-5 w-5" /></PopButton> : <p className="mt-6 font-bold">Waiting for the host to start the journey.</p>}
+              {party.isHost && <section aria-label="Event choices" className="mt-8 border-t-2 border-crust/15 pt-6"><h2 className="text-lg font-extrabold">Event</h2><div className="mt-4 grid grid-cols-2 gap-3"><PopButton tone="sage" disabled title="Event choices pending" className="flex items-center justify-center gap-2 text-sm"><Vote className="h-4 w-4" />Prompt vote</PopButton><PopButton tone="apricot" disabled title="Event choices pending" className="flex items-center justify-center gap-2 text-sm"><Shuffle className="h-4 w-4" />Reroll</PopButton></div></section>}
             </section>
             <section aria-label="Party members">
               <div className="mb-4 flex items-center justify-between gap-4"><h2 className="text-xl font-extrabold">Who's in?</h2><span className="font-bold">{party.members.length} / {MAX_PARTY_MEMBERS}</span></div>

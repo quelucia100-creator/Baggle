@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { supabase } from "@/integrations/supabase/client";
-import { partySchema } from "./party";
+import { partySchema, LOCATION_RADIUS_METRES } from "./party";
 
 // Exercise the real guest endpoint: permissions and capacity must hold even
 // when callers bypass the interface. Credentials are never printed.
@@ -44,16 +44,37 @@ describe("Guest party access rules", () => {
     if (!host) throw new Error("Missing test credential");
     expect((await rpc("remove", host, hostId)).error?.message).toContain("host cannot be removed");
   });
-  it("only lets the host start or return the shared journey", async () => {
+  it("uses a zero-metre location radius", () => {
+    expect(LOCATION_RADIUS_METRES).toBe(0);
+  });
+  it("only lets the host start the journey", async () => {
     const host = tokens[0]; const guest = tokens[1];
     if (!host || !guest) throw new Error("Missing test credentials");
     const journey = (action: string, token: string) => supabase.rpc("party_journey", { p_action: action, p_code: code, p_token: token });
     expect((await journey("start", guest)).error?.message).toContain("Only the host");
     expect(partySchema.parse((await journey("start", host)).data).started).toBe(true);
     expect(partySchema.parse((await journey("read", guest)).data).started).toBe(true);
-    expect((await journey("team", guest)).error?.message).toContain("Only the host");
-    expect(partySchema.parse((await journey("team", host)).data).started).toBe(false);
-    expect(partySchema.parse((await journey("read", guest)).data).started).toBe(false);
+  });
+  it("keeps members on the map when the host returns to team status", async () => {
+    const host = tokens[0]; const guest = tokens[1];
+    if (!host || !guest) throw new Error("Missing test credentials");
+    const journey = (action: string, token: string) => supabase.rpc("party_journey", { p_action: action, p_code: code, p_token: token });
+    const hostState = partySchema.parse((await journey("team", host)).data);
+    expect(hostState.view).toBe("team");
+    expect(hostState.started).toBe(true);
+    expect(partySchema.parse((await journey("read", guest)).data).view).toBe("map");
+  });
+  it("lets members return independently without host permissions", async () => {
+    const host = tokens[0]; const guest = tokens[1];
+    if (!host || !guest) throw new Error("Missing test credentials");
+    const journey = (action: string, token: string) => supabase.rpc("party_journey", { p_action: action, p_code: code, p_token: token });
+    expect(partySchema.parse((await journey("map", host)).data).view).toBe("map");
+    const guestState = partySchema.parse((await journey("team", guest)).data);
+    expect(guestState.view).toBe("team");
+    expect(guestState.isHost).toBe(false);
+    expect(partySchema.parse((await journey("read", host)).data).view).toBe("map");
+    expect((await journey("start", guest)).error?.message).toContain("Only the host");
+    expect(partySchema.parse((await journey("map", guest)).data).view).toBe("map");
   });
   it("shares and refreshes only the caller's location and lets them stop sharing", async () => {
     const guest = tokens[1];

@@ -9,3 +9,7 @@
 - [x] Audit guest, authentication, recovery, party, map, and shared Back navigation; fix stale-screen history paths.
 - [x] Verify public and guest navigation regressions and unchanged membership permissions; no existing records altered.
 - [ ] Verify signed-in redirects, successful password reset, and logout through the UI — blocked because temporary test-account creation was declined.
+- [x] Show exact shared locations with a zero-metre radius; verified unrounded device coordinates, live Google Maps rendering remains unverified.
+- [x] Make team/map navigation independent for every member without granting host controls.
+- [x] Leave event choices blank and show inactive host-only prompt-vote/reroll buttons without enabling event voting yet.
+- [x] Test independent navigation, host-only controls, and exact location rules.

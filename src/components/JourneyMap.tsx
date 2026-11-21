@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { loadGoogleMap } from "@/lib/google-map";
-import { LOCATION_RADIUS_METRES, type PartyState } from "@/lib/party";
+import { type PartyState } from "@/lib/party";
 
 export function JourneyMap({ party, choosing, onPick }: { party: PartyState; choosing: boolean; onPick: (point: { lat: number; lng: number }) => void }) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<google.maps.Map | null>(null);
-  const overlays = useRef<Array<google.maps.Marker | google.maps.Circle>>([]);
+  const overlays = useRef<Array<google.maps.Marker>>([]);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
   const framed = useRef(false);
@@ -41,11 +41,9 @@ export function JourneyMap({ party, choosing, onPick }: { party: PartyState; cho
     for (const member of party.members) {
       if (!member.location) continue;
       const position = { lat: member.location.lat, lng: member.location.lng };
-      const circle = new google.maps.Circle({ map: map.current, center: position, radius: LOCATION_RADIUS_METRES, fillColor: color("--sage"), fillOpacity: 0.25, strokeColor: color("--crust"), strokeOpacity: 0.45, strokeWeight: 1 });
       const marker = new google.maps.Marker({ map: map.current, position, title: member.name, label: { text: member.name.slice(0, 1).toUpperCase(), color: color("--crust") }, icon: { path: google.maps.SymbolPath.CIRCLE, scale: 13, fillColor: color(member.host ? "--chartreuse" : "--apricot"), fillOpacity: 1, strokeColor: color("--crust"), strokeWeight: 2 } });
-      overlays.current.push(circle, marker);
-      const circleBounds = circle.getBounds();
-      if (circleBounds) bounds.union(circleBounds);
+      overlays.current.push(marker);
+      bounds.extend(position);
     }
     if (party.hangout) {
       const position = { lat: party.hangout.lat, lng: party.hangout.lng };
@@ -53,7 +51,14 @@ export function JourneyMap({ party, choosing, onPick }: { party: PartyState; cho
       overlays.current.push(marker);
       bounds.extend(position);
     }
-    if (!bounds.isEmpty() && !framed.current) { map.current.fitBounds(bounds, 60); framed.current = true; }
+    if (!bounds.isEmpty() && !framed.current) {
+      map.current.fitBounds(bounds, 60);
+      google.maps.event.addListenerOnce(map.current, "idle", () => {
+        const zoom = map.current?.getZoom();
+        if (zoom !== undefined && zoom > 17) map.current?.setZoom(17);
+      });
+      framed.current = true;
+    }
   }, [party.members, party.hangout, ready]);
   return <div className="relative h-full min-h-96 bg-sage/20">
     <div ref={container} className="h-full w-full" aria-label="Shared party map" />
