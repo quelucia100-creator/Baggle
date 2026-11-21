@@ -17,7 +17,7 @@ export function PopButton({ tone = "tangerine", className = "", ...props }: { to
   return (
     <button
       {...props}
-      className={`paper h-12 w-full rounded-full border-2 border-crust font-display font-extrabold text-crust shadow-pop pop-press disabled:opacity-50 disabled:pointer-events-none ${tones[tone]} ${className}`}
+      className={`paper h-12 w-full rounded-lg border-2 border-crust font-display font-extrabold text-crust shadow-pop pop-press disabled:opacity-50 disabled:pointer-events-none ${tones[tone]} ${className}`}
     />
   );
 }

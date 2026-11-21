@@ -27,7 +27,7 @@ export function PaperIcon({
   className?: string;
   children: ReactNode;
 }) {
-  const round = shape === "circle" ? "rounded-full" : "rounded-[9px]";
+  const round = shape === "circle" ? "rounded-full" : "rounded-sm";
   return (
     <span aria-hidden="true" className={`relative inline-grid shrink-0 place-items-center ${className}`}>
       {back && (

@@ -83,9 +83,9 @@ function AuthPage() {
       ) : (
         <>
           {tab !== "forgot" && (
-            <div className="mb-6 grid grid-cols-2 rounded-full border-2 border-crust bg-cream p-1">
+            <div className="mb-6 grid grid-cols-2 rounded-xl border-2 border-crust bg-cream p-1">
               {(["login", "signup"] as const).map((t) => (
-                <button key={t} onClick={() => setTab(t)} className={`rounded-full py-2 font-display font-extrabold ${tab === t ? "bg-tangerine shadow-pop" : ""}`}>
+                <button key={t} onClick={() => setTab(t)} className={`rounded-lg py-2 font-display font-extrabold ${tab === t ? "bg-tangerine shadow-pop" : ""}`}>
                   {t === "login" ? "Log in" : "Sign up"}
                 </button>
               ))}

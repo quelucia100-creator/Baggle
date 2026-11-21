@@ -76,7 +76,7 @@ function Party() {
                   <li key={member.id} className="flex min-h-20 items-center gap-4 py-4">
                     <PaperIcon tone={i % 2 ? "apricot" : "sage"} back="chartreuse" className="h-10 w-10 shrink-0"><span className="font-display text-lg font-extrabold">{member.name.slice(0, 1).toUpperCase()}</span></PaperIcon>
                     <div className="min-w-0 flex-1"><p className="break-words font-bold">{member.name}{member.id === party.selfId ? " (you)" : ""}</p>{member.host && <span className="mt-1 flex items-center gap-1 text-xs font-semibold text-muted-foreground"><Crown className="h-3 w-3" />Host</span>}</div>
-                    {canRemoveMember(party, member.id) && <PopButton tone="sage" aria-label={`Remove ${member.name}`} title={`Remove ${member.name}`} onClick={() => setRemoving(member.id)} className="!h-9 !w-9 shrink-0 !rounded-full flex items-center justify-center"><Trash2 className="h-4 w-4" /></PopButton>}
+                    {canRemoveMember(party, member.id) && <PopButton tone="sage" aria-label={`Remove ${member.name}`} title={`Remove ${member.name}`} onClick={() => setRemoving(member.id)} className="!h-9 !w-9 shrink-0 flex items-center justify-center"><Trash2 className="h-4 w-4" /></PopButton>}
                   </li>
                 ))}
               </ul>

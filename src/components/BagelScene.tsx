@@ -30,7 +30,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
             style={{ ["--r" as string]: b.r, animationDelay: b.d }}
           />
         ))}
-        <div className="paper absolute bottom-10 left-1/2 -translate-x-1/2 rotate-[-3deg] rounded-full border-4 border-crust bg-chartreuse px-6 py-3 font-display text-xl font-extrabold text-crust shadow-pop-lg">
+        <div className="paper absolute bottom-10 left-1/2 -translate-x-1/2 rotate-[-3deg] rounded-lg border-4 border-crust bg-chartreuse px-6 py-3 font-display text-xl font-extrabold text-crust shadow-pop-lg">
           Who's free? What's the plan?
         </div>
       </section>
