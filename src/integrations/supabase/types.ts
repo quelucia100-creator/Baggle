@@ -14,6 +14,62 @@ export type Database = {
   }
   public: {
     Tables: {
+      parties: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: []
+      }
+      party_members: {
+        Row: {
+          display_name: string
+          id: string
+          is_host: boolean
+          joined_at: string
+          party_id: string
+          removed: boolean
+          token_hash: string
+        }
+        Insert: {
+          display_name: string
+          id?: string
+          is_host?: boolean
+          joined_at?: string
+          party_id: string
+          removed?: boolean
+          token_hash: string
+        }
+        Update: {
+          display_name?: string
+          id?: string
+          is_host?: boolean
+          joined_at?: string
+          party_id?: string
+          removed?: boolean
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "party_members_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: false
+            referencedRelation: "parties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -37,7 +93,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      party_access: {
+        Args: {
+          p_action: string
+          p_code: string
+          p_member?: string
+          p_name?: string
+          p_token: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never

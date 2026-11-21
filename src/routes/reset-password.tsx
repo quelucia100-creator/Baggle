@@ -6,6 +6,7 @@ import { AuthShell } from "@/components/BagelScene";
 import { Field, PopButton } from "@/components/Field";
 import { isStrongPassword } from "@/lib/password";
 import { PasswordRules } from "@/components/PasswordRules";
+import { BackLink } from "@/components/BackLink";
 
 export const Route = createFileRoute("/reset-password")({
   head: () => ({
@@ -26,6 +27,7 @@ function Reset() {
   const navigate = useNavigate();
   return (
     <AuthShell>
+      <BackLink to="/auth" />
       <h1 className="text-2xl font-extrabold">Set a new password</h1>
       <form className="mt-6 space-y-4" onSubmit={async (e) => {
         e.preventDefault();

@@ -8,6 +8,13 @@
       "when": 1795301366827,
       "tag": "0000_create_profiles",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1795302580881,
+      "tag": "0001_secure_guest_parties",
+      "breakpoints": true
     }
   ]
 }

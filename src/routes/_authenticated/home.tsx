@@ -5,6 +5,7 @@ import { AuthShell } from "@/components/BagelScene";
 import { PopButton } from "@/components/Field";
 import { PaperIcon } from "@/components/PaperIcon";
 import { BagelIcon } from "@/components/icons";
+import { BackLink } from "@/components/BackLink";
 
 export const Route = createFileRoute("/_authenticated/home")({
   head: () => ({
@@ -32,6 +33,7 @@ function Home() {
   }, []);
   return (
     <AuthShell>
+      <BackLink />
       <PaperIcon tone="apricot" back="sage" className="h-14 w-14"><BagelIcon className="h-7 w-7" /></PaperIcon>
       <h1 className="mt-5 text-3xl font-extrabold">Hey {name || "there"}</h1>
       <p className="mt-2 text-muted-foreground">You're signed in. Finding who's free and what to do is coming next.</p>

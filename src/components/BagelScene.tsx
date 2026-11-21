@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import single from "@/assets/bagel-single.png.asset.json";
 import cream from "@/assets/bagel-cream.png.asset.json";
-import checkers from "@/assets/checkers.png.asset.json";
 
 const bagels = [
   { src: single.url, cls: "top-[6%] left-[10%] w-40", r: "-12deg", d: "0s" },
@@ -20,11 +19,8 @@ export function AuthShell({ children }: { children: ReactNode }) {
       </aside>
       <section
         aria-hidden="true"
-        className="relative hidden flex-1 overflow-hidden lg:block"
-        style={{ backgroundImage: `url(${checkers.url})`, backgroundSize: "420px" }}
+        className="paper-sheet relative hidden flex-1 overflow-hidden bg-offwhite lg:block"
       >
-        <div className="absolute inset-0 bg-tangerine/55 mix-blend-multiply" />
-        <div className="paper-sheet pointer-events-none absolute inset-0" />
         {bagels.map((b, i) => (
           <img
             key={i}

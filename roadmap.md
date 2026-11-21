@@ -1,0 +1,4 @@
+- [x] Enlarge login logo and add back navigation after welcome.
+- [x] Persist guest parties, copy code/link, show up to 10 members, and enforce host-only removal.
+- [x] Add party header and white crinkled-paper background.
+- [x] Verify party flows, permissions, capacity, and mobile layout.

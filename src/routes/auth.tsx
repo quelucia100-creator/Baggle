@@ -10,6 +10,7 @@ import { isStrongPassword } from "@/lib/password";
 import { PasswordRules } from "@/components/PasswordRules";
 import { PaperIcon } from "@/components/PaperIcon";
 import { MailIcon } from "@/components/icons";
+import { BackLink } from "@/components/BackLink";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -68,7 +69,8 @@ function AuthPage() {
 
   return (
     <AuthShell>
-      <Link to="/"><img src={logo.url} alt="Baggle home" className="mx-auto mb-4 w-32" /></Link>
+      <BackLink />
+      <Link to="/"><img src={logo.url} alt="Baggle home" className="mx-auto mb-4 w-56 max-w-full" /></Link>
       {sent ? (
         <div className="paper rounded-3xl border-2 border-crust bg-sage p-6 shadow-pop">
           <div className="flex items-center gap-3">

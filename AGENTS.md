@@ -31,3 +31,5 @@ use the editor.
 
 - Auth/welcome screens wrap content in `AuthShell` (src/components/BagelScene.tsx) so the split banner/bagel layout stays consistent.
 - Signup display names live in `public.profiles`, created by an auth trigger from `display_name` metadata.
+- Guest parties use a security-definer RPC with hashed, random membership capabilities; direct table access is denied and host permissions plus the member limit are checked atomically in the database.
+- Party screens use a top navigation header rather than the split authentication shell so the roster has room to grow.

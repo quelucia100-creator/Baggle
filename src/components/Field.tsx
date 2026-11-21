@@ -12,8 +12,8 @@ export function Field({ label, ...props }: { label: string } & InputHTMLAttribut
   );
 }
 
-export function PopButton({ tone = "tangerine", className = "", ...props }: { tone?: "tangerine" | "sage" | "vista" | "chartreuse" } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
-  const tones = { tangerine: "bg-tangerine", sage: "bg-sage", vista: "bg-vista", chartreuse: "bg-chartreuse" };
+export function PopButton({ tone = "tangerine", className = "", ...props }: { tone?: "tangerine" | "sage" | "vista" | "chartreuse" | "apricot" } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  const tones = { tangerine: "bg-tangerine", sage: "bg-sage", vista: "bg-vista", chartreuse: "bg-chartreuse", apricot: "bg-apricot" };
   return (
     <button
       {...props}

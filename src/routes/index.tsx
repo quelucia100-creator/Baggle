@@ -5,7 +5,9 @@ import { AuthShell } from "@/components/BagelScene";
 import { Field, PopButton } from "@/components/Field";
 import { PaperIcon } from "@/components/PaperIcon";
 import { BagelIcon, TicketIcon } from "@/components/icons";
-import { makePartyCode, normalizePartyCode } from "@/lib/password";
+import { normalizePartyCode } from "@/lib/password";
+import { accessParty } from "@/lib/party";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -25,10 +27,17 @@ function Welcome() {
   const [mode, setMode] = useState<"pick" | "guest">("pick");
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
+  const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
 
-  const go = (partyCode: string, created: boolean) =>
-    navigate({ to: "/party/$code", params: { code: partyCode }, search: { name: name.trim(), created } });
+  const go = async (created: boolean) => {
+    setBusy(true);
+    try {
+      const party = await accessParty(created ? "create" : "join", normalizePartyCode(code), name.trim());
+      await navigate({ to: "/party/$code", params: { code: party.code } });
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Could not open party."); }
+    finally { setBusy(false); }
+  };
 
   return (
     <AuthShell>
@@ -58,14 +67,14 @@ function Welcome() {
           className="mt-8 space-y-4"
           onSubmit={(e) => {
             e.preventDefault();
-            go(normalizePartyCode(code), false);
+            void go(false);
           }}
         >
           <Field label="Display name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Sesame Sam" required maxLength={30} />
           <Field label="Party code" value={code} onChange={(e) => setCode(normalizePartyCode(e.target.value))} placeholder="ABC123" className="tracking-[0.3em]" />
-          <PopButton type="submit" disabled={!name.trim() || code.length !== 6}>Join party</PopButton>
+          <PopButton type="submit" disabled={busy || !name.trim() || code.length !== 6}>{busy ? "One sec…" : "Join party"}</PopButton>
           <div className="flex items-center gap-3 text-xs font-bold uppercase text-muted-foreground"><span className="h-0.5 flex-1 bg-crust/20" />or<span className="h-0.5 flex-1 bg-crust/20" /></div>
-          <PopButton type="button" tone="chartreuse" disabled={!name.trim()} onClick={() => go(makePartyCode(), true)}>Create a new group</PopButton>
+          <PopButton type="button" tone="chartreuse" disabled={busy || !name.trim()} onClick={() => void go(true)}>Create a new group</PopButton>
           <button type="button" onClick={() => setMode("pick")} className="w-full text-sm font-semibold underline underline-offset-4">← Back</button>
         </form>
       )}
