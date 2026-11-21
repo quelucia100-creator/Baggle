@@ -4,7 +4,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AuthShell } from "@/components/BagelScene";
 import { Field, PopButton } from "@/components/Field";
-import { isStrongPassword, passwordRules } from "@/lib/password";
+import { isStrongPassword } from "@/lib/password";
+import { PasswordRules } from "@/components/PasswordRules";
 
 export const Route = createFileRoute("/reset-password")({
   head: () => ({
@@ -34,7 +35,7 @@ function Reset() {
         navigate({ to: "/home" });
       }}>
         <Field label="New password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
-        <ul className="text-sm">{passwordRules.map((r) => <li key={r.id}>{r.test(password) ? "✅" : "⚪"} {r.label}</li>)}</ul>
+        <PasswordRules password={password} />
         <PopButton type="submit" disabled={!isStrongPassword(password)}>Save password</PopButton>
       </form>
     </AuthShell>

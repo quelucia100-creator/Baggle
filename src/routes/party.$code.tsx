@@ -1,5 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AuthShell } from "@/components/BagelScene";
+import { PaperIcon } from "@/components/PaperIcon";
+import { PinIcon } from "@/components/icons";
 
 type Search = { name?: string; created?: boolean };
 
@@ -26,9 +28,10 @@ function Party() {
   const { name, created } = Route.useSearch();
   return (
     <AuthShell>
-      <p className="text-sm font-bold uppercase tracking-wider text-muted-foreground">{created ? "Group created" : "Joined party"}</p>
-      <h1 className="mt-2 text-3xl font-extrabold">Hey {name || "friend"} 👋</h1>
-      <div className="mt-6 rounded-3xl border-2 border-crust bg-chartreuse p-6 text-center shadow-pop-lg">
+      <PaperIcon tone="vista" back="chartreuse" className="h-14 w-14"><PinIcon className="h-7 w-7" /></PaperIcon>
+      <p className="mt-5 text-sm font-bold uppercase tracking-wider text-muted-foreground">{created ? "Group created" : "Joined party"}</p>
+      <h1 className="mt-2 text-3xl font-extrabold">Hey {name || "friend"}</h1>
+      <div className="paper mt-6 rounded-3xl border-2 border-crust bg-chartreuse p-6 text-center shadow-pop-lg">
         <p className="text-xs font-bold uppercase">Party code</p>
         <p className="font-display text-5xl font-black tracking-[0.2em]">{code}</p>
       </div>

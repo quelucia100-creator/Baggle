@@ -15,7 +15,7 @@ const bagels = [
 export function AuthShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen bg-tangerine">
-      <aside className="relative z-10 flex w-full flex-col justify-center border-r-4 border-crust bg-offwhite px-6 py-10 sm:px-12 lg:w-[44%] lg:max-w-[600px]">
+      <aside className="paper-sheet relative z-10 flex w-full flex-col justify-center border-r-4 border-crust bg-offwhite px-6 py-10 sm:px-12 lg:w-[44%] lg:max-w-[600px]">
         <div className="mx-auto w-full max-w-sm">{children}</div>
       </aside>
       <section
@@ -24,6 +24,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
         style={{ backgroundImage: `url(${checkers.url})`, backgroundSize: "420px" }}
       >
         <div className="absolute inset-0 bg-tangerine/55 mix-blend-multiply" />
+        <div className="paper-sheet pointer-events-none absolute inset-0" />
         {bagels.map((b, i) => (
           <img
             key={i}
@@ -33,8 +34,8 @@ export function AuthShell({ children }: { children: ReactNode }) {
             style={{ ["--r" as string]: b.r, animationDelay: b.d }}
           />
         ))}
-        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 rotate-[-3deg] rounded-full border-4 border-crust bg-chartreuse px-6 py-3 font-display text-xl font-extrabold text-crust shadow-pop-lg">
-          Who's free? What's the plan? 🥯
+        <div className="paper absolute bottom-10 left-1/2 -translate-x-1/2 rotate-[-3deg] rounded-full border-4 border-crust bg-chartreuse px-6 py-3 font-display text-xl font-extrabold text-crust shadow-pop-lg">
+          Who's free? What's the plan?
         </div>
       </section>
     </div>

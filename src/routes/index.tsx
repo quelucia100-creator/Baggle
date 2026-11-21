@@ -3,6 +3,8 @@ import { useState } from "react";
 import logo from "@/assets/baggle-logo.png.asset.json";
 import { AuthShell } from "@/components/BagelScene";
 import { Field, PopButton } from "@/components/Field";
+import { PaperIcon } from "@/components/PaperIcon";
+import { BagelIcon, TicketIcon } from "@/components/icons";
 import { makePartyCode, normalizePartyCode } from "@/lib/password";
 
 export const Route = createFileRoute("/")({
@@ -36,13 +38,19 @@ function Welcome() {
 
       {mode === "pick" ? (
         <div className="mt-8 space-y-4">
-          <button onClick={() => setMode("guest")} className="block w-full rounded-3xl border-2 border-crust bg-sage p-5 text-left shadow-pop pop-press">
-            <span className="font-display text-xl font-extrabold">🎟️ Jump in as a guest</span>
-            <span className="mt-1 block text-sm">Enter a party code or start a group. No account needed.</span>
+          <button onClick={() => setMode("guest")} className="paper flex w-full items-center gap-4 rounded-3xl border-2 border-crust bg-sage p-5 text-left shadow-pop pop-press">
+            <PaperIcon tone="apricot" back="chartreuse" className="h-14 w-14"><TicketIcon className="h-7 w-7" /></PaperIcon>
+            <span>
+              <span className="block font-display text-xl font-extrabold">Jump in as a guest</span>
+              <span className="mt-1 block text-sm">Enter a party code or start a group. No account needed.</span>
+            </span>
           </button>
-          <Link to="/auth" className="block w-full rounded-3xl border-2 border-crust bg-vista p-5 text-left shadow-pop pop-press">
-            <span className="font-display text-xl font-extrabold">🥯 Log in or sign up</span>
-            <span className="mt-1 block text-sm">Save your crew, interests and availability.</span>
+          <Link to="/auth" className="paper flex w-full items-center gap-4 rounded-3xl border-2 border-crust bg-vista p-5 text-left shadow-pop pop-press">
+            <PaperIcon tone="chartreuse" back="apricot" rotate={5} className="h-14 w-14"><BagelIcon className="h-7 w-7" /></PaperIcon>
+            <span>
+              <span className="block font-display text-xl font-extrabold">Log in or sign up</span>
+              <span className="mt-1 block text-sm">Save your crew, interests and availability.</span>
+            </span>
           </Link>
         </div>
       ) : (

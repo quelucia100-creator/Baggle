@@ -6,7 +6,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { AuthShell } from "@/components/BagelScene";
 import { Field, PopButton } from "@/components/Field";
 import { GoogleButton } from "@/components/GoogleButton";
-import { isStrongPassword, passwordRules } from "@/lib/password";
+import { isStrongPassword } from "@/lib/password";
+import { PasswordRules } from "@/components/PasswordRules";
+import { PaperIcon } from "@/components/PaperIcon";
+import { MailIcon } from "@/components/icons";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -67,9 +70,12 @@ function AuthPage() {
     <AuthShell>
       <Link to="/"><img src={logo.url} alt="Baggle home" className="mx-auto mb-4 w-32" /></Link>
       {sent ? (
-        <div className="rounded-3xl border-2 border-crust bg-sage p-6 shadow-pop">
-          <h1 className="text-2xl font-extrabold">📬 Nearly there</h1>
-          <p className="mt-2">{sent}</p>
+        <div className="paper rounded-3xl border-2 border-crust bg-sage p-6 shadow-pop">
+          <div className="flex items-center gap-3">
+            <PaperIcon tone="cream" back="chartreuse" className="h-12 w-12"><MailIcon className="h-6 w-6" /></PaperIcon>
+            <h1 className="text-2xl font-extrabold">Nearly there</h1>
+          </div>
+          <p className="mt-3">{sent}</p>
           <button className="mt-4 text-sm font-semibold underline" onClick={() => { setSent(null); setTab("login"); }}>Back to log in</button>
         </div>
       ) : (
@@ -94,14 +100,7 @@ function AuthPage() {
             {tab === "signup" && <Field label="Username (display name)" value={username} onChange={(e) => setUsername(e.target.value)} maxLength={30} required />}
             <Field label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required />
             {tab !== "forgot" && <Field label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={tab === "signup" ? "new-password" : "current-password"} required />}
-            {tab === "signup" && (
-              <ul className="grid grid-cols-1 gap-1 text-sm">
-                {passwordRules.map((r) => {
-                  const ok = r.test(password);
-                  return <li key={r.id} className={ok ? "font-semibold text-crust" : "text-muted-foreground"}>{ok ? "✅" : "⚪"} {r.label}</li>;
-                })}
-              </ul>
-            )}
+            {tab === "signup" && <PasswordRules password={password} />}
             <PopButton type="submit" disabled={busy || !canSubmit}>
               {busy ? "One sec…" : tab === "login" ? "Log in" : tab === "signup" ? "Create account" : "Send reset link"}
             </PopButton>
