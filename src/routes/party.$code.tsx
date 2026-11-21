@@ -1,9 +1,9 @@
-import { createFileRoute, Link, useHydrated } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useHydrated } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { ArrowLeft, Copy, Link2, Trash2, Users, Crown } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Copy, Link2, Trash2, Crown, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
-import logo from "@/assets/baggle-logo.png.asset.json";
+import { PartyHeader } from "@/components/PartyHeader";
 import bagel from "@/assets/bagel-single.png.asset.json";
 import { Field, PopButton } from "@/components/Field";
 import { PaperIcon } from "@/components/PaperIcon";
@@ -23,6 +23,7 @@ export const Route = createFileRoute("/party/$code")({
 
 function Party() {
   const { code } = Route.useParams();
+  const navigate = useNavigate();
   const hydrated = useHydrated();
   const queryClient = useQueryClient();
   const queryKey = ["party", code];
@@ -34,6 +35,9 @@ function Party() {
   const party = query.isError ? undefined : query.data;
   const error = query.error instanceof Error ? query.error.message : "";
   const joinable = error.includes("Join this party");
+  useEffect(() => {
+    if (party?.started) void navigate({ to: "/party/$code/map", params: { code } });
+  }, [party?.started, navigate, code]);
 
   const copy = async (kind: "code" | "link") => {
     try {
@@ -45,13 +49,7 @@ function Party() {
 
   return (
     <div className="paper-sheet min-h-screen bg-offwhite">
-      <header className="paper flex items-center justify-between gap-4 border-b-2 border-crust bg-offwhite px-5 py-3 sm:px-10">
-        <Link to="/" aria-label="Baggle home"><img src={logo.url} alt="Baggle" className="w-28 sm:w-36" /></Link>
-        <nav aria-label="Party navigation" className="flex items-center gap-6">
-          <span className="flex items-center gap-2 font-bold"><Users className="h-5 w-5" />Party</span>
-          <Link to="/" className="flex items-center gap-2 text-sm font-bold hover:underline"><ArrowLeft className="h-4 w-4" />Back</Link>
-        </nav>
-      </header>
+      <PartyHeader code={code} />
       <main className="mx-auto max-w-5xl px-5 py-10 sm:px-10 sm:py-14">
         <div className="mb-10 flex items-center justify-between gap-4">
           <div><p className="mb-2 text-sm font-bold uppercase text-muted-foreground">{party?.isHost ? "You're the host" : "Your party"}</p><h1 className="text-3xl font-extrabold sm:text-4xl">The crew starts here.</h1></div>
@@ -69,6 +67,7 @@ function Party() {
                 <PopButton tone="apricot" onClick={() => void copy("link")} className="flex items-center justify-center gap-2 text-sm"><Link2 className="h-4 w-4 shrink-0" />{copied === "link" ? "Copied!" : "Copy link"}</PopButton>
               </div>
               <p className="mt-5 text-sm text-muted-foreground">{party.members.length === MAX_PARTY_MEMBERS ? "The whole crew is here — your party is full." : "Send your code to friends and bring the crew together."}</p>
+              {party.isHost ? <PopButton className="mt-6 flex items-center justify-center gap-3" disabled={busy} onClick={async () => { setBusy(true); try { queryClient.setQueryData(queryKey, await accessParty("start", code)); } catch (err) { toast.error(err instanceof Error ? err.message : "Could not start journey."); } finally { setBusy(false); } }}>Start the journey<ArrowRight className="h-5 w-5" /></PopButton> : <p className="mt-6 font-bold">Waiting for the host to start the journey.</p>}
             </section>
             <section aria-label="Party members">
               <div className="mb-4 flex items-center justify-between gap-4"><h2 className="text-xl font-extrabold">Who's in?</h2><span className="font-bold">{party.members.length} / {MAX_PARTY_MEMBERS}</span></div>

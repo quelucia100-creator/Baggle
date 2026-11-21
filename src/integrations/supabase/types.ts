@@ -18,17 +18,32 @@ export type Database = {
         Row: {
           code: string
           created_at: string
+          hangout: Json | null
           id: string
+          journey_started: boolean
+          weather_cache: Json | null
+          weather_cached_at: string | null
+          weather_key: string | null
         }
         Insert: {
           code: string
           created_at?: string
+          hangout?: Json | null
           id?: string
+          journey_started?: boolean
+          weather_cache?: Json | null
+          weather_cached_at?: string | null
+          weather_key?: string | null
         }
         Update: {
           code?: string
           created_at?: string
+          hangout?: Json | null
           id?: string
+          journey_started?: boolean
+          weather_cache?: Json | null
+          weather_cached_at?: string | null
+          weather_key?: string | null
         }
         Relationships: []
       }
@@ -38,6 +53,9 @@ export type Database = {
           id: string
           is_host: boolean
           joined_at: string
+          latitude: number | null
+          location_updated_at: string | null
+          longitude: number | null
           party_id: string
           removed: boolean
           token_hash: string
@@ -47,6 +65,9 @@ export type Database = {
           id?: string
           is_host?: boolean
           joined_at?: string
+          latitude?: number | null
+          location_updated_at?: string | null
+          longitude?: number | null
           party_id: string
           removed?: boolean
           token_hash: string
@@ -56,6 +77,9 @@ export type Database = {
           id?: string
           is_host?: boolean
           joined_at?: string
+          latitude?: number | null
+          location_updated_at?: string | null
+          longitude?: number | null
           party_id?: string
           removed?: boolean
           token_hash?: string
@@ -97,6 +121,18 @@ export type Database = {
         Args: {
           p_action: string
           p_code: string
+          p_member?: string
+          p_name?: string
+          p_token: string
+        }
+        Returns: Json
+      }
+      party_journey: {
+        Args: {
+          p_action: string
+          p_code: string
+          p_lat?: number
+          p_lng?: number
           p_member?: string
           p_name?: string
           p_token: string

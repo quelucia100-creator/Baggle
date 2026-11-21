@@ -15,6 +15,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthenticatedHomeRouteImport } from './routes/_authenticated/home'
 import { Route as PartyCodeRouteImport } from './routes/party.$code'
+import { Route as PartyCodeMapRouteImport } from './routes/party.$code_.map'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -45,6 +46,11 @@ const PartyCodeRoute = PartyCodeRouteImport.update({
   path: '/party/$code',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PartyCodeMapRoute = PartyCodeMapRouteImport.update({
+  id: '/party/$code_/map',
+  path: '/party/$code/map',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -52,6 +58,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/home': typeof AuthenticatedHomeRoute
   '/party/$code': typeof PartyCodeRoute
+  '/party/$code/map': typeof PartyCodeMapRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -59,6 +66,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/home': typeof AuthenticatedHomeRoute
   '/party/$code': typeof PartyCodeRoute
+  '/party/$code/map': typeof PartyCodeMapRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -68,12 +76,25 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/home': typeof AuthenticatedHomeRoute
   '/party/$code': typeof PartyCodeRoute
+  '/party/$code_/map': typeof PartyCodeMapRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/reset-password' | '/home' | '/party/$code'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/reset-password'
+    | '/home'
+    | '/party/$code'
+    | '/party/$code/map'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/reset-password' | '/home' | '/party/$code'
+  to:
+    | '/'
+    | '/auth'
+    | '/reset-password'
+    | '/home'
+    | '/party/$code'
+    | '/party/$code/map'
   id:
     | '__root__'
     | '/'
@@ -82,6 +103,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/_authenticated/home'
     | '/party/$code'
+    | '/party/$code_/map'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -90,6 +112,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   PartyCodeRoute: typeof PartyCodeRoute
+  PartyCodeMapRoute: typeof PartyCodeMapRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -136,6 +159,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PartyCodeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/party/$code_/map': {
+      id: '/party/$code_/map'
+      path: '/party/$code/map'
+      fullPath: '/party/$code/map'
+      preLoaderRoute: typeof PartyCodeMapRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -156,6 +186,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   PartyCodeRoute: PartyCodeRoute,
+  PartyCodeMapRoute: PartyCodeMapRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

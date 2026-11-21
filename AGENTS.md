@@ -33,3 +33,5 @@ use the editor.
 - Signup display names live in `public.profiles`, created by an auth trigger from `display_name` metadata.
 - Guest parties use a security-definer RPC with hashed, random membership capabilities; direct table access is denied and host permissions plus the member limit are checked atomically in the database.
 - Party screens use a top navigation header rather than the split authentication shell so the roster has room to grow.
+- Journey status, expiring member locations, and host-selected hangouts use the same capability-verified RPC; both team and map screens observe shared status so transitions stay synchronized.
+- Google Maps loads only after hydration; weather runs through a membership-verified server function with a private shared cache, never browser provider requests.

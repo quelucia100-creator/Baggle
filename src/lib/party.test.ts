@@ -44,6 +44,37 @@ describe("Guest party access rules", () => {
     if (!host) throw new Error("Missing test credential");
     expect((await rpc("remove", host, hostId)).error?.message).toContain("host cannot be removed");
   });
+  it("only lets the host start or return the shared journey", async () => {
+    const host = tokens[0]; const guest = tokens[1];
+    if (!host || !guest) throw new Error("Missing test credentials");
+    const journey = (action: string, token: string) => supabase.rpc("party_journey", { p_action: action, p_code: code, p_token: token });
+    expect((await journey("start", guest)).error?.message).toContain("Only the host");
+    expect(partySchema.parse((await journey("start", host)).data).started).toBe(true);
+    expect(partySchema.parse((await journey("read", guest)).data).started).toBe(true);
+    expect((await journey("team", guest)).error?.message).toContain("Only the host");
+    expect(partySchema.parse((await journey("team", host)).data).started).toBe(false);
+    expect(partySchema.parse((await journey("read", guest)).data).started).toBe(false);
+  });
+  it("shares and refreshes only the caller's location and lets them stop sharing", async () => {
+    const guest = tokens[1];
+    if (!guest) throw new Error("Missing test credential");
+    const update = await supabase.rpc("party_journey", { p_action: "location", p_code: code, p_token: guest, p_member: hostId, p_lat: 43.65, p_lng: -79.38 });
+    const state = partySchema.parse(update.data);
+    expect(state.members.find((member) => member.id === state.selfId)?.location?.lat).toBe(43.65);
+    expect(state.members.find((member) => member.id === hostId)?.location).toBeNull();
+    const refreshed = await supabase.rpc("party_journey", { p_action: "location", p_code: code, p_token: guest, p_lat: 43.66, p_lng: -79.39 });
+    expect(partySchema.parse(refreshed.data).members.find((member) => member.id === state.selfId)?.location?.lat).toBe(43.66);
+    const cleared = await supabase.rpc("party_journey", { p_action: "clear_location", p_code: code, p_token: guest });
+    expect(partySchema.parse(cleared.data).members.find((member) => member.id === state.selfId)?.location).toBeNull();
+  });
+  it("only lets the host decide the hangout pin", async () => {
+    const host = tokens[0]; const guest = tokens[1];
+    if (!host || !guest) throw new Error("Missing test credentials");
+    const args = { p_action: "hangout", p_code: code, p_name: "Campus meetup", p_lat: 43.65, p_lng: -79.38 };
+    expect((await supabase.rpc("party_journey", { ...args, p_token: guest })).error?.message).toContain("Only the host");
+    const chosen = await supabase.rpc("party_journey", { ...args, p_token: host });
+    expect(partySchema.parse(chosen.data).hangout).toEqual({ name: "Campus meetup", lat: 43.65, lng: -79.38 });
+  });
   it("lets the host remove a guest and revokes that guest's access", async () => {
     const host = tokens[0]; const guest = tokens[9];
     if (!host || !guest) throw new Error("Missing test credentials");
