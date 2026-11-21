@@ -10,6 +10,8 @@ import { accessParty } from "@/lib/party";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/")({
+  validateSearch: (search: Record<string, unknown>): { guest?: boolean } =>
+    search["guest"] === true || search["guest"] === "true" ? { guest: true } : {},
   head: () => ({
     meta: [
       { title: "Baggle — turn free time into plans with friends" },
@@ -24,7 +26,7 @@ export const Route = createFileRoute("/")({
 });
 
 function Welcome() {
-  const [mode, setMode] = useState<"pick" | "guest">("pick");
+  const { guest } = Route.useSearch();
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
@@ -45,15 +47,15 @@ function Welcome() {
       <h1 className="text-center text-3xl font-extrabold">Free time? Let's make it a plan.</h1>
       <p className="mt-2 text-center text-muted-foreground">Who's free, what to do, where and when — sorted in minutes.</p>
 
-      {mode === "pick" ? (
+      {!guest ? (
         <div className="mt-8 space-y-4">
-          <button onClick={() => setMode("guest")} className="paper flex w-full items-center gap-4 rounded-3xl border-2 border-crust bg-sage p-5 text-left shadow-pop pop-press">
+          <Link to="/" search={{ guest: true }} className="paper flex w-full items-center gap-4 rounded-3xl border-2 border-crust bg-sage p-5 text-left shadow-pop pop-press">
             <PaperIcon tone="apricot" back="chartreuse" className="h-14 w-14"><TicketIcon className="h-7 w-7" /></PaperIcon>
             <span>
               <span className="block font-display text-xl font-extrabold">Jump in as a guest</span>
               <span className="mt-1 block text-sm">Enter a party code or start a group. No account needed.</span>
             </span>
-          </button>
+          </Link>
           <Link to="/auth" className="paper flex w-full items-center gap-4 rounded-3xl border-2 border-crust bg-vista p-5 text-left shadow-pop pop-press">
             <PaperIcon tone="chartreuse" back="apricot" rotate={5} className="h-14 w-14"><BagelIcon className="h-7 w-7" /></PaperIcon>
             <span>
@@ -75,7 +77,7 @@ function Welcome() {
           <PopButton type="submit" disabled={busy || !name.trim() || code.length !== 6}>{busy ? "One sec…" : "Join party"}</PopButton>
           <div className="flex items-center gap-3 text-xs font-bold uppercase text-muted-foreground"><span className="h-0.5 flex-1 bg-crust/20" />or<span className="h-0.5 flex-1 bg-crust/20" /></div>
           <PopButton type="button" tone="chartreuse" disabled={busy || !name.trim()} onClick={() => void go(true)}>Create a new group</PopButton>
-          <button type="button" onClick={() => setMode("pick")} className="w-full text-sm font-semibold underline underline-offset-4">← Back</button>
+          <Link to="/" search={{}} className="block w-full text-center text-sm font-semibold underline underline-offset-4">← Back</Link>
         </form>
       )}
     </AuthShell>
