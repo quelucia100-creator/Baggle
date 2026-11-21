@@ -2,3 +2,7 @@
 - [x] Persist guest parties, copy code/link, show up to 10 members, and enforce host-only removal.
 - [x] Add party header and white crinkled-paper background.
 - [x] Verify party flows, permissions, capacity, and mobile layout.
+- [ ] Host starts journey and all members move to the map; host can return everyone to team status.
+- [ ] Shared, refreshable member locations with confirmed 500-metre circles and a decided hangout pin.
+- [ ] Connect Google Maps and show weather through a membership-verified, cached request.
+- [ ] Verify journey permissions and synchronization; inspect map integration without live Google Maps calls.
