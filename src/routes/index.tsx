@@ -45,7 +45,7 @@ function Welcome() {
     <AuthShell>
       <img src={logo.url} alt="Baggle" className="mx-auto mb-4 w-44" />
       <h1 className="text-center text-3xl font-extrabold">Free time? Let's make it a plan.</h1>
-      <p className="mt-2 text-center text-muted-foreground">Who's free, what to do, where and when — sorted in minutes.</p>
+      <p className="mt-2 text-center text-muted-foreground">Who's free, what to do, where and when, all sorted in minutes.</p>
 
       {!guest ? (
         <div className="mt-8 space-y-4">
