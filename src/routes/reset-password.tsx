@@ -34,7 +34,7 @@ function Reset() {
         const { error } = await supabase.auth.updateUser({ password });
         if (error) { toast.error(error.message); return; }
         toast.success("Password updated!");
-        navigate({ to: "/home" });
+        navigate({ to: "/home", replace: true });
       }}>
         <Field label="New password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
         <PasswordRules password={password} />

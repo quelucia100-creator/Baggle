@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AuthShell } from "@/components/BagelScene";
 import { PopButton } from "@/components/Field";
@@ -24,6 +25,7 @@ export const Route = createFileRoute("/_authenticated/home")({
 function Home() {
   const [name, setName] = useState("");
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
       if (!data.user) return;
@@ -37,7 +39,12 @@ function Home() {
       <PaperIcon tone="apricot" back="sage" className="h-14 w-14"><BagelIcon className="h-7 w-7" /></PaperIcon>
       <h1 className="mt-5 text-3xl font-extrabold">Hey {name || "there"}</h1>
       <p className="mt-2 text-muted-foreground">You're signed in. Finding who's free and what to do is coming next.</p>
-      <PopButton tone="sage" className="mt-8" onClick={async () => { await supabase.auth.signOut(); navigate({ to: "/" }); }}>Log out</PopButton>
+      <PopButton tone="sage" className="mt-8" onClick={async () => {
+        await queryClient.cancelQueries();
+        queryClient.clear();
+        await supabase.auth.signOut();
+        await navigate({ to: "/auth", search: {}, replace: true });
+      }}>Log out</PopButton>
     </AuthShell>
   );
 }

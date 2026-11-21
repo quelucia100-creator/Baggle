@@ -36,7 +36,7 @@ function Party() {
   const error = query.error instanceof Error ? query.error.message : "";
   const joinable = error.includes("Join this party");
   useEffect(() => {
-    if (party?.started) void navigate({ to: "/party/$code/map", params: { code } });
+    if (party?.started) void navigate({ to: "/party/$code/map", params: { code }, replace: true });
   }, [party?.started, navigate, code]);
 
   const copy = async (kind: "code" | "link") => {

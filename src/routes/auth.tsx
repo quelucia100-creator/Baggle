@@ -13,6 +13,10 @@ import { MailIcon } from "@/components/icons";
 import { BackLink } from "@/components/BackLink";
 
 export const Route = createFileRoute("/auth")({
+  validateSearch: (search: Record<string, unknown>): { tab?: "login" | "signup" | "forgot" } => {
+    const tab = search["tab"];
+    return tab === "signup" || tab === "forgot" ? { tab } : {};
+  },
   head: () => ({
     meta: [
       { title: "Log in or sign up — Baggle" },
@@ -27,7 +31,8 @@ export const Route = createFileRoute("/auth")({
 });
 
 function AuthPage() {
-  const [tab, setTab] = useState<"login" | "signup" | "forgot">("login");
+  const { tab: selectedTab } = Route.useSearch();
+  const tab = selectedTab ?? "login";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
@@ -36,8 +41,8 @@ function AuthPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => { if (data.user) navigate({ to: "/home" }); });
-    const { data } = supabase.auth.onAuthStateChange((e) => { if (e === "SIGNED_IN") navigate({ to: "/home" }); });
+    supabase.auth.getUser().then(({ data }) => { if (data.user) navigate({ to: "/home", replace: true }); });
+    const { data } = supabase.auth.onAuthStateChange((e) => { if (e === "SIGNED_IN") navigate({ to: "/home", replace: true }); });
     return () => data.subscription.unsubscribe();
   }, [navigate]);
 
@@ -78,16 +83,16 @@ function AuthPage() {
             <h1 className="text-2xl font-extrabold">Nearly there</h1>
           </div>
           <p className="mt-3">{sent}</p>
-          <button className="mt-4 text-sm font-semibold underline" onClick={() => { setSent(null); setTab("login"); }}>Back to log in</button>
+          <Link to="/auth" search={{}} className="mt-4 inline-block text-sm font-semibold underline" onClick={() => setSent(null)}>Back to log in</Link>
         </div>
       ) : (
         <>
           {tab !== "forgot" && (
             <div className="mb-6 grid grid-cols-2 rounded-xl border-2 border-crust bg-cream p-1">
               {(["login", "signup"] as const).map((t) => (
-                <button key={t} onClick={() => setTab(t)} className={`rounded-lg py-2 font-display font-extrabold ${tab === t ? "bg-tangerine shadow-pop" : ""}`}>
+                <Link key={t} to="/auth" search={t === "signup" ? { tab: "signup" } : {}} className={`rounded-lg py-2 text-center font-display font-extrabold ${tab === t ? "bg-tangerine shadow-pop" : ""}`}>
                   {t === "login" ? "Log in" : "Sign up"}
-                </button>
+                </Link>
               ))}
             </div>
           )}
@@ -107,9 +112,9 @@ function AuthPage() {
               {busy ? "One sec…" : tab === "login" ? "Log in" : tab === "signup" ? "Create account" : "Send reset link"}
             </PopButton>
           </form>
-          <button onClick={() => setTab(tab === "forgot" ? "login" : "forgot")} className="mt-4 w-full text-sm font-semibold underline underline-offset-4">
+          <Link to="/auth" search={tab === "forgot" ? {} : { tab: "forgot" }} className="mt-4 block w-full text-center text-sm font-semibold underline underline-offset-4">
             {tab === "forgot" ? "← Back to log in" : "Forgot password?"}
-          </button>
+          </Link>
         </>
       )}
     </AuthShell>
