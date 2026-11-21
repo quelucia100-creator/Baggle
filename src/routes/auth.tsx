@@ -40,6 +40,8 @@ function AuthPage() {
   const [sent, setSent] = useState<string | null>(null);
   const navigate = useNavigate();
 
+  useEffect(() => { setSent(null); }, [tab]);
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => { if (data.user) navigate({ to: "/home", replace: true }); });
     const { data } = supabase.auth.onAuthStateChange((e) => { if (e === "SIGNED_IN") navigate({ to: "/home", replace: true }); });

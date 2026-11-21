@@ -6,5 +6,6 @@
 - [x] Shared, refreshable member locations with confirmed 500-metre circles and a decided hangout pin.
 - [x] Connect Google Maps and show weather through a membership-verified, cached request.
 - [x] Verify journey permissions and synchronization; inspect map integration without live Google Maps calls.
-- [ ] Audit guest, authentication, recovery, party, map, and shared Back navigation; fix stale-screen history paths.
-- [ ] Verify navigation regressions and preserve membership permissions and existing party records.
+- [x] Audit guest, authentication, recovery, party, map, and shared Back navigation; fix stale-screen history paths.
+- [x] Verify public and guest navigation regressions and unchanged membership permissions; no existing records altered.
+- [ ] Verify signed-in redirects, successful password reset, and logout through the UI — blocked because temporary test-account creation was declined.
