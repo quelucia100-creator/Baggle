@@ -1,0 +1,2 @@
+REVOKE ALL ON public.party_preferences, public.party_planning, public.party_reroll_votes FROM PUBLIC,anon,authenticated;
+ALTER TABLE public.party_preferences ADD CONSTRAINT planning_origin_pair CHECK ((origin_lat IS NULL AND origin_lng IS NULL) OR (origin_lat IS NOT NULL AND origin_lng IS NOT NULL AND origin_lat BETWEEN -90 AND 90 AND origin_lng BETWEEN -180 AND 180));

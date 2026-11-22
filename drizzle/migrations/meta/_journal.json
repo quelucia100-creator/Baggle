@@ -1,0 +1,223 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1795301366827,
+      "tag": "0000_create_profiles",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1795302580881,
+      "tag": "0001_secure_guest_parties",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795303392577,
+      "tag": "0002_party_journeys_locations",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1795304389509,
+      "tag": "0003_independent_party_views_and_event_votes",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795304565026,
+      "tag": "0004_keep_event_voting_inactive",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1795311777053,
+      "tag": "0005_party_private_planning_v2",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795311807508,
+      "tag": "0006_harden_private_planning_grants",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795316810727,
+      "tag": "0007_private_account_preferences",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1795316922885,
+      "tag": "0008_account_food_preferences",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795319872749,
+      "tag": "0009_harden_party_plan_privacy",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1795320035944,
+      "tag": "0010_neutral_plan_compromise_and_no_plan_reason",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1795336377571,
+      "tag": "0011_planning_v3_private_rpc",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1795340614953,
+      "tag": "0012_restrict_profile_reads_to_owner",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1795344219868,
+      "tag": "0013_fix_party_plan_record_alias_collision",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1795345283362,
+      "tag": "0014_friends",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1795345503970,
+      "tag": "0015_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1795345868038,
+      "tag": "0016_groups",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1795346043103,
+      "tag": "0017_account_privacy",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1795346131639,
+      "tag": "0018_private_group_invites",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1795346659526,
+      "tag": "0019_journey_group_invites",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1795350199781,
+      "tag": "0020_private_account_availability",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1795350803431,
+      "tag": "0021_private_recurring_weekday_availability",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1795352360287,
+      "tag": "0022_private_group_weekly_openings_and_pokes",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1795352620287,
+      "tag": "0023_recheck_group_membership_after_poke_lock",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1795352620288,
+      "tag": "0024_planning_v3_rpc_corrections",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1795352620289,
+      "tag": "0025_enable_pg_cron_for_planning_cleanup",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1795352620290,
+      "tag": "0026_planning_v3_review_followups",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1795352620291,
+      "tag": "0027_schedule_planning_v3_cleanup",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1795352620292,
+      "tag": "0028_planning_v3_contract_alignment",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1795352620293,
+      "tag": "0029_planning_v3_precise_manual_origin",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1795357035388,
+      "tag": "0030_host_first_planning",
+      "breakpoints": true
+    }
+  ]
+}

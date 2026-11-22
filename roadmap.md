@@ -1,0 +1,47 @@
+- [x] Enlarge login logo and add back navigation after welcome.
+- [x] Persist guest parties, copy code/link, show up to 10 members, and enforce host-only removal.
+- [x] Add party header and white crinkled-paper background.
+- [x] Verify party flows, permissions, capacity, and mobile layout.
+- [x] Host starts journey and all members move to the map; host can return everyone to team status.
+- [x] Shared, refreshable member locations with confirmed 500-metre circles and a decided hangout pin.
+- [x] Connect Google Maps and show weather through a membership-verified, cached request.
+- [x] Verify journey permissions and synchronization; inspect map integration without live Google Maps calls.
+- [x] Audit guest, authentication, recovery, party, map, and shared Back navigation; fix stale-screen history paths.
+- [x] Verify public and guest navigation regressions and unchanged membership permissions; no existing records altered.
+- [ ] Verify signed-in redirects, successful password reset, and logout through the UI — blocked because temporary test-account creation was declined.
+- [x] Show exact shared locations with a zero-metre radius; verified unrounded device coordinates, live Google Maps rendering remains unverified.
+- [x] Make team/map navigation independent for every member without granting host controls.
+- [x] Leave event choices blank and show inactive host-only prompt-vote/reroll buttons without enabling event voting yet.
+- [x] Test independent navigation, host-only controls, and exact location rules.
+- [x] Add additive capability-verified private planning preferences and shared submission status.
+- [x] Implement tested Montreal-time fairness ranking and atomic lock/reroll/final/reopen operations.
+- [x] Verify real-database privacy, permissions, concurrency, and existing party regressions — 49 tests pass; real guest browser RPC submission/lock/reroll/final/reload pass.
+- [x] Build guest-accessible planning screens, party/map entry links, private forms, shared results and recovery.
+- [x] Verify focused frontend mocks, existing unit tests and two-member browser planning flow without database integration suites: 135 tests pass, real voting/reroll/final/reload and no-match/reopen pass, desktop/mobile layouts checked.
+- Live Places policy, weather exclusions and expanded verified catalogue remain deferred backend workstreams.
+- [x] Add mandatory private account preferences, separate steps, and preference editing.
+- [x] Verify validation, owner-only policies, unique username index, signed-in setup redirect, skipped-step rejection, reload, and mobile/desktop layout; 30 regression tests pass.
+- [ ] Verify saving all seven pages and editing saved answers end-to-end — blocked because temporary test-account creation was declined; existing account answers were not modified.
+
+- [x] Add a separate mandatory food preferences page including allergies.
+- [x] Replace collecting forms with private and host question wizards, preserve real saves, promote planning, add scannable party invitations, and correct forecast units.
+- [x] Verify wizard validation, saved-state recovery, role/privacy boundaries, QR target, keyboard and mobile behavior without live database writes: 152 unit tests pass; intercepted browser flows and rendered QR decoding pass.
+- [x] Describe deferred public flavour-board and full Room/Bake/Reveal/acceptance backend requirements without pretending they are functional.
+- [x] Repair event-generation connector access and the live planning read failure without changing guest permissions; existing party opens, 285 unit tests pass (9 skipped), live Google provider calls remain unverified.
+- [x] Sweep both planners, entry points, retries, provider adapters and live planning functions for the same failure; existing party reloads, 287 unit tests pass (9 skipped), live Google responses remain unverified.
+- [x] Private accounts: group adds by non-friends need acceptance (friend requests no longer blocked)
+- [x] Replace falling bagels with one rotating-bagel loading screen for guest/auth and route loading, with lighter background blur; falling-bagel SFX cancelled.
+- [x] Add a dashboard Availability page using guest planning’s Montreal date/30-minute busy-grid rules, with private account saves and revisit/edit support.
+- [x] Verify availability validation, owner-scoped calls, Back/edit behavior and mobile layout: 41 focused/regression tests pass; live access metadata confirms owner-only policies and no anonymous read.
+- [x] Verify signed-in recurring availability save/reload through the real page, including overnight slots and removal; temporary test entry removed and original schedule restored.
+- [x] Replace dated account availability with private, recurring Monday–Sunday schedules; 118 focused/guest-grid regression tests pass, type/build checks pass, owner-only policies verified, and mobile weekday/editor views checked.
+- [x] Show only shared recurring openings in Groups and send member hangout pokes with private schedules protected.
+- [x] Verify aggregate privacy, missing schedules, overnight slots, membership and notification delivery in isolated PostgreSQL and UI tests; 384 tests passed, 30 skipped, preview build passed, and live owner-only access metadata checked.
+- [ ] Verify shared openings and poke delivery through signed-in live accounts — blocked because temporary test-account creation was declined.
+- [x] Fix guest lobby Back navigation, restore guest entry details, and provide a return link without changing membership credentials.
+- [x] Verify create → Back → return → create again, original-party rejoin, and refresh through the real guest flow without generating plans; guest and signed-in Back regression tests pass.
+- [x] Sweep direct invites/QR links, lobby/map/planner exits, loading/polling, account entry and notification links, and guest access/journey/planning/cleanup functions. Fix direct joins and verified revisits missing last-entry recovery, and guest logo exits bypassing guest entry. Real invite/old-membership revisit/unstarted-map redirect/planner team-return pass; 397 tests pass (30 isolated integration tests skipped), type/build pass. Account flows and started map rendering were inspected in code, not verified live.
+- [x] Reconcile main's host-first planning with recurring availability and guest recovery. Keep the single-day planner until the explicit missing days RPC is installed; generated types reflect the live schema. 486 tests passed (30 isolated integration tests skipped); preview compilation and real host save/revisit, separate guest answers, and guest return passed. No database update or publication.
+- [x] Merge the verified reconciliation through PR #17 into main, preserving both histories; GitHub confirmed fd890abd and its source tree exactly matches the checked resolution. The working single-day planner stays active; no database update or publication.
+- [x] Sweep planning entries, both wizards, map/results, account journeys/invites, availability/groups, polling, server orchestration/providers and read-only live RPC definitions. Unify lobby/map readiness so only explicit missing-day support enables legacy invitations; add retry recovery and retain pending group choices after transport errors. 499 tests passed, 30 isolated integration tests skipped; preview compilation passed. Existing results, capabilities, permissions, solver/provider behavior and database data unchanged. Signed-in notification delivery and live Maps remain unverified; no database update or publication.
+- [x] Add signed-in dashboard room joining by six-character code using the account username and existing capability-verified membership flow. 506 tests passed, 30 isolated integration tests skipped; preview compilation passed. Real signed-in lowercase-code join, roster readback and Dashboard return verified, with phone/desktop join-form fit checked and verification membership removed. No schema changes or publication.
