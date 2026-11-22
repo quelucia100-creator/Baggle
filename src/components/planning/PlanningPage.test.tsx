@@ -103,7 +103,7 @@ describe("Planning screen polling and recovery", () => {
     open();
     await screen.findByRole("button", { name: "Lock & find a plan" });
     expect(mocks.planning).toHaveBeenCalledWith({
-      data: { action: "read", code: "ABC123", token: "a".repeat(64) },
+      data: { action: "read", code: "ABC123", token: "a".repeat(64), schemaVersion: 3 },
     });
     expect(
       client

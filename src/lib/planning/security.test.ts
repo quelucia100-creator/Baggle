@@ -457,7 +457,7 @@ describeIsolatedDatabase("Legacy stored plans", () => {
       expect(raw).not.toHaveProperty("outlierCount");
       expect(
         await executePlanning({ action: "read", code: party.code, token, payload: {} }),
-      ).toEqual(raw);
+      ).toEqual({ ...raw, schemaVersion: 2 });
     }
   });
 
