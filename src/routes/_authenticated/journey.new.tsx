@@ -55,8 +55,8 @@ function StartJourney() {
   };
 
   const option = (id: string, title: string, sub: string, icon: React.ReactNode) => (
-    <button key={id} type="button" role="radio" aria-checked={choice === id} onClick={() => setChoice(id)}
-      className={`paper flex w-full items-center gap-3 rounded-2xl border-2 border-crust p-4 text-left shadow-pop focus:outline-none focus-visible:ring-4 focus-visible:ring-tangerine ${choice === id ? "bg-chartreuse" : "bg-cream"}`}>
+    <button key={id} type="button" role="radio" aria-checked={id === "group" ? choice !== "solo" : choice === id} onClick={() => setChoice(id === "group" ? (list[0]?.id ?? "group") : id)}
+      className={`paper flex w-full items-center gap-3 rounded-2xl border-2 border-crust p-4 text-left shadow-pop focus:outline-none focus-visible:ring-4 focus-visible:ring-tangerine ${(id === "group" ? choice !== "solo" : choice === id) ? "bg-chartreuse" : "bg-cream"}`}>
       <PaperIcon tone="apricot" back="sage" className="h-11 w-11">{icon}</PaperIcon>
       <span><span className="block font-extrabold">{title}</span><span className="block text-xs text-muted-foreground">{sub}</span></span>
     </button>
@@ -70,17 +70,27 @@ function StartJourney() {
         <p className="mt-1 text-sm text-muted-foreground">Who's coming?</p>
         <div role="radiogroup" aria-label="Who's coming" className="mt-6 space-y-3">
           {option("solo", "Invite people later", "Start now and share the party code.", <User className="h-5 w-5" />)}
-          {list.map((g) => {
-            const members = g.members.filter((m) => !m.invited);
-            return option(g.id, g.name, `${members.length} people · everyone gets an invite to join`, <Users className="h-5 w-5" />);
-          })}
-          {groups.isLoading && <p className="text-sm text-muted-foreground">Loading your groups…</p>}
-          {groups.data && list.length === 0 && (
-            <p className="text-sm text-muted-foreground">No groups yet. <Link to="/groups" className="font-bold underline">Make one</Link> to invite everyone at once.</p>
-          )}
+          {option("group", "Choose group", "Everyone in the group gets an invite to join.", <Users className="h-5 w-5" />)}
         </div>
+        {choice !== "solo" && (
+          <div role="radiogroup" aria-label="Choose group" className="mt-4 space-y-2 border-l-4 border-crust/30 pl-4">
+            {groups.isLoading && <p className="text-sm text-muted-foreground">Loading your groups…</p>}
+            {groups.data && list.length === 0 && (
+              <p className="text-sm text-muted-foreground">No groups yet. <Link to="/groups" className="font-bold underline">Make one</Link> to invite everyone at once.</p>
+            )}
+            {list.map((g) => {
+              const count = g.members.filter((m) => !m.invited).length;
+              return (
+                <button key={g.id} type="button" role="radio" aria-checked={choice === g.id} onClick={() => setChoice(g.id)}
+                  className={`paper flex w-full items-center justify-between rounded-xl border-2 border-crust px-4 py-3 text-left font-bold focus:outline-none focus-visible:ring-4 focus-visible:ring-tangerine ${choice === g.id ? "bg-chartreuse" : "bg-offwhite"}`}>
+                  <span>{g.name}</span><span className="text-xs font-semibold text-muted-foreground">{count} {count === 1 ? "person" : "people"}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
         {error && <p role="alert" className="mt-4 text-sm font-semibold">{error}</p>}
-        <PopButton className="mt-6" onClick={() => void start()} disabled={busy}>{busy ? "Starting…" : "Start journey"}</PopButton>
+        <PopButton className="mt-6" onClick={() => void start()} disabled={busy || choice === "group"}>{busy ? "Starting…" : "Start journey"}</PopButton>
       </div>
     </main>
   );
