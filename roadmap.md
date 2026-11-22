@@ -29,3 +29,4 @@
 - [x] Describe deferred public flavour-board and full Room/Bake/Reveal/acceptance backend requirements without pretending they are functional.
 - [x] Repair event-generation connector access and the live planning read failure without changing guest permissions; existing party opens, 285 unit tests pass (9 skipped), live Google provider calls remain unverified.
 - [x] Sweep both planners, entry points, retries, provider adapters and live planning functions for the same failure; existing party reloads, 287 unit tests pass (9 skipped), live Google responses remain unverified.
+- [x] Private accounts: group adds by non-friends need acceptance (friend requests no longer blocked)

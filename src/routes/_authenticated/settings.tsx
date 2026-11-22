@@ -1,9 +1,9 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { ArrowLeft, Pencil } from "lucide-react";
 import { AuthShell } from "@/components/BagelScene";
 import { Button } from "@/components/ui/button";
-import { accountPreferencesQuery, ageFromBirthDate, alcoholChoices, firstMissingStep, preferenceSteps, stepTitles, type AccountPreferences, type PreferenceStep } from "@/lib/account-preferences";
+import { accountPreferencesQuery, saveAccountPreferences, ageFromBirthDate, alcoholChoices, firstMissingStep, preferenceSteps, stepTitles, type AccountPreferences, type PreferenceStep } from "@/lib/account-preferences";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   loader: async ({ context }) => {
@@ -33,6 +33,11 @@ function summary(step: PreferenceStep, p: AccountPreferences): string {
 function Settings() {
   const { data } = useSuspenseQuery(accountPreferencesQuery());
   const p = data.preferences;
+  const qc = useQueryClient();
+  const privacy = useMutation({
+    mutationFn: (is_private: boolean) => saveAccountPreferences({ ...p!, is_private }),
+    onSuccess: (saved) => qc.setQueryData(accountPreferencesQuery().queryKey, { ...data, preferences: saved }),
+  });
   if (!p) return null;
   return <AuthShell>
     <Button asChild size="icon" variant="outline" className="mb-6 border-2 border-crust"><Link to="/home" aria-label="Back" title="Back"><ArrowLeft /></Link></Button>
@@ -42,6 +47,20 @@ function Settings() {
         <div className="min-w-0"><dt className="font-bold">{stepTitles[step]}</dt><dd className="mt-1 break-words text-sm text-muted-foreground">{summary(step, p)}</dd></div>
         <Button asChild size="icon" variant="outline" className="shrink-0 border-2 border-crust bg-sage"><Link to="/preferences/$step" params={{ step }} aria-label={`Edit ${stepTitles[step]}`} title={`Edit ${stepTitles[step]}`}><Pencil /></Link></Button>
       </div>)}
+      <div className="py-5">
+        <p id="privacy-label" className="font-bold">Account visibility</p>
+        <div role="radiogroup" aria-labelledby="privacy-label" className="mt-3 grid grid-cols-2 gap-2">
+          {([[false, "Public", "Anyone can add you to a group straight away."], [true, "Private", "If someone who isn't your friend adds you to a group, you have to accept first."]] as const).map(([value, label, hint]) => (
+            <button key={label} type="button" role="radio" aria-checked={p.is_private === value} disabled={privacy.isPending}
+              onClick={() => p.is_private !== value && privacy.mutate(value)}
+              className={`paper rounded-lg border-2 border-crust p-3 text-left shadow-pop focus:outline-none focus-visible:ring-4 focus-visible:ring-tangerine disabled:opacity-60 ${p.is_private === value ? "bg-chartreuse" : "bg-offwhite"}`}>
+              <span className="block font-extrabold">{label}</span>
+              <span className="mt-1 block text-xs text-muted-foreground">{hint}</span>
+            </button>
+          ))}
+        </div>
+        {privacy.isError && <p role="alert" className="mt-2 text-sm font-semibold">Couldn't save. Please try again.</p>}
+      </div>
     </dl>
   </AuthShell>;
 }

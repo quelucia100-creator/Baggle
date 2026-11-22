@@ -20,9 +20,10 @@ export const Route = createFileRoute("/_authenticated/groups")({
   component: Groups,
 });
 
-type Member = { username: string | null; is_owner: boolean; is_me: boolean };
+type Member = { username: string | null; is_owner: boolean; is_me: boolean; invited?: boolean };
+type Invite = { id: string; name: string; owner: string | null };
 type Group = { id: string; name: string; is_owner: boolean; updated_at: string; members: Member[] };
-type Res = { ok: boolean; error?: string; id?: string; groups?: Group[] };
+type Res = { ok: boolean; error?: string; id?: string; groups?: Group[]; invites?: Invite[]; result?: string };
 
 async function call(p_action: string, args: { p_group?: string; p_name?: string; p_username?: string } = {}): Promise<Res> {
   const { data, error } = await supabase.rpc("group_action", { p_action, ...args });
@@ -32,7 +33,6 @@ async function call(p_action: string, args: { p_group?: string; p_name?: string;
 
 const ERRORS: Record<string, string> = {
   not_found: "No one has that username.",
-  not_friend: "You can only add people from your friends list.",
   already_member: "They're already in this group.",
   full: "Groups can have up to 10 people.",
   bad_name: "Give the group a name (up to 40 characters).",
@@ -62,6 +62,8 @@ function Groups() {
     onError: () => setMsg("Something went wrong."),
   });
   const list = groups.data?.groups ?? [];
+  const invites = groups.data?.invites ?? [];
+  const respond = useMutation({ mutationFn: (a: { action: string; id: string }) => call(a.action, { p_group: a.id }), onSuccess: refresh });
 
   return (
     <main className="paper min-h-dvh bg-offwhite px-5 py-8 text-crust sm:px-8">
@@ -80,6 +82,21 @@ function Groups() {
           </div>
           {msg && <p role="status" className="mt-2 text-sm font-semibold">{msg}</p>}
         </form>
+
+        {invites.length > 0 && (
+          <section aria-label="Group invites" className="mt-8">
+            <h2 className="text-xl font-extrabold">Group invites</h2>
+            <div className="mt-3 space-y-2">
+              {invites.map((i) => (
+                <div key={i.id} className="paper flex flex-wrap items-center gap-2 rounded-2xl border-2 border-crust bg-apricot p-3 shadow-pop">
+                  <span className="flex-1 font-bold">{i.owner ?? "Someone"} invited you to “{i.name}”</span>
+                  <button className="rounded-md border-2 border-crust bg-chartreuse px-3 py-1 font-bold" disabled={respond.isPending} onClick={() => respond.mutate({ action: "accept_invite", id: i.id })}>Join</button>
+                  <button className="rounded-md border-2 border-crust bg-offwhite px-3 py-1 font-bold" disabled={respond.isPending} onClick={() => respond.mutate({ action: "decline_invite", id: i.id })}>Decline</button>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         <h2 className="mt-8 text-xl font-extrabold">Recent groups</h2>
         <div className="mt-3 space-y-4">
@@ -100,7 +117,7 @@ function GroupCard({ group, friendNames, onChange }: { group: Group; friendNames
   const options = friendNames.filter((n) => !inGroup.has(n.toLowerCase()));
   const act = useMutation({
     mutationFn: (a: { action: string; username?: string }) => call(a.action, { p_group: group.id, ...(a.username ? { p_username: a.username } : {}) }),
-    onSuccess: (r, a) => { setMsg(r.ok ? (a.action === "add" ? "Added!" : null) : errText(r)); if (r.ok && a.action === "add") setUsername(""); onChange(); },
+    onSuccess: (r, a) => { setMsg(r.ok ? (a.action === "add" ? (r.result === "invited" ? "Invite sent — they need to accept." : "Added!") : null) : errText(r)); if (r.ok && a.action === "add") setUsername(""); onChange(); },
     onError: () => setMsg("Something went wrong."),
   });
   const listId = `friends-${group.id}`;
@@ -110,7 +127,7 @@ function GroupCard({ group, friendNames, onChange }: { group: Group; friendNames
       <div className="flex items-start gap-2">
         <div className="flex-1">
           <h3 className="text-lg font-extrabold">{group.name}</h3>
-          <p className="text-xs text-muted-foreground">{group.members.length} {group.members.length === 1 ? "person" : "people"} · updated {new Date(group.updated_at).toLocaleDateString()}</p>
+          <p className="text-xs text-muted-foreground">{group.members.filter((m) => !m.invited).length} {group.members.filter((m) => !m.invited).length === 1 ? "person" : "people"} · updated {new Date(group.updated_at).toLocaleDateString()}</p>
         </div>
         {group.is_owner && (
           <button className="text-xs font-bold underline" onClick={() => { if (confirm(`Delete "${group.name}"?`)) act.mutate({ action: "delete" }); }}>Delete</button>
@@ -119,7 +136,7 @@ function GroupCard({ group, friendNames, onChange }: { group: Group; friendNames
       <ul className="mt-3 flex flex-wrap gap-2">
         {group.members.map((m, i) => (
           <li key={`${m.username}-${i}`} className="flex items-center gap-1 rounded-full border-2 border-crust bg-offwhite px-3 py-1 text-sm font-bold">
-            {m.username ?? "Someone"}{m.is_me && " (you)"}{m.is_owner && <span className="text-xs font-semibold text-muted-foreground"> · creator</span>}
+            {m.username ?? "Someone"}{m.is_me && " (you)"}{m.invited && <span className="text-xs font-semibold text-muted-foreground"> · invited</span>}{m.is_owner && <span className="text-xs font-semibold text-muted-foreground"> · creator</span>}
             {group.is_owner && !m.is_me && m.username && (
               <button aria-label={`Remove ${m.username}`} className="ml-1 font-extrabold" onClick={() => act.mutate({ action: "remove", username: m.username as string })}>×</button>
             )}
@@ -129,7 +146,7 @@ function GroupCard({ group, friendNames, onChange }: { group: Group; friendNames
       {group.is_owner && (
         <form className="mt-4 flex gap-2" onSubmit={(e) => { e.preventDefault(); if (username.trim()) act.mutate({ action: "add", username }); }}>
           <label className="sr-only" htmlFor={`add-${group.id}`}>Add a friend to {group.name}</label>
-          <input id={`add-${group.id}`} list={listId} value={username} onChange={(e) => { setUsername(e.target.value); setMsg(null); }} placeholder={friendNames.length ? "Add a friend" : "Add friends first"} className={inputCls} />
+          <input id={`add-${group.id}`} list={listId} value={username} onChange={(e) => { setUsername(e.target.value); setMsg(null); }} placeholder="Add by username" className={inputCls} />
           <datalist id={listId}>{options.map((n) => <option key={n} value={n} />)}</datalist>
           <PopButton type="submit" tone="chartreuse" className="!w-24 shrink-0" disabled={act.isPending || !username.trim()}>Add</PopButton>
         </form>

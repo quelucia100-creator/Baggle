@@ -23,6 +23,7 @@ export type Database = {
           dietary: string[] | null
           food_allergies: string[] | null
           food_preferences: string[] | null
+          is_private: boolean
           tastes: string[] | null
           user_id: string
           username: string | null
@@ -35,6 +36,7 @@ export type Database = {
           dietary?: string[] | null
           food_allergies?: string[] | null
           food_preferences?: string[] | null
+          is_private?: boolean
           tastes?: string[] | null
           user_id: string
           username?: string | null
@@ -47,6 +49,7 @@ export type Database = {
           dietary?: string[] | null
           food_allergies?: string[] | null
           food_preferences?: string[] | null
+          is_private?: boolean
           tastes?: string[] | null
           user_id?: string
           username?: string | null
@@ -65,16 +68,19 @@ export type Database = {
         Row: {
           added_at: string
           group_id: string
+          status: string
           user_id: string
         }
         Insert: {
           added_at?: string
           group_id: string
+          status?: string
           user_id: string
         }
         Update: {
           added_at?: string
           group_id?: string
+          status?: string
           user_id?: string
         }
         Relationships: [
@@ -169,6 +175,7 @@ export type Database = {
         Row: {
           actor_username: string | null
           created_at: string
+          detail: string | null
           id: string
           kind: string
           read: boolean
@@ -177,6 +184,7 @@ export type Database = {
         Insert: {
           actor_username?: string | null
           created_at?: string
+          detail?: string | null
           id?: string
           kind: string
           read?: boolean
@@ -185,6 +193,7 @@ export type Database = {
         Update: {
           actor_username?: string | null
           created_at?: string
+          detail?: string | null
           id?: string
           kind?: string
           read?: boolean

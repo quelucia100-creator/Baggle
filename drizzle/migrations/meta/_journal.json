@@ -120,6 +120,20 @@
       "when": 1795345868038,
       "tag": "0016_groups",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1795346043103,
+      "tag": "0017_account_privacy",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1795346131639,
+      "tag": "0018_private_group_invites",
+      "breakpoints": true
     }
   ]
 }
