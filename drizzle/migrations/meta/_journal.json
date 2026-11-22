@@ -134,6 +134,13 @@
       "when": 1795346131639,
       "tag": "0018_private_group_invites",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1795346659526,
+      "tag": "0019_journey_group_invites",
+      "breakpoints": true
     }
   ]
 }

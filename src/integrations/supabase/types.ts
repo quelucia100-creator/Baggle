@@ -530,6 +530,10 @@ export type Database = {
         }
         Returns: Json
       }
+      invite_group_to_journey: {
+        Args: { p_code: string; p_group: string }
+        Returns: Json
+      }
       party_access: {
         Args: {
           p_action: string

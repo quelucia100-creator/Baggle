@@ -20,5 +20,6 @@ export function notificationText(n: Notification) {
   if (n.kind === "friend_accepted") return `${who} accepted your friend request.`;
   if (n.kind === "group_invite") return `${who} invited you to the group “${n.detail ?? "a group"}”.`;
   if (n.kind === "group_added") return `${who} added you to the group “${n.detail ?? "a group"}”.`;
+  if (n.kind === "journey_invite") return `${who} started a journey with your group.`;
   return "You have a new update.";
 }

@@ -119,6 +119,10 @@ function Home() {
           </Link>
         </div>
 
+        <Link to="/journey/new" className="paper mt-8 flex h-14 w-full items-center justify-center rounded-xl border-2 border-crust bg-tangerine font-display text-lg font-extrabold text-crust shadow-pop pop-press focus:outline-none focus-visible:ring-4 focus-visible:ring-vista">
+          Start journey
+        </Link>
+
         <div className="mt-8 grid gap-5 sm:grid-cols-2">
           {SECTIONS.map((section) => (
             section.to ? (

@@ -19,9 +19,11 @@ import { Route as AuthenticatedHomeRouteImport } from './routes/_authenticated/h
 import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as PartyCodeRouteImport } from './routes/party.$code'
+import { Route as AuthenticatedJourneyNewRouteImport } from './routes/_authenticated/journey.new'
 import { Route as AuthenticatedPreferencesStepRouteImport } from './routes/_authenticated/preferences.$step'
 import { Route as PartyCodeMapRouteImport } from './routes/party.$code_.map'
 import { Route as PartyCodePlanRouteImport } from './routes/party.$code_.plan'
+import { Route as AuthenticatedJourneyJoinCodeRouteImport } from './routes/_authenticated/journey.join.$code'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -73,6 +75,11 @@ const PartyCodeRoute = PartyCodeRouteImport.update({
   path: '/party/$code',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedJourneyNewRoute = AuthenticatedJourneyNewRouteImport.update({
+  id: '/journey/new',
+  path: '/journey/new',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedPreferencesStepRoute =
   AuthenticatedPreferencesStepRouteImport.update({
     id: '/preferences/$step',
@@ -89,6 +96,12 @@ const PartyCodePlanRoute = PartyCodePlanRouteImport.update({
   path: '/party/$code/plan',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedJourneyJoinCodeRoute =
+  AuthenticatedJourneyJoinCodeRouteImport.update({
+    id: '/journey/join/$code',
+    path: '/journey/join/$code',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -100,9 +113,11 @@ export interface FileRoutesByFullPath {
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/party/$code': typeof PartyCodeRoute
+  '/journey/new': typeof AuthenticatedJourneyNewRoute
   '/preferences/$step': typeof AuthenticatedPreferencesStepRoute
   '/party/$code/map': typeof PartyCodeMapRoute
   '/party/$code/plan': typeof PartyCodePlanRoute
+  '/journey/join/$code': typeof AuthenticatedJourneyJoinCodeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -114,9 +129,11 @@ export interface FileRoutesByTo {
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/party/$code': typeof PartyCodeRoute
+  '/journey/new': typeof AuthenticatedJourneyNewRoute
   '/preferences/$step': typeof AuthenticatedPreferencesStepRoute
   '/party/$code/map': typeof PartyCodeMapRoute
   '/party/$code/plan': typeof PartyCodePlanRoute
+  '/journey/join/$code': typeof AuthenticatedJourneyJoinCodeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -130,9 +147,11 @@ export interface FileRoutesById {
   '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/party/$code': typeof PartyCodeRoute
+  '/_authenticated/journey/new': typeof AuthenticatedJourneyNewRoute
   '/_authenticated/preferences/$step': typeof AuthenticatedPreferencesStepRoute
   '/party/$code_/map': typeof PartyCodeMapRoute
   '/party/$code_/plan': typeof PartyCodePlanRoute
+  '/_authenticated/journey/join/$code': typeof AuthenticatedJourneyJoinCodeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -146,9 +165,11 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/settings'
     | '/party/$code'
+    | '/journey/new'
     | '/preferences/$step'
     | '/party/$code/map'
     | '/party/$code/plan'
+    | '/journey/join/$code'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -160,9 +181,11 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/settings'
     | '/party/$code'
+    | '/journey/new'
     | '/preferences/$step'
     | '/party/$code/map'
     | '/party/$code/plan'
+    | '/journey/join/$code'
   id:
     | '__root__'
     | '/'
@@ -175,9 +198,11 @@ export interface FileRouteTypes {
     | '/_authenticated/notifications'
     | '/_authenticated/settings'
     | '/party/$code'
+    | '/_authenticated/journey/new'
     | '/_authenticated/preferences/$step'
     | '/party/$code_/map'
     | '/party/$code_/plan'
+    | '/_authenticated/journey/join/$code'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -262,6 +287,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PartyCodeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/journey/new': {
+      id: '/_authenticated/journey/new'
+      path: '/journey/new'
+      fullPath: '/journey/new'
+      preLoaderRoute: typeof AuthenticatedJourneyNewRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/preferences/$step': {
       id: '/_authenticated/preferences/$step'
       path: '/preferences/$step'
@@ -283,6 +315,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PartyCodePlanRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/journey/join/$code': {
+      id: '/_authenticated/journey/join/$code'
+      path: '/journey/join/$code'
+      fullPath: '/journey/join/$code'
+      preLoaderRoute: typeof AuthenticatedJourneyJoinCodeRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -292,7 +331,9 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedHomeRoute: typeof AuthenticatedHomeRoute
   AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedJourneyNewRoute: typeof AuthenticatedJourneyNewRoute
   AuthenticatedPreferencesStepRoute: typeof AuthenticatedPreferencesStepRoute
+  AuthenticatedJourneyJoinCodeRoute: typeof AuthenticatedJourneyJoinCodeRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -301,7 +342,9 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedHomeRoute: AuthenticatedHomeRoute,
   AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedJourneyNewRoute: AuthenticatedJourneyNewRoute,
   AuthenticatedPreferencesStepRoute: AuthenticatedPreferencesStepRoute,
+  AuthenticatedJourneyJoinCodeRoute: AuthenticatedJourneyJoinCodeRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
