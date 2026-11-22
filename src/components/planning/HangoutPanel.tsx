@@ -101,7 +101,7 @@ export function HangoutPanel({ code, party, isEnabled, isBusy, pinHangout, clear
     <section className="border-b-2 border-crust/15 py-6">
       <h2 className="flex items-center gap-2 text-lg font-extrabold">
         <MapPin className="h-5 w-5" />
-        The Hangout
+        The hangout
       </h2>
       {showPlan && plan ? (
         <div className="mt-3 space-y-2">
