@@ -670,6 +670,7 @@ export type Database = {
         Returns: Json
       }
       party_plan_cleanup: { Args: never; Returns: number }
+      party_plan_cleanup_status: { Args: never; Returns: Json }
       party_plan_complete: {
         Args: {
           p_code: string
@@ -687,6 +688,10 @@ export type Database = {
         Args: { p_code: string; p_lease: string }
         Returns: Json
       }
+      party_v3_anchor_open: {
+        Args: { c: Json; p_at: string }
+        Returns: boolean
+      }
       party_v3_bool: { Args: { v: Json }; Returns: boolean }
       party_v3_config: { Args: { p: Json }; Returns: Json }
       party_v3_date: { Args: { v: Json }; Returns: string }
@@ -703,6 +708,11 @@ export type Database = {
       }
       party_v3_iso: { Args: { t: string }; Returns: string }
       party_v3_keys: { Args: { k: string[]; o: Json }; Returns: boolean }
+      party_v3_lease_valid: {
+        Args: { s: Database["public"]["Tables"]["party_planning"]["Row"] }
+        Returns: boolean
+      }
+      party_v3_minute_ok: { Args: { t: string }; Returns: boolean }
       party_v3_num: {
         Args: { hi: number; lo: number; v: Json }
         Returns: number
@@ -713,6 +723,7 @@ export type Database = {
         Returns: Json
       }
       party_v3_self_doc: { Args: { c: Json; p: Json }; Returns: Json }
+      party_v3_slot_ok: { Args: { t: string }; Returns: boolean }
       party_v3_str: { Args: { maxlen: number; v: Json }; Returns: string }
       party_v3_tags: { Args: { maxn: number; v: Json }; Returns: Json }
       party_v3_ts: { Args: { v: Json }; Returns: string }
