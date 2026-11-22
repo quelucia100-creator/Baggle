@@ -23,6 +23,7 @@ export type Database = {
           dietary: string[] | null
           food_allergies: string[] | null
           food_preferences: string[] | null
+          is_private: boolean
           tastes: string[] | null
           user_id: string
           username: string | null
@@ -35,6 +36,7 @@ export type Database = {
           dietary?: string[] | null
           food_allergies?: string[] | null
           food_preferences?: string[] | null
+          is_private?: boolean
           tastes?: string[] | null
           user_id: string
           username?: string | null
@@ -47,6 +49,7 @@ export type Database = {
           dietary?: string[] | null
           food_allergies?: string[] | null
           food_preferences?: string[] | null
+          is_private?: boolean
           tastes?: string[] | null
           user_id?: string
           username?: string | null
@@ -56,6 +59,74 @@ export type Database = {
             foreignKeyName: "account_preferences_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      friend_group_members: {
+        Row: {
+          added_at: string
+          group_id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          added_at?: string
+          group_id: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          added_at?: string
+          group_id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "friend_group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "friend_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "friend_group_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      friend_groups: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          owner_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          owner_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          owner_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "friend_groups_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -94,6 +165,44 @@ export type Database = {
           {
             foreignKeyName: "friendships_requester_id_fkey"
             columns: ["requester_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          actor_username: string | null
+          created_at: string
+          detail: string | null
+          id: string
+          kind: string
+          read: boolean
+          user_id: string
+        }
+        Insert: {
+          actor_username?: string | null
+          created_at?: string
+          detail?: string | null
+          id?: string
+          kind: string
+          read?: boolean
+          user_id: string
+        }
+        Update: {
+          actor_username?: string | null
+          created_at?: string
+          detail?: string | null
+          id?: string
+          kind?: string
+          read?: boolean
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -410,6 +519,19 @@ export type Database = {
     Functions: {
       friend_action: {
         Args: { p_action: string; p_id?: string; p_username?: string }
+        Returns: Json
+      }
+      group_action: {
+        Args: {
+          p_action: string
+          p_group?: string
+          p_name?: string
+          p_username?: string
+        }
+        Returns: Json
+      }
+      invite_group_to_journey: {
+        Args: { p_code: string; p_group: string }
         Returns: Json
       }
       party_access: {

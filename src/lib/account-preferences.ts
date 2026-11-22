@@ -79,5 +79,5 @@ export async function saveAccountPreferences(p: AccountPreferences): Promise<Acc
   return data;
 }
 export function emptyPreferences(userId: string): AccountPreferences {
-  return { user_id: userId, username: null, date_of_birth: null, tastes: null, food_preferences: null, food_allergies: null, dietary: null, accessibility: null, alcohol: null, completed: false };
+  return { user_id: userId, username: null, date_of_birth: null, tastes: null, food_preferences: null, food_allergies: null, dietary: null, accessibility: null, alcohol: null, completed: false, is_private: false };
 }

@@ -1,10 +1,11 @@
 import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PopButton } from "@/components/Field";
 import { PaperIcon, type PaperTone } from "@/components/PaperIcon";
 import { BagelIcon, ClockIcon, TicketIcon, UsersIcon } from "@/components/icons";
-import { FriendsCard } from "@/components/FriendsCard";
+import { Bell, Settings } from "lucide-react";
+import { notificationsQuery } from "@/lib/notifications";
 import { accountPreferencesQuery, firstMissingStep } from "@/lib/account-preferences";
 
 export const Route = createFileRoute("/_authenticated/home")({
@@ -34,19 +35,13 @@ type DashboardSection = {
   back: PaperTone;
   rotate: number;
   icon: React.ReactNode;
+  to?: "/friends" | "/groups";
 };
 
 const SECTIONS: DashboardSection[] = [
   {
-    title: "Past journeys",
-    description: "Your finished trips and hangouts will live here.",
-    tone: "apricot",
-    back: "sage",
-    rotate: -6,
-    icon: <TicketIcon className="h-6 w-6" />,
-  },
-  {
     title: "Friends list",
+    to: "/friends",
     description: "Add friends and see who you plan with most.",
     tone: "chartreuse",
     back: "cream",
@@ -54,7 +49,8 @@ const SECTIONS: DashboardSection[] = [
     icon: <UsersIcon className="h-6 w-6" />,
   },
   {
-    title: "Default groups",
+    title: "Groups",
+    to: "/groups",
     description: "Your go-to crews and recent groups will show up here.",
     tone: "vista",
     back: "apricot",
@@ -68,6 +64,14 @@ const SECTIONS: DashboardSection[] = [
     back: "chartreuse",
     rotate: 6,
     icon: <ClockIcon className="h-6 w-6" />,
+  },
+  {
+    title: "Past journeys",
+    description: "Your finished trips and hangouts will live here.",
+    tone: "apricot",
+    back: "sage",
+    rotate: -6,
+    icon: <TicketIcon className="h-6 w-6" />,
   },
 ];
 
@@ -93,6 +97,8 @@ function Home() {
   const name = data.preferences?.username;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const notes = useQuery(notificationsQuery());
+  const unread = notes.data?.filter((n) => !n.read).length ?? 0;
   return (
     <main className="paper min-h-dvh bg-offwhite px-5 py-8 text-crust sm:px-8">
       <div className="mx-auto w-full max-w-3xl">
@@ -104,18 +110,37 @@ function Home() {
             <h1 className="text-3xl font-extrabold">Hey {name || "there"}</h1>
             <p className="text-sm text-muted-foreground">Your Baggle dashboard</p>
           </div>
+          <Link to="/notifications" title="Notifications" aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"} className="relative ml-auto rounded-lg focus:outline-none focus-visible:ring-4 focus-visible:ring-tangerine">
+            <PaperIcon tone="tangerine" back="cream" rotate={-5} className="h-12 w-12"><Bell className="h-6 w-6" /></PaperIcon>
+            {unread > 0 && <span className="absolute -right-1 -top-1 rounded-full border-2 border-crust bg-chartreuse px-1.5 text-xs font-extrabold">{unread}</span>}
+          </Link>
+          <Link to="/settings" aria-label="Settings" title="Settings" className="rounded-lg focus:outline-none focus-visible:ring-4 focus-visible:ring-tangerine">
+            <PaperIcon tone="sage" back="cream" rotate={4} className="h-12 w-12"><Settings className="h-6 w-6" /></PaperIcon>
+          </Link>
         </div>
+
+        <Link to="/journey/new" className="paper mt-8 flex h-14 w-full items-center justify-center rounded-xl border-2 border-crust bg-tangerine font-display text-lg font-extrabold text-crust shadow-pop pop-press focus:outline-none focus-visible:ring-4 focus-visible:ring-vista">
+          Start journey
+        </Link>
 
         <div className="mt-8 grid gap-5 sm:grid-cols-2">
           {SECTIONS.map((section) => (
-            section.title === "Friends list" ? <FriendsCard key="friends" /> : <SectionCard key={section.title} section={section} />
+            section.to ? (
+              <Link key={section.title} to={section.to} className="block rounded-3xl transition-transform hover:-translate-y-0.5 focus:outline-none focus-visible:ring-4 focus-visible:ring-tangerine">
+                <section aria-label={section.title} className="paper h-full rounded-3xl border-2 border-crust bg-cream p-5 shadow-pop">
+                  <div className="flex items-center gap-3">
+                    <PaperIcon tone={section.tone} back={section.back} rotate={section.rotate} className="h-12 w-12">{section.icon}</PaperIcon>
+                    <h2 className="text-xl font-extrabold">{section.title}</h2>
+                  </div>
+                  <p className="mt-3 text-sm text-muted-foreground">{section.description}</p>
+                  <p className="mt-4 inline-block rounded-full border-2 border-crust bg-chartreuse px-3 py-1 text-xs font-bold uppercase tracking-wider">Open →</p>
+                </section>
+              </Link>
+            ) : <SectionCard key={section.title} section={section} />
           ))}
         </div>
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-          <Link to="/settings" className="font-bold underline underline-offset-4">
-            Account preferences
-          </Link>
           <PopButton
             tone="sage"
             className="sm:ml-auto sm:w-auto sm:px-6"

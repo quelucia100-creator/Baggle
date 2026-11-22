@@ -13,12 +13,17 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as AuthenticatedFriendsRouteImport } from './routes/_authenticated/friends'
+import { Route as AuthenticatedGroupsRouteImport } from './routes/_authenticated/groups'
 import { Route as AuthenticatedHomeRouteImport } from './routes/_authenticated/home'
+import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as PartyCodeRouteImport } from './routes/party.$code'
+import { Route as AuthenticatedJourneyNewRouteImport } from './routes/_authenticated/journey.new'
 import { Route as AuthenticatedPreferencesStepRouteImport } from './routes/_authenticated/preferences.$step'
 import { Route as PartyCodeMapRouteImport } from './routes/party.$code_.map'
 import { Route as PartyCodePlanRouteImport } from './routes/party.$code_.plan'
+import { Route as AuthenticatedJourneyJoinCodeRouteImport } from './routes/_authenticated/journey.join.$code'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -39,11 +44,27 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
   path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedFriendsRoute = AuthenticatedFriendsRouteImport.update({
+  id: '/friends',
+  path: '/friends',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedGroupsRoute = AuthenticatedGroupsRouteImport.update({
+  id: '/groups',
+  path: '/groups',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedHomeRoute = AuthenticatedHomeRouteImport.update({
   id: '/home',
   path: '/home',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedNotificationsRoute =
+  AuthenticatedNotificationsRouteImport.update({
+    id: '/notifications',
+    path: '/notifications',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -53,6 +74,11 @@ const PartyCodeRoute = PartyCodeRouteImport.update({
   id: '/party/$code',
   path: '/party/$code',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedJourneyNewRoute = AuthenticatedJourneyNewRouteImport.update({
+  id: '/journey/new',
+  path: '/journey/new',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedPreferencesStepRoute =
   AuthenticatedPreferencesStepRouteImport.update({
@@ -70,28 +96,44 @@ const PartyCodePlanRoute = PartyCodePlanRouteImport.update({
   path: '/party/$code/plan',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedJourneyJoinCodeRoute =
+  AuthenticatedJourneyJoinCodeRouteImport.update({
+    id: '/journey/join/$code',
+    path: '/journey/join/$code',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/friends': typeof AuthenticatedFriendsRoute
+  '/groups': typeof AuthenticatedGroupsRoute
   '/home': typeof AuthenticatedHomeRoute
+  '/notifications': typeof AuthenticatedNotificationsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/party/$code': typeof PartyCodeRoute
+  '/journey/new': typeof AuthenticatedJourneyNewRoute
   '/preferences/$step': typeof AuthenticatedPreferencesStepRoute
   '/party/$code/map': typeof PartyCodeMapRoute
   '/party/$code/plan': typeof PartyCodePlanRoute
+  '/journey/join/$code': typeof AuthenticatedJourneyJoinCodeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/friends': typeof AuthenticatedFriendsRoute
+  '/groups': typeof AuthenticatedGroupsRoute
   '/home': typeof AuthenticatedHomeRoute
+  '/notifications': typeof AuthenticatedNotificationsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/party/$code': typeof PartyCodeRoute
+  '/journey/new': typeof AuthenticatedJourneyNewRoute
   '/preferences/$step': typeof AuthenticatedPreferencesStepRoute
   '/party/$code/map': typeof PartyCodeMapRoute
   '/party/$code/plan': typeof PartyCodePlanRoute
+  '/journey/join/$code': typeof AuthenticatedJourneyJoinCodeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -99,12 +141,17 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/_authenticated/friends': typeof AuthenticatedFriendsRoute
+  '/_authenticated/groups': typeof AuthenticatedGroupsRoute
   '/_authenticated/home': typeof AuthenticatedHomeRoute
+  '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/party/$code': typeof PartyCodeRoute
+  '/_authenticated/journey/new': typeof AuthenticatedJourneyNewRoute
   '/_authenticated/preferences/$step': typeof AuthenticatedPreferencesStepRoute
   '/party/$code_/map': typeof PartyCodeMapRoute
   '/party/$code_/plan': typeof PartyCodePlanRoute
+  '/_authenticated/journey/join/$code': typeof AuthenticatedJourneyJoinCodeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -112,35 +159,50 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/reset-password'
+    | '/friends'
+    | '/groups'
     | '/home'
+    | '/notifications'
     | '/settings'
     | '/party/$code'
+    | '/journey/new'
     | '/preferences/$step'
     | '/party/$code/map'
     | '/party/$code/plan'
+    | '/journey/join/$code'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
     | '/reset-password'
+    | '/friends'
+    | '/groups'
     | '/home'
+    | '/notifications'
     | '/settings'
     | '/party/$code'
+    | '/journey/new'
     | '/preferences/$step'
     | '/party/$code/map'
     | '/party/$code/plan'
+    | '/journey/join/$code'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
     | '/reset-password'
+    | '/_authenticated/friends'
+    | '/_authenticated/groups'
     | '/_authenticated/home'
+    | '/_authenticated/notifications'
     | '/_authenticated/settings'
     | '/party/$code'
+    | '/_authenticated/journey/new'
     | '/_authenticated/preferences/$step'
     | '/party/$code_/map'
     | '/party/$code_/plan'
+    | '/_authenticated/journey/join/$code'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -183,11 +245,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/friends': {
+      id: '/_authenticated/friends'
+      path: '/friends'
+      fullPath: '/friends'
+      preLoaderRoute: typeof AuthenticatedFriendsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/groups': {
+      id: '/_authenticated/groups'
+      path: '/groups'
+      fullPath: '/groups'
+      preLoaderRoute: typeof AuthenticatedGroupsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/home': {
       id: '/_authenticated/home'
       path: '/home'
       fullPath: '/home'
       preLoaderRoute: typeof AuthenticatedHomeRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/notifications': {
+      id: '/_authenticated/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof AuthenticatedNotificationsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/settings': {
@@ -203,6 +286,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/party/$code'
       preLoaderRoute: typeof PartyCodeRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/journey/new': {
+      id: '/_authenticated/journey/new'
+      path: '/journey/new'
+      fullPath: '/journey/new'
+      preLoaderRoute: typeof AuthenticatedJourneyNewRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/preferences/$step': {
       id: '/_authenticated/preferences/$step'
@@ -225,19 +315,36 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PartyCodePlanRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/journey/join/$code': {
+      id: '/_authenticated/journey/join/$code'
+      path: '/journey/join/$code'
+      fullPath: '/journey/join/$code'
+      preLoaderRoute: typeof AuthenticatedJourneyJoinCodeRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedFriendsRoute: typeof AuthenticatedFriendsRoute
+  AuthenticatedGroupsRoute: typeof AuthenticatedGroupsRoute
   AuthenticatedHomeRoute: typeof AuthenticatedHomeRoute
+  AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedJourneyNewRoute: typeof AuthenticatedJourneyNewRoute
   AuthenticatedPreferencesStepRoute: typeof AuthenticatedPreferencesStepRoute
+  AuthenticatedJourneyJoinCodeRoute: typeof AuthenticatedJourneyJoinCodeRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedFriendsRoute: AuthenticatedFriendsRoute,
+  AuthenticatedGroupsRoute: AuthenticatedGroupsRoute,
   AuthenticatedHomeRoute: AuthenticatedHomeRoute,
+  AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedJourneyNewRoute: AuthenticatedJourneyNewRoute,
   AuthenticatedPreferencesStepRoute: AuthenticatedPreferencesStepRoute,
+  AuthenticatedJourneyJoinCodeRoute: AuthenticatedJourneyJoinCodeRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

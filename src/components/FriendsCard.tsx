@@ -50,7 +50,7 @@ export function FriendsCard() {
         <label className="sr-only" htmlFor="friend-username">Friend's username</label>
         <input id="friend-username" value={name} onChange={(e) => { setName(e.target.value); setMsg(null); }} placeholder="Username"
           className="h-12 min-w-0 flex-1 rounded-lg border-2 border-crust bg-offwhite px-3 font-semibold text-crust focus:outline-none focus:ring-2 focus:ring-tangerine" />
-        <PopButton type="submit" className="w-auto px-4" disabled={add.isPending || !name.trim()}>Add</PopButton>
+        <PopButton type="submit" className="!w-24 shrink-0" disabled={add.isPending || !name.trim()}>Add</PopButton>
       </form>
       {msg && <p role="status" className="mt-2 text-sm font-semibold">{msg}</p>}
       {list.isLoading ? <p className="mt-4 text-sm text-muted-foreground">Loading…</p> : (
