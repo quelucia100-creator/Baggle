@@ -149,7 +149,7 @@ describe("Planning venue selection", () => {
   it("skips the providers when another request already holds the lease", async () => {
     partyRpc.mockReset().mockResolvedValue({ data: { ...state, acquired: false, lease: null } });
     const result = await executePlanning(command);
-    expect(result).toEqual(state);
+    expect(result).toEqual({ ...state, schemaVersion: 2 });
     expect(fetchMock).not.toHaveBeenCalled();
     expect(adminRpc).not.toHaveBeenCalled();
   });
