@@ -34,6 +34,7 @@ import {
   type MemberDraft,
 } from "./member-model";
 import { MemberWizardV3 } from "./MemberWizardV3";
+import { useAccountNeeds } from "./account-needs";
 import { formatDate, todayIn } from "./time";
 
 function useNow(fixed?: number) {
@@ -96,6 +97,7 @@ export function PlanningV3Experience({
   );
   const [hostDraft, setHostDraft] = useState<HostDraft>(() => savedConfig);
   const groupArea = savedConfig.areaMode === "host_area" ? savedConfig.area : null;
+  const accountNeeds = useAccountNeeds();
   const [ownDraft, setOwnDraft] = useState<MemberDraft>(() =>
     // Retained answers are an owner-only draft; readiness comes from the roster.
     savedPreferences ? memberDraftFromV3(savedPreferences, groupArea) : emptyMemberDraft(),
@@ -186,6 +188,7 @@ export function PlanningV3Experience({
                 busy={busy}
                 save={saveConfig}
                 onCancel={() => setView("overview")}
+                accountNeeds={accountNeeds}
               />
             ) : view === "private" ? (
               <MemberWizardV3

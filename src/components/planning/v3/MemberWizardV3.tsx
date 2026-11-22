@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { AccountNeeds } from "./account-needs";
 import { ArrowLeft, ArrowRight, Bike, Bus, Car, Footprints, LockKeyhole } from "lucide-react";
 import { PopButton } from "@/components/Field";
 import {
@@ -89,6 +90,7 @@ export function MemberWizardV3({
   save,
   onCancel,
   initialStep = 0,
+  accountNeeds = null,
 }: {
   draft: MemberDraft;
   onDraft: (draft: MemberDraft) => void;
@@ -100,6 +102,8 @@ export function MemberWizardV3({
   save: (preferences: MemberPreferencesV3) => Promise<boolean>;
   onCancel: () => void;
   initialStep?: number;
+  /** Signed-in members' saved account answers; when present, the overlapping questions are skipped. */
+  accountNeeds?: AccountNeeds | null;
 }) {
   const [step, setStep] = useState(initialStep);
   const [error, setError] = useState("");
@@ -113,6 +117,12 @@ export function MemberWizardV3({
     onDraft({ ...draft, ...patch });
     setError("");
   };
+  const appliedNeeds = useRef(false);
+  useEffect(() => {
+    if (!accountNeeds || appliedNeeds.current) return;
+    appliedNeeds.current = true;
+    onDraft({ ...draft, dietary: accountNeeds.dietary, accessibility: accountNeeds.accessibility });
+  }, [accountNeeds, draft, onDraft]);
   const next = async () => {
     if (busy || saving) return;
     const problem = validateMemberStep(draft, key, context);
@@ -182,7 +192,7 @@ export function MemberWizardV3({
         <p className="mb-6 max-w-lg text-sm text-muted-foreground">{TITLES[key].description}</p>
         <fieldset disabled={busy || saving} className="min-w-0 space-y-5">
           {key === "vibe" && <VibeStep draft={draft} update={update} />}
-          {key === "activities" && <ActivitiesStep draft={draft} update={update} />}
+          {key === "activities" && <ActivitiesStep draft={draft} update={update} accountNeeds={accountNeeds} />}
           {key === "budget" && (
             <BudgetStep draft={draft} update={update} freeOnly={context.freeOnly} />
           )}
@@ -279,7 +289,7 @@ function VibeStep({ draft, update }: StepProps) {
   );
 }
 
-function ActivitiesStep({ draft, update }: StepProps) {
+function ActivitiesStep({ draft, update, accountNeeds = null }: StepProps & { accountNeeds?: AccountNeeds | null }) {
   const toggle = <T extends string>(list: T[], value: T) =>
     list.includes(value) ? list.filter((entry) => entry !== value) : [...list, value];
   return (
@@ -330,7 +340,10 @@ function ActivitiesStep({ draft, update }: StepProps) {
         </div>
         <Hint>Hard no's are strict: an option with any of them is never suggested.</Hint>
       </fieldset>
-      {diningPossible(draft) && (
+      {accountNeeds && (
+        <PrivateNote>Food and accessibility needs come from your account preferences. Change them in Settings.</PrivateNote>
+      )}
+      {!accountNeeds && diningPossible(draft) && (
         <fieldset className="min-w-0">
           <legend className="mb-2 text-lg font-extrabold">
             Food needs <span className="text-sm font-bold">(optional)</span>
@@ -351,7 +364,7 @@ function ActivitiesStep({ draft, update }: StepProps) {
           {draft.dietary.length > 0 && <Hint>{DIETARY_UNVERIFIED_NOTE}</Hint>}
         </fieldset>
       )}
-      <fieldset className="min-w-0">
+      {!accountNeeds && <fieldset className="min-w-0">
         <legend className="mb-2 text-lg font-extrabold">
           Accessibility needs <span className="text-sm font-bold">(optional)</span>
         </legend>
@@ -368,7 +381,7 @@ function ActivitiesStep({ draft, update }: StepProps) {
         <PrivateNote>
           Venues without verified support are left out rather than guessed. Private to you.
         </PrivateNote>
-      </fieldset>
+      </fieldset>}
       <label className="block">
         <span className="mb-1.5 block text-lg font-extrabold">
           Anything else? <span className="text-sm font-bold">(optional)</span>
