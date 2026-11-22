@@ -38,3 +38,11 @@ Run `npm test`, `npm run build`, `npx --offline --package=typescript -- tsc --no
 - `npm run build` passed. Vite reports the pre-existing weather server-function validator deprecation and an unresolved paper-texture asset reference.
 - TypeScript, changed-file ESLint, changed-file Prettier, and `git diff --check` passed. The plain `npx tsc --noEmit` invocation tried to fetch the unrelated `tsc` package under the Bun-installed lockfile; selecting the installed TypeScript package explicitly passed.
 - Isolated V3 SQL and real provider checks were not run here. No production data was accessed by the tests.
+
+## PR #11 and RPC integration review
+
+PR #12 incorporates database owner's `0011` and generated types by merging `origin/main`. The backend continues to require the coordinated follow-up SQL contract. Lovable's first draft was accepted externally and the database owner confirmed live catalog version `0011`. The replacement isolated draft, compatible follow-up, and acceptance tests remain pending. The author-owned backend diff stays in planning code, backend tests, and backend docs.
+
+V3 saves now carry the user's displayed form revision through preflight and SQL CAS. The public option decoder canonicalizes SQL timestamps and warning ordering, keeps venue evidence nested, and validates the actual local date and whole overnight interval. The authoritative UI imports and compatibility findings are in [the frontend review](./backend-v3-frontend-review.md).
+
+Integration verification: `npm test` passed with 200 passing tests, zero failures, and 30 opt-in isolated database tests skipped (4 V3). Build, TypeScript, ESLint, Prettier, and diff checks passed. SQL-shaped response and lifecycle tests use fixtures. The two-browser flow was not exercised.

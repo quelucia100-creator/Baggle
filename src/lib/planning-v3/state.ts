@@ -6,6 +6,7 @@ import {
   hostConfigV3Schema,
   memberPreferencesV3Schema,
   normalizeConfig,
+  unambiguous,
 } from "./schema";
 import { publicPlanV3Schema } from "./venue";
 
@@ -57,14 +58,21 @@ export function projectState(raw: unknown, now: number) {
     const result = stateV3.parse(raw);
     const config = normalizeConfig(result.config, now, true);
     if (result.plan) {
-      const { startAt, endAt, date, venue } = result.plan;
+      const { startAt, endAt, date, durationMinutes } = result.plan;
       const start = Date.parse(startAt);
       const end = Date.parse(endAt);
       const insideSearchBounds = config.dateSelection.candidateDates.some((candidate) => {
         const bounds = dayBounds(candidate);
         return start >= bounds.start && end <= bounds.end;
       });
-      if (venue.source !== "curated" || localDay(start).date !== date || !insideSearchBounds)
+      if (
+        localDay(start).date !== date ||
+        !insideSearchBounds ||
+        !unambiguous(start, true) ||
+        !unambiguous(end, true) ||
+        durationMinutes < config.duration.minMinutes ||
+        durationMinutes > config.duration.maxMinutes
+      )
         throw new Error();
     }
     if (

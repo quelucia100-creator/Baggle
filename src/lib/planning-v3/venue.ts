@@ -10,9 +10,14 @@ const https = z
   .max(1000)
   .url()
   .refine((value) => new URL(value).protocol === "https:");
-const at = z.string().datetime();
+// PostgreSQL emits second precision while the solver uses JS ISO strings.
+const at = z
+  .string()
+  .datetime()
+  .refine((value) => Number.isFinite(Date.parse(value)))
+  .transform((value) => new Date(value).toISOString());
 const booking = z.enum(["yes", "no", "unknown"]);
-const source = z.enum(["curated", "google_places"]);
+
 const attribution = z
   .array(z.object({ name: text, url: https.nullable() }))
   .min(1)
@@ -20,8 +25,8 @@ const attribution = z
 const cost = z
   .object({
     currency: z.literal("CAD"),
-    minCad: z.number().finite().nonnegative(),
-    maxCad: z.number().finite().nonnegative(),
+    minCad: z.number().finite().min(0).max(100_000),
+    maxCad: z.number().finite().min(0).max(100_000),
     free: z.boolean(),
     confidence: z.literal("verified"),
     checkedAt: at,
@@ -30,23 +35,24 @@ const cost = z
   .refine((price) => price.minCad <= price.maxCad && price.free === (price.maxCad === 0));
 const activity = z.enum(activities);
 const weather = z.object({
-  temperature: z.number().finite(),
+  temperature: z.number().finite().min(-100).max(100),
   precipitation: z.number().min(0).max(100),
-  code: z.number().int().nonnegative(),
+  code: z.number().int().min(0).max(10_000),
 });
-export const warningsV3 = z
-  .array(
-    z.enum([
-      "booking_unknown",
-      "availability_not_reserved",
-      "cost_unknown",
-      "forecast_unknown",
-      "routing_coverage_limited",
-      "route_estimates",
-      "paths_may_be_incomplete",
-    ]),
-  )
-  .max(12);
+export const planningWarningsV3 = [
+  "booking_unknown",
+  "availability_not_reserved",
+  "cost_unknown",
+  "forecast_unknown",
+  "routing_coverage_limited",
+  "route_estimates",
+  "paths_may_be_incomplete",
+] as const;
+export type PlanningWarningV3 = (typeof planningWarningsV3)[number];
+const warningsV3 = z
+  .array(z.enum(planningWarningsV3))
+  .refine((warnings) => new Set(warnings).size === warnings.length)
+  .transform((warnings) => [...warnings].sort());
 export const publicVenueV3Schema = z.object({
   placeId: text,
   name: text,
@@ -57,7 +63,7 @@ export const publicVenueV3Schema = z.object({
   mapsUrl: https,
   outdoor: z.boolean(),
   address: text,
-  source,
+  source: z.literal("curated"),
   sourceTimestamp: at,
   attribution,
   cost: cost.nullable(),
@@ -90,8 +96,9 @@ export const publicPlanV3Schema = z
 export type PublicPlanV3 = z.infer<typeof publicPlanV3Schema>;
 export type VenueCandidateV3 = Omit<
   PublicPlanV3["venue"],
-  "category" | "priceTier" | "accessibilityVerified"
+  "category" | "priceTier" | "accessibilityVerified" | "source"
 > & {
+  source: "curated" | "google_places";
   activities: z.infer<typeof activity>[];
   vibes: (typeof vibes)[number][];
   opening: Interval[];
