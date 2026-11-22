@@ -6,6 +6,8 @@ import { PartyHeader } from "@/components/PartyHeader";
 import { PopButton } from "@/components/Field";
 import { PlanningExperience } from "@/components/planning/PlanningExperience";
 import { planningError, type PlanningCommand } from "@/components/planning/model";
+import { PlanningV3Experience } from "@/components/planning/v3/PlanningV3Experience";
+import { backendSupportsV3, type PlanningCommandV3 } from "@/components/planning/v3/contract";
 import { accessParty, membershipToken } from "@/lib/party";
 import { updatePartyPlanning } from "@/lib/planning.functions";
 
@@ -37,6 +39,8 @@ function PlanningPage() {
   const queryClient = useQueryClient();
   const planning = useServerFn(updatePartyPlanning);
   const [error, setError] = useState("");
+  // Screen-local only: never in the URL, storage or query keys.
+  const [previewV3, setPreviewV3] = useState(false);
   const partyKey = ["party", code];
   // Capability storage is browser-only. Never put it into keys, URLs or SSR loaders.
   const party = useQuery({
@@ -60,7 +64,7 @@ function PlanningPage() {
   const mutation = useMutation({
     mutationKey,
     gcTime: 0,
-    mutationFn: (command: PlanningCommand) =>
+    mutationFn: (command: PlanningCommand | PlanningCommandV3) =>
       planning({ data: { ...command, code, token: membershipToken() } }),
     onMutate: async () => {
       setError("");
@@ -87,6 +91,16 @@ function PlanningPage() {
     onError: () => setError("Couldn't return to your team. Check your connection and try again."),
   });
   const busy = mutation.isPending || back.isPending;
+  // Resolves true only after the server confirms the change.
+  const submit = async (command: PlanningCommand | PlanningCommandV3) => {
+    if (busy || state.isError) return false;
+    try {
+      await mutation.mutateAsync(command);
+      return true;
+    } catch {
+      return false;
+    }
+  };
   return (
     <div className="paper-sheet min-h-screen bg-offwhite">
       <PartyHeader
@@ -167,21 +181,35 @@ function PlanningPage() {
                   : "Saving your change…"
                 : ""}
             </div>
-            <PlanningExperience
-              key={party.data.selfId}
-              party={party.data}
-              state={state.data}
-              busy={busy || state.isError}
-              submit={async (command) => {
-                if (busy || state.isError) return false;
-                try {
-                  await mutation.mutateAsync(command);
-                  return true;
-                } catch {
-                  return false;
+            {backendSupportsV3(state.data) || previewV3 ? (
+              <PlanningV3Experience
+                key={party.data.selfId}
+                party={party.data}
+                state={state.data}
+                busy={busy || state.isError}
+                submit={submit}
+                onExitPreview={
+                  backendSupportsV3(state.data) ? undefined : () => setPreviewV3(false)
                 }
-              }}
-            />
+              />
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setPreviewV3(true)}
+                  className="mb-4 text-sm font-bold underline underline-offset-4"
+                >
+                  Preview the new planner
+                </button>
+                <PlanningExperience
+                  key={party.data.selfId}
+                  party={party.data}
+                  state={state.data}
+                  busy={busy || state.isError}
+                  submit={submit}
+                />
+              </>
+            )}
           </>
         )}
       </main>
