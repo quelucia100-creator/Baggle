@@ -188,7 +188,6 @@ export function PlanningV3Experience({
                 busy={busy}
                 save={saveConfig}
                 onCancel={() => setView("overview")}
-                accountNeeds={accountNeeds}
               />
             ) : view === "private" ? (
               <MemberWizardV3
@@ -201,6 +200,7 @@ export function PlanningV3Experience({
                 hasSaved={selfReady}
                 save={savePreferences}
                 onCancel={() => setView("overview")}
+                accountNeeds={accountNeeds}
               />
             ) : (
               <Overview
