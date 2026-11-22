@@ -106,6 +106,151 @@ export type Database = {
           },
         ]
       }
+      party_planning: {
+        Row: {
+          area_label: string
+          area_lat: number
+          area_lng: number
+          category: string
+          duration_min: number
+          event_date: string
+          group_rerolls_used: number
+          lock_id: string | null
+          lock_snapshot: Json | null
+          lock_started_at: string | null
+          options: Json
+          outliers: string[]
+          participants: string[]
+          party_id: string
+          plan_index: number
+          revision: number
+          status: string
+          venue_source: string | null
+        }
+        Insert: {
+          area_label?: string
+          area_lat?: number
+          area_lng?: number
+          category?: string
+          duration_min?: number
+          event_date?: string
+          group_rerolls_used?: number
+          lock_id?: string | null
+          lock_snapshot?: Json | null
+          lock_started_at?: string | null
+          options?: Json
+          outliers?: string[]
+          participants?: string[]
+          party_id: string
+          plan_index?: number
+          revision?: number
+          status?: string
+          venue_source?: string | null
+        }
+        Update: {
+          area_label?: string
+          area_lat?: number
+          area_lng?: number
+          category?: string
+          duration_min?: number
+          event_date?: string
+          group_rerolls_used?: number
+          lock_id?: string | null
+          lock_snapshot?: Json | null
+          lock_started_at?: string | null
+          options?: Json
+          outliers?: string[]
+          participants?: string[]
+          party_id?: string
+          plan_index?: number
+          revision?: number
+          status?: string
+          venue_source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "party_planning_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: true
+            referencedRelation: "parties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      party_preferences: {
+        Row: {
+          budget: number
+          free_from: string
+          free_to: string
+          max_travel_min: number
+          member_id: string
+          origin_lat: number | null
+          origin_lng: number | null
+          submitted_at: string
+        }
+        Insert: {
+          budget: number
+          free_from: string
+          free_to: string
+          max_travel_min: number
+          member_id: string
+          origin_lat?: number | null
+          origin_lng?: number | null
+          submitted_at?: string
+        }
+        Update: {
+          budget?: number
+          free_from?: string
+          free_to?: string
+          max_travel_min?: number
+          member_id?: string
+          origin_lat?: number | null
+          origin_lng?: number | null
+          submitted_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "party_preferences_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: true
+            referencedRelation: "party_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      party_reroll_votes: {
+        Row: {
+          member_id: string
+          party_id: string
+          revision: number
+        }
+        Insert: {
+          member_id: string
+          party_id: string
+          revision: number
+        }
+        Update: {
+          member_id?: string
+          party_id?: string
+          revision?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "party_reroll_votes_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "party_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "party_reroll_votes_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: false
+            referencedRelation: "parties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -162,6 +307,30 @@ export type Database = {
           p_name?: string
           p_token: string
         }
+        Returns: Json
+      }
+      party_plan: {
+        Args: {
+          p_action: string
+          p_code: string
+          p_payload?: Json
+          p_token: string
+        }
+        Returns: Json
+      }
+      party_plan_complete: {
+        Args: {
+          p_code: string
+          p_failed?: boolean
+          p_lease: string
+          p_options?: Json
+          p_outliers?: string[]
+          p_source?: string
+        }
+        Returns: boolean
+      }
+      party_plan_snapshot: {
+        Args: { p_code: string; p_lease: string }
         Returns: Json
       }
     }

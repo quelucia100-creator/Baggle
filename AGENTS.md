@@ -37,3 +37,6 @@ use the editor.
 - Party screens use a top navigation header rather than the split authentication shell so the roster has room to grow.
 - Journey start is shared, but each member's team/map view is persisted independently through the capability-verified RPC so navigation cannot move other members or grant host controls.
 - Google Maps loads only after hydration; weather runs through a membership-verified server function with a private shared cache, never browser provider requests.
+- Planning extends existing parties through capability-verified RPCs; private preferences/snapshots have no client table grants or realtime publication so neither hosts nor guests can read others' limits.
+- Planning locks snapshot submissions under the existing party row lock and finish through service-only lease RPCs; this prevents duplicate computation and stale completion without changing guest identity or map navigation.
+- Planning ranking is pure TypeScript with Montreal civil-time conversion in one helper; server functions orchestrate forecasts and persist only privacy-safe results so rerolls never recompute or expose individual costs.
