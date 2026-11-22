@@ -56,6 +56,7 @@ const place = {
 const fetchMock = vi.fn<typeof fetch>();
 
 beforeEach(() => {
+  vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-11-21T13:00:00Z"));
   vi.stubEnv("SUPABASE_URL", "https://example.invalid");
   vi.stubEnv("SUPABASE_PUBLISHABLE_KEY", "test-key");
   vi.stubEnv("GOOGLE_MAPS_API_KEY", "test-places-key");
@@ -72,6 +73,7 @@ beforeEach(() => {
     .mockResolvedValueOnce({ data: true });
 });
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
 });
