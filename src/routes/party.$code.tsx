@@ -10,7 +10,7 @@ import { PaperIcon } from "@/components/PaperIcon";
 import { accessParty, canRemoveMember, MAX_PARTY_MEMBERS } from "@/lib/party";
 import { PlanningLink } from "@/components/planning/PlanningLink";
 import { PartyInviteQR } from "@/components/PartyInviteQR";
-import { isPlanningDaysUnavailable, planningDaysQuery } from "@/lib/planning-days";
+import { planningDaysReadiness, planningDaysQuery } from "@/lib/planning-days";
 import { hasPendingGroupInvite, sendPendingGroupInvite } from "@/lib/pending-group-invite";
 
 export const Route = createFileRoute("/party/$code")({
@@ -51,15 +51,12 @@ function Party() {
   const error = query.error instanceof Error ? query.error.message : "";
   const joinable = error.includes("Join this party");
   const days = useQuery({ ...planningDaysQuery(code), enabled: hydrated && !!party });
-  // Invites unlock once the host has answered everything. If readiness can't be checked,
-  // the database still refuses early joins, so the invite stays visible.
-  const hostReady = days.data?.hostReady ?? days.isError;
-  const readinessKnown = !!days.data || days.isError;
-  // Only a confirmed-ready host sends the remembered group invite; a failure can retry.
-  const confirmedReady = days.data?.hostReady === true || isPlanningDaysUnavailable(days.error);
+  const readiness = planningDaysReadiness(days.data, days.error);
+  // Legacy invites remain usable only when the optional function is explicitly missing.
+  const hostReady = readiness === "ready" || readiness === "unavailable";
   const invitingGroup = useRef(false);
   useEffect(() => {
-    if (!party?.isHost || !confirmedReady || invitingGroup.current || !hasPendingGroupInvite(code))
+    if (!party?.isHost || !hostReady || invitingGroup.current || !hasPendingGroupInvite(code))
       return;
     invitingGroup.current = true;
     void sendPendingGroupInvite(code).then((sent) => {
@@ -67,7 +64,7 @@ function Party() {
       if (sent) toast.success("Your group has been invited.");
       else toast.error("Couldn't invite your group yet. Share the party code instead.");
     });
-  }, [party?.isHost, confirmedReady, code]);
+  }, [party?.isHost, hostReady, code]);
   useEffect(() => {
     if (party?.started && party.view === "map")
       void navigate({ to: "/party/$code/map", params: { code }, replace: true });
@@ -100,8 +97,15 @@ function Party() {
         </div>
         {party ? (
           <div className="grid gap-10 md:grid-cols-[1fr_1.1fr] md:gap-14">
-            {!readinessKnown ? (
+            {readiness === "loading" ? (
               <p role="status">Checking the hangout…</p>
+            ) : readiness === "error" ? (
+              <section aria-label="Hangout connection">
+                <p role="alert">Couldn't check the hangout. Your party and saved answers are unchanged.</p>
+                <PopButton tone="sage" disabled={days.isFetching} className="mt-4" onClick={() => void days.refetch()}>
+                  {days.isFetching ? "Checking…" : "Check again"}
+                </PopButton>
+              </section>
             ) : !hostReady ? (
               <section aria-label="Set up the hangout">
                 <div className="paper rounded-3xl border-2 border-crust bg-apricot px-5 py-8 text-center shadow-pop-lg">

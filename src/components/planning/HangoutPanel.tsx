@@ -15,7 +15,7 @@ import {
   runPlanning,
   vibeStorageKey,
 } from "@/lib/planning-client";
-import { isPlanningDaysUnavailable, planningDaysQuery } from "@/lib/planning-days";
+import { planningDaysReadiness, planningDaysQuery } from "@/lib/planning-days";
 import { formatPlanTime, planningError, type PlanningCommand } from "./model";
 
 const MAX_HANGOUT_NAME = 80;
@@ -40,7 +40,8 @@ export function HangoutPanel({ code, party, isEnabled, isBusy, pinHangout, clear
     enabled: isEnabled && state?.status === "collecting",
   });
   // Until the host has finished their own answers, nobody else can join or answer.
-  const hostReady = days.data?.hostReady ?? isPlanningDaysUnavailable(days.error);
+  const readiness = planningDaysReadiness(days.data, days.error);
+  const hostReady = readiness === "ready" || readiness === "unavailable";
   const ready = state?.members.filter((member) => member.submitted).length ?? 0;
   const total = state?.members.length ?? party.members.length;
   const selfReady = !!state?.members.find((member) => member.id === party.selfId)?.submitted;
@@ -143,6 +144,14 @@ export function HangoutPanel({ code, party, isEnabled, isBusy, pinHangout, clear
 
       {state?.status === "collecting" && (
         <>
+          {readiness === "error" && (
+            <div role="alert" className="mt-4 text-sm">
+              <p>Couldn't check the hangout. Your saved answers are unchanged.</p>
+              <PopButton tone="sage" disabled={days.isFetching} className="mt-3" onClick={() => void days.refetch()}>
+                {days.isFetching ? "Checking…" : "Check again"}
+              </PopButton>
+            </div>
+          )}
           {party.isHost || hostReady ? (
             <Link
               to="/party/$code/plan"
@@ -162,14 +171,14 @@ export function HangoutPanel({ code, party, isEnabled, isBusy, pinHangout, clear
                 </>
               )}
             </Link>
-          ) : (
+          ) : readiness !== "error" ? (
             <p
               role="status"
               className="paper mt-4 rounded-lg border-2 border-dashed border-crust bg-cream p-3 text-sm font-bold"
             >
               Waiting for the host to set up the hangout…
             </p>
-          )}
+          ) : null}
           <p role="status" className="mt-2 text-sm text-muted-foreground">
             {ready} of {total} {total === 1 ? "friend" : "friends"} ready
           </p>
@@ -183,7 +192,7 @@ export function HangoutPanel({ code, party, isEnabled, isBusy, pinHangout, clear
               Copy invite link
             </button>
           ) : (
-            party.isHost && (
+            party.isHost && readiness !== "error" && (
               <p className="mt-1 text-xs text-muted-foreground">
                 Finish setting up the hangout to invite friends.
               </p>
@@ -193,7 +202,7 @@ export function HangoutPanel({ code, party, isEnabled, isBusy, pinHangout, clear
             <>
               <PopButton
                 tone="chartreuse"
-                disabled={disabled || !selfReady || ready < 2}
+                disabled={disabled || !hostReady || !selfReady || ready < 2}
                 className="mt-4 flex items-center justify-center gap-2 text-sm"
                 onClick={() => void findHangout()}
               >
