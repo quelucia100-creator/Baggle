@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { PopButton } from "@/components/Field";
 import { PaperIcon, type PaperTone } from "@/components/PaperIcon";
 import { BagelIcon, ClockIcon, TicketIcon, UsersIcon } from "@/components/icons";
-import { Bell } from "lucide-react";
+import { Bell, Settings } from "lucide-react";
 import { notificationsQuery } from "@/lib/notifications";
 import { accountPreferencesQuery, firstMissingStep } from "@/lib/account-preferences";
 
@@ -110,7 +110,10 @@ function Home() {
             <h1 className="text-3xl font-extrabold">Hey {name || "there"}</h1>
             <p className="text-sm text-muted-foreground">Your Baggle dashboard</p>
           </div>
-          <Link to="/notifications" aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"} className="relative ml-auto">
+          <Link to="/settings" aria-label="Settings" title="Settings" className="ml-auto rounded-lg focus:outline-none focus-visible:ring-4 focus-visible:ring-tangerine">
+            <PaperIcon tone="sage" back="cream" rotate={4} className="h-12 w-12"><Settings className="h-6 w-6" /></PaperIcon>
+          </Link>
+          <Link to="/notifications" title="Notifications" aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"} className="relative rounded-lg focus:outline-none focus-visible:ring-4 focus-visible:ring-tangerine">
             <PaperIcon tone="tangerine" back="cream" rotate={-5} className="h-12 w-12"><Bell className="h-6 w-6" /></PaperIcon>
             {unread > 0 && <span className="absolute -right-1 -top-1 rounded-full border-2 border-crust bg-chartreuse px-1.5 text-xs font-extrabold">{unread}</span>}
           </Link>
@@ -134,9 +137,6 @@ function Home() {
         </div>
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-          <Link to="/settings" className="font-bold underline underline-offset-4">
-            Account preferences
-          </Link>
           <PopButton
             tone="sage"
             className="sm:ml-auto sm:w-auto sm:px-6"
