@@ -96,6 +96,38 @@ export type Database = {
           },
         ]
       }
+      account_weekly_availability: {
+        Row: {
+          busy_slots: number[]
+          confirmed: boolean
+          updated_at: string
+          user_id: string
+          weekday: number
+        }
+        Insert: {
+          busy_slots?: number[]
+          confirmed?: boolean
+          updated_at?: string
+          user_id: string
+          weekday: number
+        }
+        Update: {
+          busy_slots?: number[]
+          confirmed?: boolean
+          updated_at?: string
+          user_id?: string
+          weekday?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_weekly_availability_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       friend_group_members: {
         Row: {
           added_at: string

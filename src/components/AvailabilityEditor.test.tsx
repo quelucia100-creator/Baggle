@@ -15,17 +15,17 @@ it("asks for a weekday first and requires confirmation before saving", async () 
   expect(screen.getByRole("alert")).toHaveTextContent("Confirm this day");
   fireEvent.click(screen.getByLabelText("Confirm this day’s availability"));
   fireEvent.click(screen.getByRole("button", { name: "Save availability" }));
-  await waitFor(() => expect(save).toHaveBeenCalledWith({ date: "2026-11-22", busy: [], confirmed: true }));
+  await waitFor(() => expect(save).toHaveBeenCalledWith({ weekday: 7, busy: [], confirmed: true }));
   await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Availability saved."));
 });
 
 it("rehydrates saved times on edit and preserves them through confirmed save", async () => {
   const save = vi.fn().mockResolvedValue(undefined);
-  render(<AvailabilityEditor days={[{ date: "2026-11-22", busy: [48, 59], confirmed: true }]} onSave={save} onRemove={vi.fn()} />);
-  fireEvent.click(screen.getByRole("button", { name: "Edit Sun, Nov 22" }));
+  render(<AvailabilityEditor days={[{ weekday: 7, busy: [48, 59], confirmed: true }]} onSave={save} onRemove={vi.fn()} />);
+  fireEvent.click(screen.getByRole("button", { name: "Edit Sunday" }));
   expect(screen.getByLabelText("Confirm this day’s availability")).toBeChecked();
   fireEvent.click(screen.getByRole("button", { name: "Save availability" }));
-  await waitFor(() => expect(save).toHaveBeenCalledWith({ date: "2026-11-22", busy: [48, 59], confirmed: true }));
+  await waitFor(() => expect(save).toHaveBeenCalledWith({ weekday: 7, busy: [48, 59], confirmed: true }));
 });
 
 it("does not show success before the save resolves and keeps answers on failure", async () => {
@@ -54,14 +54,53 @@ it("preserves screen-local answers when going Back without pretending they are s
   expect(screen.getByLabelText("Confirm this day’s availability")).toBeChecked();
 });
 
-it("saves the selected next-week weekday without changing this week's answers", async () => {
+it("saves Monday as a recurring weekday without changing Sunday's answers", async () => {
   const save = vi.fn().mockResolvedValue(undefined);
-  render(<AvailabilityEditor days={[{ date: "2026-11-22", busy: [48], confirmed: true }]} onSave={save} onRemove={vi.fn()} />);
-  expect(screen.getByRole("button", { name: "Monday" })).toBeDisabled();
-  fireEvent.click(screen.getByRole("button", { name: "Next week" }));
+  render(<AvailabilityEditor days={[{ weekday: 7, busy: [48], confirmed: true }]} onSave={save} onRemove={vi.fn()} />);
+  expect(screen.getByRole("button", { name: "Monday" })).toBeEnabled();
   fireEvent.click(screen.getByRole("button", { name: "Monday" }));
   expect(screen.getByLabelText("Confirm this day’s availability")).not.toBeChecked();
   fireEvent.click(screen.getByLabelText("Confirm this day’s availability"));
   fireEvent.click(screen.getByRole("button", { name: "Save availability" }));
-  await waitFor(() => expect(save).toHaveBeenCalledWith({ date: "2026-11-23", busy: [], confirmed: true }));
+  await waitFor(() => expect(save).toHaveBeenCalledWith({ weekday: 1, busy: [], confirmed: true }));
+});
+
+it("allows early and overnight clock slots even when the current date is years later", async () => {
+  vi.setSystemTime(new Date("2035-06-21T18:00:00Z"));
+  const save = vi.fn().mockResolvedValue(undefined);
+  render(<AvailabilityEditor days={[]} onSave={save} onRemove={vi.fn()} />);
+  fireEvent.click(screen.getByRole("button", { name: "Monday" }));
+  fireEvent.click(screen.getByRole("button", { name: "12:00 AM to 12:30 AM, free" }));
+  fireEvent.click(screen.getByRole("button", { name: "5:30 AM to 6:00 AM (next day), free" }));
+  fireEvent.click(screen.getByLabelText("Confirm this day’s availability"));
+  fireEvent.click(screen.getByRole("button", { name: "Save availability" }));
+  await waitFor(() => expect(save).toHaveBeenCalledWith({ weekday: 1, busy: [0, 59], confirmed: true }));
+});
+
+it("removes only the chosen recurring weekday after confirmation from the server", async () => {
+  const remove = vi.fn().mockResolvedValue(undefined);
+  render(<AvailabilityEditor days={[{ weekday: 3, busy: [8], confirmed: true }]} onSave={vi.fn()} onRemove={remove} />);
+  fireEvent.click(screen.getByRole("button", { name: "Remove Wednesday" }));
+  await waitFor(() => expect(remove).toHaveBeenCalledWith(3));
+  await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Day removed."));
+});
+
+it("commits a captured pointer tap once and still allows keyboard toggling", async () => {
+  const save = vi.fn().mockResolvedValue(undefined);
+  render(<AvailabilityEditor days={[]} onSave={save} onRemove={vi.fn()} />);
+  fireEvent.click(screen.getByRole("button", { name: "Monday" }));
+  const cell = screen.getByRole("button", { name: "12:00 AM to 12:30 AM, free" });
+  const grid = screen.getByRole("group", { name: "Busy times on Monday, Montréal time" });
+  fireEvent.pointerDown(cell, { pointerId: 1, pointerType: "mouse", button: 0 });
+  fireEvent.pointerUp(grid, { pointerId: 1, pointerType: "mouse" });
+  fireEvent.click(cell);
+  expect(cell).toHaveAttribute("aria-pressed", "true");
+  fireEvent.click(cell);
+  expect(cell).toHaveAttribute("aria-pressed", "false");
+  fireEvent.pointerDown(cell, { pointerId: 2, pointerType: "touch" });
+  fireEvent.pointerUp(grid, { pointerId: 2, pointerType: "touch" });
+  fireEvent.click(cell);
+  fireEvent.click(screen.getByLabelText("Confirm this day’s availability"));
+  fireEvent.click(screen.getByRole("button", { name: "Save availability" }));
+  await waitFor(() => expect(save).toHaveBeenCalledWith({ weekday: 1, busy: [0], confirmed: true }));
 });

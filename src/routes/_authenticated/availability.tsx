@@ -9,9 +9,9 @@ export const Route = createFileRoute("/_authenticated/availability")({
   loader: ({ context }) => context.queryClient.ensureQueryData(accountAvailabilityQuery()),
   head: () => ({ meta: [
     { title: "Your availability — Baggle" },
-    { name: "description", content: "Choose a weekday and save your private availability in Montréal time for this week or next." },
+    { name: "description", content: "Save a private recurring weekly availability schedule in Montréal time, Monday through Sunday." },
     { property: "og:title", content: "Your availability — Baggle" },
-    { property: "og:description", content: "Manage your private weekday availability for this week and next with Baggle." },
+    { property: "og:description", content: "Manage your private recurring weekly availability with Baggle." },
     { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" },
   ] }),
   component: AvailabilityPage,
@@ -27,10 +27,10 @@ function AvailabilityPage() {
       <p className="mb-8 flex items-center gap-2 text-sm text-muted-foreground"><LockKeyhole className="h-4 w-4" />Only you can see these times.</p>
       <AvailabilityEditor days={days} onSave={async (day) => {
         const saved = await saveAvailability(day);
-        queryClient.setQueryData(accountAvailabilityQuery().queryKey, [...days.filter((d) => d.date !== saved.date), saved].sort((a, b) => a.date.localeCompare(b.date)));
-      }} onRemove={async (date) => {
-        await removeAvailability(date);
-        queryClient.setQueryData(accountAvailabilityQuery().queryKey, days.filter((d) => d.date !== date));
+        queryClient.setQueryData(accountAvailabilityQuery().queryKey, [...days.filter((d) => d.weekday !== saved.weekday), saved].sort((a, b) => a.weekday - b.weekday));
+      }} onRemove={async (weekday) => {
+        await removeAvailability(weekday);
+        queryClient.setQueryData(accountAvailabilityQuery().queryKey, days.filter((d) => d.weekday !== weekday));
       }} />
     </div>
   </main>;

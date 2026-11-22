@@ -33,4 +33,5 @@
 - [x] Replace falling bagels with one rotating-bagel loading screen for guest/auth and route loading, with lighter background blur; falling-bagel SFX cancelled.
 - [x] Add a dashboard Availability page using guest planning’s Montreal date/30-minute busy-grid rules, with private account saves and revisit/edit support.
 - [x] Verify availability validation, owner-scoped calls, Back/edit behavior and mobile layout: 41 focused/regression tests pass; live access metadata confirms owner-only policies and no anonymous read.
-- [ ] Verify signed-in availability save/reload through the real page — blocked because temporary test-account creation was declined.
+- [x] Verify signed-in recurring availability save/reload through the real page, including overnight slots and removal; temporary test entry removed and original schedule restored.
+- [x] Replace dated account availability with private, recurring Monday–Sunday schedules; 118 focused/guest-grid regression tests pass, type/build checks pass, owner-only policies verified, and mobile weekday/editor views checked.

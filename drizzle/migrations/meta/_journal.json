@@ -148,6 +148,13 @@
       "when": 1795350199781,
       "tag": "0020_private_account_availability",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1795350803431,
+      "tag": "0021_private_recurring_weekday_availability",
+      "breakpoints": true
     }
   ]
 }
