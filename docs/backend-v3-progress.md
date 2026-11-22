@@ -1,6 +1,6 @@
 # Planning V3 backend review
 
-Implementation branch: `feat/planning-v3-engine`. Baseline: `808277f` on Baggel main, including PR #10.
+Implementation branch: `feat/planning-v3-engine`. Baseline: `808277f` on Baggel main, including PR #10. [Draft backend PR #12](https://github.com/quelucia100-creator/baggel/pull/12).
 
 ## Implemented
 
