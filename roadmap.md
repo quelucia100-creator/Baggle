@@ -35,3 +35,5 @@
 - [x] Verify availability validation, owner-scoped calls, Back/edit behavior and mobile layout: 41 focused/regression tests pass; live access metadata confirms owner-only policies and no anonymous read.
 - [x] Verify signed-in recurring availability save/reload through the real page, including overnight slots and removal; temporary test entry removed and original schedule restored.
 - [x] Replace dated account availability with private, recurring Monday–Sunday schedules; 118 focused/guest-grid regression tests pass, type/build checks pass, owner-only policies verified, and mobile weekday/editor views checked.
+- [ ] Show only shared recurring openings in Groups and send member hangout pokes with private schedules protected.
+- [ ] Verify aggregate privacy, missing schedules, overnight slots, membership and notification delivery.

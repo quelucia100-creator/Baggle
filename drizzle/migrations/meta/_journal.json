@@ -155,6 +155,13 @@
       "when": 1795350803431,
       "tag": "0021_private_recurring_weekday_availability",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1795352360287,
+      "tag": "0022_private_group_weekly_openings_and_pokes",
+      "breakpoints": true
     }
   ]
 }

@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { PopButton } from "@/components/Field";
 import { PaperIcon } from "@/components/PaperIcon";
 import { BagelIcon } from "@/components/icons";
+import { GroupOpenings } from "@/components/GroupOpenings";
 
 export const Route = createFileRoute("/_authenticated/groups")({
   head: () => ({
@@ -152,6 +153,7 @@ function GroupCard({ group, friendNames, onChange }: { group: Group; friendNames
         </form>
       )}
       {msg && <p role="status" className="mt-2 text-sm font-semibold">{msg}</p>}
+      <GroupOpenings groupId={group.id} />
     </section>
   );
 }

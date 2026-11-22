@@ -235,6 +235,29 @@ export type Database = {
           },
         ]
       }
+      group_hangout_pokes: {
+        Row: {
+          group_id: string
+          last_sent_at: string
+        }
+        Insert: {
+          group_id: string
+          last_sent_at?: string
+        }
+        Update: {
+          group_id?: string
+          last_sent_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_hangout_pokes_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: true
+            referencedRelation: "friend_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           actor_username: string | null
@@ -592,6 +615,10 @@ export type Database = {
           p_name?: string
           p_username?: string
         }
+        Returns: Json
+      }
+      group_weekly_action: {
+        Args: { p_action: string; p_group: string; p_weekday?: number }
         Returns: Json
       }
       invite_group_to_journey: {
