@@ -27,12 +27,14 @@ export function FallingBagels() {
   );
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-50 overflow-hidden bg-background/60" aria-hidden="true">
+    <div className="paper fixed inset-0 z-50 overflow-hidden bg-background" role="status" aria-live="polite" aria-label="Loading…">
+      <span className="sr-only">Loading…</span>
       {drops.map((d, i) => (
         <img
           key={i}
           src={d.src}
           alt=""
+          aria-hidden="true"
           className="bagel-fall absolute -top-28"
           style={{
             left: `${d.left}%`,

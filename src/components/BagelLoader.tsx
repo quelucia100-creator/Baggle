@@ -1,7 +1,10 @@
 import bagel from "@/assets/bagel-single.png.asset.json";
+import { useBagelTransition } from "./BagelTransition";
 
 /** Full-screen loading state: the bagel spins on itself while a page loads. */
 export function BagelLoader({ label = "Loading…" }: { label?: string }) {
+  const { active } = useBagelTransition();
+  if (active) return null;
   return (
     <div
       className="paper flex min-h-screen flex-col items-center justify-center gap-6 bg-background px-6"

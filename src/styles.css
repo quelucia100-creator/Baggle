@@ -194,7 +194,7 @@
   from { transform: translateY(0) rotate(0deg); }
   to { transform: translateY(130vh) rotate(var(--spin, 360deg)); }
 }
-@utility bagel-fall { animation: bagel-fall 1.4s ease-in forwards; }
+@utility bagel-fall { animation: bagel-fall 1.4s ease-in infinite; }
 @media (prefers-reduced-motion: reduce) {
   .wizard-enter { animation: none; }
   .animate-bob { animation: none; }

@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import logo from "@/assets/baggle-logo.png.asset.json";
 import { supabase } from "@/integrations/supabase/client";
 import { AuthShell } from "@/components/BagelScene";
-import { FallingBagels } from "@/components/FallingBagels";
+import { useBagelTransition } from "@/components/BagelTransition";
 import { Field, PopButton } from "@/components/Field";
 import { GoogleButton } from "@/components/GoogleButton";
 import { isStrongPassword } from "@/lib/password";
@@ -39,21 +39,34 @@ function AuthPage() {
   const [username, setUsername] = useState("");
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState<string | null>(null);
-  const [raining, setRaining] = useState(false);
+  const { setActive } = useBagelTransition();
   const navigate = useNavigate();
 
   useEffect(() => { setSent(null); }, [tab]);
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let transitioning = false;
     const rainThenGoHome = () => {
-      setRaining(true);
-      timer = setTimeout(() => void navigate({ to: "/home", replace: true }), 1100);
+      if (transitioning) return;
+      transitioning = true;
+      setActive(true);
+      const delay = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 1100;
+      timer = setTimeout(() => {
+        timer = undefined;
+        void navigate({ to: "/home", replace: true }).catch(() => {
+          toast.error("Could not open your dashboard. Please try again.");
+          transitioning = false;
+        }).finally(() => setActive(false));
+      }, delay);
     };
     supabase.auth.getUser().then(({ data }) => { if (data.user) rainThenGoHome(); });
     const { data } = supabase.auth.onAuthStateChange((e) => { if (e === "SIGNED_IN") rainThenGoHome(); });
-    return () => { if (timer) clearTimeout(timer); data.subscription.unsubscribe(); };
-  }, [navigate]);
+    return () => {
+      if (timer) { clearTimeout(timer); setActive(false); }
+      data.subscription.unsubscribe();
+    };
+  }, [navigate, setActive]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,7 +96,6 @@ function AuthPage() {
 
   return (
     <AuthShell>
-      {raining && <FallingBagels />}
       <BackLink />
       <Link to="/"><img src={logo.url} alt="Baggle home" className="mx-auto mb-4 w-56 max-w-full" /></Link>
       {sent ? (
