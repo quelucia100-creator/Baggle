@@ -3,11 +3,26 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const rpc = vi.hoisted(() => vi.fn());
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc } }));
 vi.mock("./party", () => ({ membershipToken: () => "a".repeat(64) }));
-import { isPlanningDaysUnavailable, planningDaysQuery, runPlanningDays } from "./planning-days";
+import { isPlanningDaysUnavailable, PlanningDaysUnavailable, planningDaysReadiness, planningDaysQuery, runPlanningDays } from "./planning-days";
 
 beforeEach(() => rpc.mockReset());
 
 describe("optional multi-day planning contract", () => {
+  it("keeps legacy invitations available only for the explicit missing rollout", () => {
+    expect(planningDaysReadiness(undefined, new PlanningDaysUnavailable())).toBe("unavailable");
+    expect(planningDaysReadiness(undefined, null)).toBe("loading");
+    expect(planningDaysReadiness({ dates: [], selfWindows: null, hostReady: false }, null)).toBe("waiting");
+    expect(planningDaysReadiness({ dates: [], selfWindows: null, hostReady: true }, null)).toBe("ready");
+  });
+
+  it.each(["Invalid membership capability", "Database connection unavailable", "Malformed response"])(
+    "never treats a failed readiness read as ready, including previously cached data: %s", (message) => {
+      const failure = new Error(message);
+      expect(planningDaysReadiness(undefined, failure)).toBe("error");
+      expect(planningDaysReadiness({ dates: [], selfWindows: null, hostReady: true }, failure)).toBe("error");
+    },
+  );
+
   it("recognizes only the missing days function as an unavailable rollout", async () => {
     rpc.mockResolvedValue({ data: null, error: {
       code: "PGRST202", message: "Could not find the function public.party_plan_days in the schema cache",

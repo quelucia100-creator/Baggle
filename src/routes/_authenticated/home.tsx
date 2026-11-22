@@ -7,6 +7,7 @@ import { BagelIcon, ClockIcon, TicketIcon, UsersIcon } from "@/components/icons"
 import { Bell, Settings } from "lucide-react";
 import { notificationsQuery } from "@/lib/notifications";
 import { accountPreferencesQuery, firstMissingStep } from "@/lib/account-preferences";
+import { JoinRoom } from "@/components/JoinRoom";
 
 export const Route = createFileRoute("/_authenticated/home")({
   loader: async ({ context }) => {
@@ -123,6 +124,8 @@ function Home() {
         <Link to="/journey/new" className="paper mt-8 flex h-14 w-full items-center justify-center rounded-xl border-2 border-crust bg-tangerine font-display text-lg font-extrabold text-crust shadow-pop pop-press focus:outline-none focus-visible:ring-4 focus-visible:ring-vista">
           Start journey
         </Link>
+
+        <JoinRoom username={name ?? ""} />
 
         <div className="mt-8 grid gap-5 sm:grid-cols-2">
           {SECTIONS.map((section) => (
