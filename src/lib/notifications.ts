@@ -11,7 +11,7 @@ export const notificationsQuery = () =>
       if (error) throw error;
       return data as Notification[];
     },
-    refetchInterval: 20000,
+    refetchInterval: 8000,
   });
 
 export function notificationText(n: Notification) {
