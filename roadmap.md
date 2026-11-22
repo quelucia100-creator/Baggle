@@ -49,7 +49,8 @@
 - [x] Add optional bounded Google route overlays with graceful failure; 526 tests passed, 30 isolated database tests skipped, and preview compilation passed without live Google requests.
 - [ ] Verify Google Maps rendering and route overlays on an authorized deployed origin — live Maps testing is unsupported in the agent sandbox.
 - [x] Stabilize QR invitation entry and polling; remove the retired standalone map screen and controls while preserving old-link redirects to the plan map. 22 focused tests pass; real invitation form preserves text/focus without repeated reads or navigation for 9.5 seconds, and old map links reach plan results without page errors. Preview compilation passes; no database changes or publication.
-- [ ] Add capability-verified leaving and host disbanding that closes the entire party and returns members to entry.
-- [ ] Add party friend requests only between securely linked registered accounts.
-- [ ] Reuse confirmed private recurring availability in party wizards without resubmitting dashboard edits automatically.
-- [ ] Verify permissions, private schedule mappings, party controls, and real user flows.
+- [x] Add capability-verified leaving, safe host handoff, voluntary rejoining, and host disbanding that closes the entire party and returns members to entry. Preserve historical rows and invalidate active leases.
+- [x] Add party friend requests only between securely linked registered accounts, with existing acceptance and notification behavior; guests cannot impersonate accounts by display name.
+- [x] Reuse confirmed private recurring availability in all party wizards without resubmitting dashboard edits automatically; skip the time question when representable, preserve busy gaps/overnight time, and allow party-only edits.
+- [x] Verify isolated permission tests, private schedule projections and wizard saves; live guest leave/rejoin and host disband/closed-link redirects pass at phone sizes without page errors. Signed-in account linking and dashboard return pass; no existing account availability altered and no publication.
+- [ ] Verify live two-account friend delivery and confirmed-weekday reuse — blocked because temporary test-account creation was declined and the requesting account has no confirmed weekly rows. Automated coverage passes; no real account schedules or friendships changed during verification.

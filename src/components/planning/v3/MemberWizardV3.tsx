@@ -119,9 +119,9 @@ export function MemberWizardV3({
     if (!weekly || appliedAvailability.current === availabilityKey) return;
     appliedAvailability.current = availabilityKey;
     const patch = recurringV3(weekly, context);
-    if (!patch || hasSaved) return;
+    if (!patch || hasSaved) { setReuseAvailability(false); return; }
     const merged = { ...draft, ...patch, ...(accountNeeds ? { dietary: accountNeeds.dietary, accessibility: accountNeeds.accessibility } : {}) };
-    if (validateMemberStep(merged, "availability", context)) return;
+    if (validateMemberStep(merged, "availability", context)) { setReuseAvailability(false); return; }
     onDraft(merged);
     setReuseAvailability(true);
   }, [weekly, availabilityKey, context, draft, onDraft, accountNeeds, hasSaved]);
@@ -138,8 +138,10 @@ export function MemberWizardV3({
   useEffect(() => {
     if (!accountNeeds || appliedNeeds.current) return;
     appliedNeeds.current = true;
-    onDraft({ ...draft, dietary: accountNeeds.dietary, accessibility: accountNeeds.accessibility });
-  }, [accountNeeds, draft, onDraft]);
+    // Account needs and availability may arrive together; keep both private projections.
+    const availability = weekly && !hasSaved ? recurringV3(weekly, context) : null;
+    onDraft({ ...draft, ...(availability ?? {}), dietary: accountNeeds.dietary, accessibility: accountNeeds.accessibility });
+  }, [accountNeeds, draft, onDraft, weekly, availabilityKey, reuseAvailability, context]);
   const next = async () => {
     if (busy || saving) return;
     const problem = validateMemberStep(draft, key, context);

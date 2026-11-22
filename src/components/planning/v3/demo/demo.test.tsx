@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { DemoApp } from "./DemoApp";
 import { DemoPlanningServer } from "./fake-server";
 import { HOST_ID, MISHA_ID, SAM_ID, SCENARIOS, syntheticAnswers } from "./fixtures";
+vi.mock("@/components/PartyInviteQR", () => ({ PartyInviteQR: () => null }));
 
 vi.setConfig({ testTimeout: 20_000 });
 afterEach(cleanup);

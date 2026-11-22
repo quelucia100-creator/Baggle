@@ -154,6 +154,7 @@ describe("Planning route V3 integration", () => {
         ["party", "ABC123"],
         ["party-planning", "ABC123"],
         ["party-planning-days", "ABC123"],
+        ["party-social", "ABC123", guestId],
       ]),
     );
     expect(keys).not.toContain("b".repeat(64));

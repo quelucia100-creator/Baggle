@@ -4,6 +4,7 @@ import type { PublicPlanOption } from "@/lib/planning/types";
 import { PlanningV3Experience } from "./PlanningV3Experience";
 import { NOW, guestId, hostId, party, thirdId, v2State, v3Plan, v3State } from "./test-utils";
 vi.mock("../PlanMap", () => ({ PlanMap: () => null }));
+vi.mock("@/components/PartyInviteQR", () => ({ PartyInviteQR: () => null }));
 
 // MOCKED submit: these tests never reach a server.
 vi.setConfig({ testTimeout: 20_000 });

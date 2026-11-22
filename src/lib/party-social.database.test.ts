@@ -78,6 +78,16 @@ it("transfers host authority to the next member when the host leaves", async () 
   await db.exec("RESET ROLE");
   expect((await db.query("SELECT id FROM party_members WHERE is_host AND NOT removed")).rows).toEqual([{ id: guestMember }]);
 });
+it("closes the party when its last member leaves", async () => {
+  await db.exec(`RESET ROLE; UPDATE party_members SET removed=true WHERE id<>'${hostMember}'; SET ROLE anon;`);
+  expect(await social("leave")).toEqual({ ok: true });
+  await expect(db.query("SELECT party_access('join','ABC123',$1,'Host')", [hostToken])).rejects.toThrow(/disbanded/);
+});
+it("keeps the ten-member cap when a voluntarily departed member tries to rejoin", async () => {
+  await social("leave", guestToken);
+  await db.exec(`RESET ROLE; INSERT INTO party_members(party_id,display_name,token_hash) SELECT '${pid}','Extra member',n::text FROM generate_series(1,8) n; SET ROLE anon;`);
+  await expect(db.query("SELECT party_access('join','ABC123',$1,'Guest')", [guestToken])).rejects.toThrow(/10 people maximum/);
+});
 it("rejects disbanding by a non-host and rejects forged capabilities", async () => {
   await expect(social("disband", guestToken)).rejects.toThrow(/Only the host/);
   await expect(social("leave", "d".repeat(64))).rejects.toThrow(/Join this party/);

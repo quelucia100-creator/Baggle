@@ -13,15 +13,19 @@ export function usePartyExit(code: string, error?: unknown) {
   const navigate = useNavigate();
   const client = useQueryClient();
   const departing = useRef(false);
+  useEffect(() => { departing.current = false; }, [code]);
   const exit = async () => {
     if (departing.current) return;
     departing.current = true;
     clearGuestEntry(code);
+    try {
+      for (const key of Object.keys(sessionStorage)) if (key.startsWith(`baggle-plan-draft-${code}-`)) sessionStorage.removeItem(key);
+    } catch { /* Optional draft storage cannot block leaving. */ }
     const prefixes = ["party", "party-planning", "party-planning-days", "party-social", "party-weather"];
     await client.cancelQueries({ predicate: (query) => prefixes.includes(String(query.queryKey[0])) && query.queryKey[1] === code });
     client.removeQueries({ predicate: (query) => prefixes.includes(String(query.queryKey[0])) && query.queryKey[1] === code });
-    const { data } = await supabase.auth.getSession();
-    await navigate({ to: data.session ? "/home" : "/", search: data.session ? {} : { guest: true }, replace: true });
+    const signedIn = await supabase.auth.getSession().then(({ data }) => !!data.session).catch(() => false);
+    await navigate({ to: signedIn ? "/home" : "/", search: signedIn ? {} : { guest: true }, replace: true });
   };
   useEffect(() => {
     if (error instanceof Error && error.message.includes("This party has been disbanded")) {

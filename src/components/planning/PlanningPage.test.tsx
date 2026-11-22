@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
   days: vi.fn(),
 }));
 // Offered days and host readiness come from the party_plan_days RPC.
-vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: mocks.days } }));
+vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: mocks.days, auth: { getSession: async () => ({ data: { session: null } }) } } }));
 vi.mock("@tanstack/react-start", () => ({ useServerFn: () => mocks.planning }));
 // The route and the wizard both reach the same capability-verified RPC.
 vi.mock("@/lib/planning.functions", () => ({ updatePartyPlanning: mocks.planning }));
@@ -177,6 +177,7 @@ describe("Planning screen polling and recovery", () => {
       ["party", "ABC123"],
       ["party-planning", "ABC123"],
       ["party-planning-days", "ABC123"],
+      ["party-social", "ABC123", id],
     ]);
   });
   it("shows the shared results page once planning has finished collecting", async () => {
