@@ -1,11 +1,9 @@
 import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { AuthShell } from "@/components/BagelScene";
 import { PopButton } from "@/components/Field";
-import { PaperIcon } from "@/components/PaperIcon";
-import { BagelIcon } from "@/components/icons";
-import { BackLink } from "@/components/BackLink";
+import { PaperIcon, type PaperTone } from "@/components/PaperIcon";
+import { BagelIcon, ClockIcon, TicketIcon, UsersIcon } from "@/components/icons";
 import { accountPreferencesQuery, firstMissingStep } from "@/lib/account-preferences";
 
 export const Route = createFileRoute("/_authenticated/home")({
@@ -17,10 +15,10 @@ export const Route = createFileRoute("/_authenticated/home")({
   },
   head: () => ({
     meta: [
-      { title: "Your plans — Baggle" },
-      { name: "description", content: "Your Baggle home: friends, plans and what's on." },
-      { property: "og:title", content: "Your plans — Baggle" },
-      { property: "og:description", content: "Your Baggle home." },
+      { title: "Your dashboard — Baggle" },
+      { name: "description", content: "Your Baggle dashboard: past journeys, friends, groups and availability." },
+      { property: "og:title", content: "Your dashboard — Baggle" },
+      { property: "og:description", content: "Your Baggle dashboard." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -28,24 +26,109 @@ export const Route = createFileRoute("/_authenticated/home")({
   component: Home,
 });
 
+type DashboardSection = {
+  title: string;
+  description: string;
+  tone: PaperTone;
+  back: PaperTone;
+  rotate: number;
+  icon: React.ReactNode;
+};
+
+const SECTIONS: DashboardSection[] = [
+  {
+    title: "Past journeys",
+    description: "Your finished trips and hangouts will live here.",
+    tone: "apricot",
+    back: "sage",
+    rotate: -6,
+    icon: <TicketIcon className="h-6 w-6" />,
+  },
+  {
+    title: "Friends list",
+    description: "Add friends and see who you plan with most.",
+    tone: "chartreuse",
+    back: "cream",
+    rotate: 5,
+    icon: <UsersIcon className="h-6 w-6" />,
+  },
+  {
+    title: "Default groups",
+    description: "Your go-to crews and recent groups will show up here.",
+    tone: "vista",
+    back: "apricot",
+    rotate: -4,
+    icon: <BagelIcon className="h-6 w-6" />,
+  },
+  {
+    title: "Availability",
+    description: "Set when you're usually free so planning is instant.",
+    tone: "sage",
+    back: "chartreuse",
+    rotate: 6,
+    icon: <ClockIcon className="h-6 w-6" />,
+  },
+];
+
+function SectionCard({ section }: { section: DashboardSection }) {
+  return (
+    <section aria-label={section.title} className="paper rounded-3xl border-2 border-crust bg-cream p-5 shadow-pop">
+      <div className="flex items-center gap-3">
+        <PaperIcon tone={section.tone} back={section.back} rotate={section.rotate} className="h-12 w-12">
+          {section.icon}
+        </PaperIcon>
+        <h2 className="text-xl font-extrabold">{section.title}</h2>
+      </div>
+      <p className="mt-3 text-sm text-muted-foreground">{section.description}</p>
+      <p className="mt-4 inline-block rounded-full border-2 border-crust bg-offwhite px-3 py-1 text-xs font-bold uppercase tracking-wider text-crust">
+        Coming soon
+      </p>
+    </section>
+  );
+}
+
 function Home() {
   const { data } = useSuspenseQuery(accountPreferencesQuery());
   const name = data.preferences?.username;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   return (
-    <AuthShell>
-      <BackLink />
-      <PaperIcon tone="apricot" back="sage" className="h-14 w-14"><BagelIcon className="h-7 w-7" /></PaperIcon>
-      <h1 className="mt-5 text-3xl font-extrabold">Hey {name || "there"}</h1>
-      <p className="mt-2 text-muted-foreground">You're signed in. Finding who's free and what to do is coming next.</p>
-      <Link to="/settings" className="mt-6 block font-bold underline underline-offset-4">Account preferences</Link>
-      <PopButton tone="sage" className="mt-8" onClick={async () => {
-        await queryClient.cancelQueries();
-        queryClient.clear();
-        await supabase.auth.signOut();
-        await navigate({ to: "/auth", search: {}, replace: true });
-      }}>Log out</PopButton>
-    </AuthShell>
+    <main className="paper min-h-dvh bg-offwhite px-5 py-8 text-crust sm:px-8">
+      <div className="mx-auto w-full max-w-3xl">
+        <div className="flex items-center gap-4">
+          <PaperIcon tone="apricot" back="sage" className="h-14 w-14">
+            <BagelIcon className="h-7 w-7" />
+          </PaperIcon>
+          <div>
+            <h1 className="text-3xl font-extrabold">Hey {name || "there"}</h1>
+            <p className="text-sm text-muted-foreground">Your Baggle dashboard</p>
+          </div>
+        </div>
+
+        <div className="mt-8 grid gap-5 sm:grid-cols-2">
+          {SECTIONS.map((section) => (
+            <SectionCard key={section.title} section={section} />
+          ))}
+        </div>
+
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <Link to="/settings" className="font-bold underline underline-offset-4">
+            Account preferences
+          </Link>
+          <PopButton
+            tone="sage"
+            className="sm:ml-auto sm:w-auto sm:px-6"
+            onClick={async () => {
+              await queryClient.cancelQueries();
+              queryClient.clear();
+              await supabase.auth.signOut();
+              await navigate({ to: "/auth", search: {}, replace: true });
+            }}
+          >
+            Log out
+          </PopButton>
+        </div>
+      </div>
+    </main>
   );
 }

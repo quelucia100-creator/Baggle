@@ -66,6 +66,15 @@ export function UsersIcon({ className = "h-6 w-6" }: IconProps) {
   );
 }
 
+export function ClockIcon({ className = "h-6 w-6" }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+      <circle {...stroke} cx="12" cy="12" r="9" />
+      <path {...stroke} d="M12 6.5V12l3.5 2.2" />
+    </svg>
+  );
+}
+
 export function PinIcon({ className = "h-6 w-6" }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
