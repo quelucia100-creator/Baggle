@@ -56,3 +56,4 @@ use the editor.
 - Export and register the canonical planning server-function builder directly alongside typed aliases; keeping its stable name makes endpoint discovery independent of alias analysis and preserves open-client function IDs.
 - Invitation entry polls only after confirmed membership and never follows stored map-view flags; the retired map URL redirects to plan results to keep old links usable without navigation loops.
 - Party social RPCs bind auth users to capability-verified memberships, never display names; serialized leave/disband operations invalidate leases. Dashboard schedules project only into screen-private drafts and save through existing planning validation.
+- Route-module failures require explicit reload; other errors retry in place to preserve drafts and prevent refresh loops.
