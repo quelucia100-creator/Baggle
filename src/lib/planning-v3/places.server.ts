@@ -31,7 +31,7 @@ const fields = [
   "rating",
   "attributions",
 ];
-const endpoint = "https://places.googleapis.com/v1/places:searchNearby";
+const endpoint = "https://connector-gateway.lovable.dev/google_maps/places/v1/places:searchNearby";
 const entry = z.object({
   date: z.object({ year: z.number().int(), month: z.number().int(), day: z.number().int() }),
   hour: z.number().int().min(0).max(23),
@@ -139,16 +139,18 @@ export async function discoverGooglePlaces(
   key: string | undefined,
   now: number,
   request = fetch,
+  gatewayToken = process.env["LOVABLE_API_KEY"],
 ) {
-  if (!key) return [];
+  if (!key || !gatewayToken) return [];
   try {
     const response = await request(endpoint, {
       method: "POST",
-      redirect: "error",
+      redirect: "manual",
       signal: AbortSignal.timeout(2200),
       headers: {
         "Content-Type": "application/json",
-        "X-Goog-Api-Key": key,
+        Authorization: `Bearer ${gatewayToken}`,
+        "X-Connection-Api-Key": key,
         "X-Goog-FieldMask": fields.map((field) => `places.${field}`).join(","),
       },
       body: JSON.stringify({
@@ -159,7 +161,11 @@ export async function discoverGooglePlaces(
         },
       }),
     });
-    if (!response.ok) return [];
+    if (!response.ok) {
+      const body = await response.text();
+      console.error(`Event discovery failed [${response.status}]: ${body}`);
+      return [];
+    }
     const parsed = z
       .object({ places: z.array(z.unknown()).max(20).default([]) })
       .safeParse(await response.json());

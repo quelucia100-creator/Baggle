@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PlanningExperience } from "./PlanningExperience";
 import { ConfigForm, PreferencesForm } from "./PlanningForms";
-import { planningControls, validateConfig, validatePreferences, formatPlanTime } from "./model";
+import { planningControls, validateConfig, validatePreferences, formatPlanTime, planningError } from "./model";
 import type { PlanningState } from "@/lib/planning/types";
 import type { PartyState } from "@/lib/party";
 
@@ -92,6 +92,12 @@ const show = (state = base, isHost = true, busy = false) => {
 };
 
 describe("Planning role and readiness rules", () => {
+  it("does not confuse a Google Maps permission error with guest membership or expose raw provider details", () => {
+    const message = planningError(new Error("Google Maps denied event travel checks (403). Check the connection's permissions before trying again."));
+    expect(message).toBe("Google Maps couldn't check travel. Check its connection or try again; your private answers are saved.");
+    expect(message).not.toContain("party membership");
+    expect(message).not.toContain("403");
+  });
   it("allows host locking with two submissions", () => {
     const submit = show();
     fireEvent.click(screen.getByRole("button", { name: "Lock & find a plan" }));

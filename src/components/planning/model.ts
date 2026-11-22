@@ -49,6 +49,8 @@ export function formatPlanTime(at: string) {
 
 export function planningError(error: unknown) {
   const message = error instanceof Error ? error.message.toLowerCase() : "";
+  if (message.startsWith("google maps") || message.startsWith("connect google maps") || message.startsWith("event travel checks"))
+    return "Google Maps couldn't check travel. Check its connection or try again; your private answers are saved.";
   if (message.includes("revision") || message.includes("stale")) return "The plan changed. We've checked the latest option; please try again.";
   if (message.includes("permission") || message.includes("host") || message.includes("member") || message.includes("capability")) return "This action isn't available to you. Check your party membership and try again.";
   return "We couldn't confirm that change. Your edits are kept; check the current status before trying again.";

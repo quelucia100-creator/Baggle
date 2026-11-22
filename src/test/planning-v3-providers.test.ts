@@ -224,12 +224,22 @@ describe("V3 venue and weather sources", () => {
   });
   it("uses a restrictive field mask and returns no trustable facts on provider outage", async () => {
     const fetch = requests(async () => Response.json({ places: [place] }));
-    expect(await discoverGooglePlaces(point, "key", now, fetch)).toHaveLength(1);
+    expect(await discoverGooglePlaces(point, "key", now, fetch, "gateway-token")).toHaveLength(1);
     const headers = new Headers(fetch.mock.calls[0]?.[1]?.headers);
+    expect(fetch.mock.calls[0]?.[0]).toBe("https://connector-gateway.lovable.dev/google_maps/places/v1/places:searchNearby");
+    expect(fetch.mock.calls[0]?.[1]?.redirect).toBe("manual");
+    expect(headers.get("X-Connection-Api-Key")).toBe("key");
+    expect(headers.get("Authorization")).toBe("Bearer gateway-token");
+    expect(headers.has("X-Goog-Api-Key")).toBe(false);
     expect(headers.get("X-Goog-FieldMask")).toContain("currentOpeningHours.periods");
     expect(headers.get("X-Goog-FieldMask")).not.toMatch(/priceLevel|\*/);
     const offline = requests(async () => new Response(null, { status: 503 }));
-    expect(await discoverGooglePlaces(point, "key", now, offline)).toEqual([]);
+    expect(await discoverGooglePlaces(point, "key", now, offline, "gateway-token")).toEqual([]);
     expect((await fetchV3Weather([venue()], [day], offline)).size).toBe(0);
+  });
+  it("skips discovery without linked gateway authorization", async () => {
+    const request = requests(async () => Response.json({ places: [place] }));
+    expect(await discoverGooglePlaces(point, "key", now, request, "")).toEqual([]);
+    expect(request).not.toHaveBeenCalled();
   });
 });

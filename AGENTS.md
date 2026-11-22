@@ -45,4 +45,4 @@ use the editor.
 - Guest planning UI lives in the independent party plan route with hydration-gated, capability-verified polling and a screen-lifetime private query cache; this keeps account auth and each member's map navigation independent.
 - Planning wizards keep unsaved drafts only in screen-local state, retain saved answers from caller-only RPC responses, and await confirmed mutations before readiness; this prevents premature success and keeps role/validation states testable without database writes.
 - Meeting-area and rough-origin preset mappings live in a frontend-only module and preserve unknown saved coordinate pairs unless explicitly replaced; this avoids technical coordinate entry without changing the backend contract.
-- Event-generation Routes and legacy Places requests use the linked Google Maps connector gateway with server-only credentials and Worker-compatible redirects, so workspace reconnections actually reach the providers.
+- Event-generation Routes and both Places adapters use the linked Google Maps connector gateway with server-only credentials and Worker-compatible redirects, so workspace reconnections actually reach the providers.
