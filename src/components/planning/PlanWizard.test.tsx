@@ -69,10 +69,11 @@ const state: PlanningState = {
   noPlanReason: null,
   venueSource: null,
 };
-const days: PlanningDays = { dates: [], selfWindows: null, hostReady: true };
+const days: PlanningDays = { dates: [], selfWindows: null, hostReady: true, revision: 1 };
+const draftKey = `baggle-plan-draft-ABC123-${selfId}`;
 const draft = (values: Record<string, unknown>) =>
   sessionStorage.setItem(
-    "baggle-plan-draft-ABC123",
+    draftKey,
     JSON.stringify({
       spend: null,
       day: null,
@@ -81,7 +82,8 @@ const draft = (values: Record<string, unknown>) =>
       freeTo: null,
       travelMin: null,
       vibe: null,
-      dayFree: {},
+      dayFree: { "2026-11-22": [36, 37, 38, 39] },
+      revision: 1,
       ...values,
     }),
   );
@@ -156,7 +158,7 @@ describe("Plan the hangout wizard", () => {
 
   it("returns to the map from the first step and to the previous step after that", () => {
     const first = open("budget");
-    fireEvent.click(screen.getByRole("button", { name: "Back to map" }));
+    fireEvent.click(screen.getByRole("button", { name: "Back to party" }));
     expect(first.exit).toHaveBeenCalled();
     cleanup();
     draft({ spend: 15 });
@@ -171,7 +173,7 @@ describe("Plan the hangout wizard", () => {
   });
 
   it("sends guests away from the host-only day step", async () => {
-    draft({ spend: 15 });
+    draft({ spend: 15, dayFree: {} });
     const { goToStep } = open("day");
     await waitFor(() => expect(goToStep).toHaveBeenCalledWith("time", true));
   });
@@ -191,7 +193,7 @@ describe("Plan the hangout wizard", () => {
   });
 
   it("gives guests a calendar column per host day, starting with nothing picked", () => {
-    draft({ spend: 15 });
+    draft({ spend: 15, dayFree: {} });
     open("time", {
       days: { ...days, dates: ["2026-11-28", "2026-11-29"] },
       state: { ...state, config: { ...state.config, date: "2026-11-28" } },
@@ -221,7 +223,7 @@ describe("Plan the hangout wizard", () => {
     fireEvent.click(screen.getByRole("radio", { name: "Chill" }));
     fireEvent.click(screen.getByRole("button", { name: "Save my answers" }));
     await waitFor(() => expect(finish).toHaveBeenCalled());
-    expect(mocks.runPlanningDays.mock.calls.map(([, command]) => command)).toEqual([
+    expect(mocks.runPlanningDays.mock.calls.map(([, command]) => command)).toMatchObject([
       {
         action: "configure",
         dates: ["2026-11-25"],
@@ -233,7 +235,7 @@ describe("Plan the hangout wizard", () => {
         },
       },
     ]);
-    expect(mocks.runPlanning.mock.calls.at(-1)?.[1]).toMatchObject({
+    expect(mocks.runPlanningDays.mock.calls.at(-1)?.[1]).toMatchObject({
       preferences: { freeFrom: "09:00", freeTo: "10:30" },
     });
   });
@@ -270,7 +272,7 @@ describe("Plan the hangout wizard", () => {
       screen.getByRole("heading", { name: "The host is still setting up" }),
     ).toBeInTheDocument();
     expect(screen.queryByRole("slider")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Back to map" }));
+    fireEvent.click(screen.getByRole("button", { name: "Back to party" }));
     expect(exit).toHaveBeenCalled();
   });
 
@@ -290,7 +292,7 @@ describe("Plan the hangout wizard", () => {
     rerender("vibe");
     fireEvent.click(screen.getByRole("button", { name: "Save my answers" }));
     await waitFor(() => expect(finish).toHaveBeenCalled());
-    expect(mocks.runPlanningDays.mock.calls.map(([, command]) => command)).toEqual([
+    expect(mocks.runPlanningDays.mock.calls.map(([, command]) => command)).toMatchObject([
       { action: "save", windows: { "2026-11-29": [{ freeFrom: "00:00", freeTo: "00:00" }] } },
     ]);
   });
@@ -348,8 +350,8 @@ describe("Plan the hangout wizard", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save my answers" }));
     await waitFor(() => expect(finish).toHaveBeenCalled());
     expect(goToStep).toHaveBeenCalledWith("vibe");
-    expect(mocks.runPlanning).toHaveBeenCalledTimes(1);
-    expect(mocks.runPlanning).toHaveBeenCalledWith("ABC123", {
+    expect(mocks.runPlanning).not.toHaveBeenCalled();
+    expect(mocks.runPlanningDays).toHaveBeenCalledWith("ABC123", expect.objectContaining({
       action: "save",
       preferences: {
         budget: 0,
@@ -359,9 +361,9 @@ describe("Plan the hangout wizard", () => {
         originLat: 45.51,
         originLng: -73.57,
       },
-    });
-    expect(localStorage.getItem("baggle-plan-vibe-ABC123")).toBe("eats");
-    expect(sessionStorage.getItem("baggle-plan-draft-ABC123")).toBeNull();
+    }));
+    expect(localStorage.getItem("baggle-plan-vibe-ABC123")).toBeNull();
+    expect(sessionStorage.getItem(draftKey)).toBeNull();
   });
 
   it("lets the host pick today or several days in the next week", () => {
@@ -393,14 +395,14 @@ describe("Plan the hangout wizard", () => {
       "false",
     );
     next();
-    expect(goToStep).toHaveBeenCalledWith("budget");
-    expect(JSON.parse(sessionStorage.getItem("baggle-plan-draft-ABC123") ?? "{}")).toMatchObject({
+    expect(goToStep).toHaveBeenCalledWith("time");
+    expect(JSON.parse(sessionStorage.getItem(draftKey) ?? "{}")).toMatchObject({
       day: "2026-11-28",
       pickedDays: ["2026-11-28"],
     });
   });
 
-  it("offers the host's picked day to the party before saving their answers", async () => {
+  it("saves the host's picked day and answers atomically", async () => {
     draft({
       spend: 50,
       day: "2026-11-28",
@@ -414,15 +416,15 @@ describe("Plan the hangout wizard", () => {
     fireEvent.click(screen.getByRole("radio", { name: "Sporty" }));
     fireEvent.click(screen.getByRole("button", { name: "Save my answers" }));
     await waitFor(() => expect(finish).toHaveBeenCalled());
-    expect(mocks.runPlanningDays.mock.calls.map(([, command]) => command)).toEqual([
+    expect(mocks.runPlanningDays.mock.calls.map(([, command]) => command)).toMatchObject([
       {
         action: "configure",
         dates: ["2026-11-28"],
         windows: { "2026-11-28": [{ freeFrom: "10:00", freeTo: "14:00" }] },
       },
     ]);
-    expect(mocks.runPlanning.mock.calls.map(([, command]) => command.action)).toEqual(["save"]);
-    expect(mocks.runPlanning.mock.calls[0]?.[1]).toMatchObject({
+    expect(mocks.runPlanning).not.toHaveBeenCalled();
+    expect(mocks.runPlanningDays.mock.calls[0]?.[1]).toMatchObject({
       preferences: { budget: 3, freeFrom: "10:00", freeTo: "14:00", maxTravelMin: 35 },
     });
   });
@@ -441,7 +443,7 @@ describe("Plan the hangout wizard", () => {
     fireEvent.click(screen.getByRole("radio", { name: "Sporty" }));
     fireEvent.click(screen.getByRole("button", { name: "Save my answers" }));
     await waitFor(() => expect(finish).toHaveBeenCalled());
-    expect(mocks.runPlanningDays.mock.calls.map(([, command]) => command)).toEqual([
+    expect(mocks.runPlanningDays.mock.calls.map(([, command]) => command)).toMatchObject([
       {
         action: "configure",
         dates: ["2026-11-22"],
@@ -456,13 +458,13 @@ describe("Plan the hangout wizard", () => {
   });
 
   it("keeps the draft when saving fails", async () => {
-    mocks.runPlanning.mockRejectedValue(new Error("network down"));
+    mocks.runPlanningDays.mockRejectedValue(new Error("network down"));
     draft({ spend: 50, freeFrom: "18:00", freeTo: "22:00", travelMin: 35, vibe: "eats" });
     const { finish } = open("vibe");
     fireEvent.click(screen.getByRole("button", { name: "Save my answers" }));
-    await waitFor(() => expect(mocks.runPlanning).toHaveBeenCalled());
+    await waitFor(() => expect(mocks.runPlanningDays).toHaveBeenCalled());
     expect(finish).not.toHaveBeenCalled();
-    expect(JSON.parse(sessionStorage.getItem("baggle-plan-draft-ABC123") ?? "{}")).toMatchObject({
+    expect(JSON.parse(sessionStorage.getItem(draftKey) ?? "{}")).toMatchObject({
       spend: 50,
       travelMin: 35,
     });

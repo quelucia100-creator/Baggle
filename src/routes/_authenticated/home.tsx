@@ -1,12 +1,15 @@
+import { useState } from "react";
 import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { PopButton } from "@/components/Field";
+import { Field, PopButton } from "@/components/Field";
 import { PaperIcon, type PaperTone } from "@/components/PaperIcon";
 import { BagelIcon, ClockIcon, TicketIcon, UsersIcon } from "@/components/icons";
 import { Bell, Settings } from "lucide-react";
 import { notificationsQuery } from "@/lib/notifications";
 import { accountPreferencesQuery, firstMissingStep } from "@/lib/account-preferences";
+
+import { readPartyInvitation } from "@/lib/party-invitation";
 
 export const Route = createFileRoute("/_authenticated/home")({
   loader: async ({ context }) => {
@@ -99,6 +102,8 @@ function Home() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const notes = useQuery(notificationsQuery());
+  const [invitation, setInvitation] = useState("");
+  const code = readPartyInvitation(invitation);
   const unread = notes.data?.filter((n) => !n.read).length ?? 0;
   return (
     <main className="paper min-h-dvh bg-offwhite px-5 py-8 text-crust sm:px-8">
@@ -123,6 +128,27 @@ function Home() {
         <Link to="/journey/new" className="paper mt-8 flex h-14 w-full items-center justify-center rounded-xl border-2 border-crust bg-tangerine font-display text-lg font-extrabold text-crust shadow-pop pop-press focus:outline-none focus-visible:ring-4 focus-visible:ring-vista">
           Start journey
         </Link>
+
+        <form
+          className="mt-5 flex flex-wrap items-end gap-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (code) void navigate({ to: "/journey/join/$code", params: { code } });
+          }}
+        >
+          <div className="min-w-48 flex-1">
+            <Field
+              label="Party code or invite link"
+              value={invitation}
+              onChange={(event) => setInvitation(event.target.value)}
+              placeholder="ABC123"
+              required
+            />
+          </div>
+          <PopButton type="submit" tone="sage" className="sm:!w-auto sm:px-6" disabled={!code}>
+            Join party
+          </PopButton>
+        </form>
 
         <div className="mt-8 grid gap-5 sm:grid-cols-2">
           {SECTIONS.map((section) => (

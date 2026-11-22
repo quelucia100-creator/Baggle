@@ -66,7 +66,7 @@ const state: PlanningState = {
 };
 const draft = (values: Record<string, unknown>) =>
   sessionStorage.setItem(
-    "baggle-plan-draft-ABC123",
+    `baggle-plan-draft-ABC123-${party.selfId}`,
     JSON.stringify({
       spend: null,
       day: null,
@@ -147,7 +147,7 @@ describe("Plan the hangout wizard", () => {
 
   it("returns to the map from the first step and to the previous step after that", () => {
     const first = open("budget");
-    fireEvent.click(screen.getByRole("button", { name: "Back to map" }));
+    fireEvent.click(screen.getByRole("button", { name: "Back to party" }));
     expect(first.exit).toHaveBeenCalled();
     cleanup();
     draft({ spend: 15 });
@@ -276,7 +276,7 @@ describe("Plan the hangout wizard", () => {
       },
     });
     expect(localStorage.getItem("baggle-plan-vibe-ABC123")).toBe("eats");
-    expect(sessionStorage.getItem("baggle-plan-draft-ABC123")).toBeNull();
+    expect(sessionStorage.getItem(`baggle-plan-draft-ABC123-${party.selfId}`)).toBeNull();
   });
 
   it("lets the host pick today or several days in the next week", () => {
@@ -309,7 +309,7 @@ describe("Plan the hangout wizard", () => {
     );
     next();
     expect(goToStep).toHaveBeenCalledWith("time");
-    expect(JSON.parse(sessionStorage.getItem("baggle-plan-draft-ABC123") ?? "{}")).toMatchObject({
+    expect(JSON.parse(sessionStorage.getItem(`baggle-plan-draft-ABC123-${party.selfId}`) ?? "{}")).toMatchObject({
       day: "2026-11-28",
       pickedDays: ["2026-11-28"],
     });
@@ -327,7 +327,7 @@ describe("Plan the hangout wizard", () => {
     ]);
     expect(mocks.runPlanning.mock.calls[0]?.[1]).toEqual({
       action: "configure",
-      config: { ...state.config, date: "2026-11-28" },
+      config: { ...state.config, category: "activity", date: "2026-11-28" },
     });
     expect(mocks.runPlanning.mock.calls[1]?.[1]).toMatchObject({
       preferences: { budget: 3, freeFrom: "10:00", freeTo: "14:00", maxTravelMin: 35 },
@@ -341,7 +341,7 @@ describe("Plan the hangout wizard", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save my answers" }));
     await waitFor(() => expect(mocks.runPlanning).toHaveBeenCalled());
     expect(finish).not.toHaveBeenCalled();
-    expect(JSON.parse(sessionStorage.getItem("baggle-plan-draft-ABC123") ?? "{}")).toMatchObject({
+    expect(JSON.parse(sessionStorage.getItem(`baggle-plan-draft-ABC123-${party.selfId}`) ?? "{}")).toMatchObject({
       spend: 50,
       travelMin: 35,
     });

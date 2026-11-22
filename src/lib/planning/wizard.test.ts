@@ -168,7 +168,7 @@ describe("day choice", () => {
 
 describe("step completion", () => {
   it("has the host pick the day first, a step guests skip", () => {
-    expect(planSteps).toEqual(["day", "budget", "time", "radius", "vibe"]);
+    expect(planSteps).toEqual(["day", "time", "budget", "radius", "vibe"]);
     expect(planStepsFor(true)).toEqual(planSteps);
     expect(planStepsFor(false)).toEqual(["budget", "time", "radius", "vibe"]);
   });
@@ -176,7 +176,7 @@ describe("step completion", () => {
   it("finds the first unanswered step", () => {
     const guest = planStepsFor(false);
     expect(firstIncompletePlanStep(emptyPlanDraft)).toBe("day");
-    expect(firstIncompletePlanStep({ ...emptyPlanDraft, day: "today" })).toBe("budget");
+    expect(firstIncompletePlanStep({ ...emptyPlanDraft, day: "today" })).toBe("time");
     expect(firstIncompletePlanStep({ ...emptyPlanDraft, spend: 0 })).toBe("day");
     expect(firstIncompletePlanStep({ ...emptyPlanDraft, spend: 0 }, guest)).toBe("time");
     expect(firstIncompletePlanStep({ ...complete, travelMin: null })).toBe("radius");
