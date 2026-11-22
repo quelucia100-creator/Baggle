@@ -180,7 +180,13 @@
   50% { transform: translateY(-14px) rotate(calc(var(--r, 0deg) + 6deg)); }
 }
 @utility animate-bob { animation: bob 5s ease-in-out infinite; }
+@keyframes wizard-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@utility wizard-enter { animation: wizard-in 180ms ease-out; }
 @media (prefers-reduced-motion: reduce) {
+  .wizard-enter { animation: none; }
   .animate-bob { animation: none; }
   .pop-press { transition: none; }
 }

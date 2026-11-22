@@ -24,3 +24,6 @@
 - [ ] Verify saving all seven pages and editing saved answers end-to-end — blocked because temporary test-account creation was declined; existing account answers were not modified.
 
 - [x] Add a separate mandatory food preferences page including allergies.
+- [x] Replace collecting forms with private and host question wizards, preserve real saves, promote planning, add scannable party invitations, and correct forecast units.
+- [x] Verify wizard validation, saved-state recovery, role/privacy boundaries, QR target, keyboard and mobile behavior without live database writes: 152 unit tests pass; intercepted browser flows and rendered QR decoding pass.
+- [x] Describe deferred public flavour-board and full Room/Bake/Reveal/acceptance backend requirements without pretending they are functional.
