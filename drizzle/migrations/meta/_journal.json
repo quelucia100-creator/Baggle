@@ -99,6 +99,13 @@
       "when": 1795344219868,
       "tag": "0013_fix_party_plan_record_alias_collision",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1795345283362,
+      "tag": "0014_friends",
+      "breakpoints": true
     }
   ]
 }

@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { PopButton } from "@/components/Field";
 import { PaperIcon, type PaperTone } from "@/components/PaperIcon";
 import { BagelIcon, ClockIcon, TicketIcon, UsersIcon } from "@/components/icons";
+import { FriendsCard } from "@/components/FriendsCard";
 import { accountPreferencesQuery, firstMissingStep } from "@/lib/account-preferences";
 
 export const Route = createFileRoute("/_authenticated/home")({
@@ -107,7 +108,7 @@ function Home() {
 
         <div className="mt-8 grid gap-5 sm:grid-cols-2">
           {SECTIONS.map((section) => (
-            <SectionCard key={section.title} section={section} />
+            section.title === "Friends list" ? <FriendsCard key="friends" /> : <SectionCard key={section.title} section={section} />
           ))}
         </div>
 
