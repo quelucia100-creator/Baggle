@@ -211,6 +211,13 @@
       "when": 1795352620293,
       "tag": "0029_planning_v3_precise_manual_origin",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1795359913737,
+      "tag": "0030_host_first_planning",
+      "breakpoints": true
     }
   ]
 }
