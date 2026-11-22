@@ -4,6 +4,7 @@ import logo from "@/assets/baggle-logo.png.asset.json";
 import bagelPlain from "@/assets/bagel-single.png.asset.json";
 import bagelCream from "@/assets/bagel-cream.png.asset.json";
 import { AuthShell } from "@/components/BagelScene";
+import { useBagelTransition } from "@/components/BagelTransition";
 import { Field, PopButton } from "@/components/Field";
 import { PaperIcon } from "@/components/PaperIcon";
 import { normalizePartyCode } from "@/lib/password";
@@ -31,15 +32,17 @@ function Welcome() {
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
+  const { setActive } = useBagelTransition();
   const navigate = useNavigate();
 
   const go = async (created: boolean) => {
     setBusy(true);
     try {
       const party = await accessParty(created ? "create" : "join", normalizePartyCode(code), name.trim());
+      setActive(true);
       await navigate({ to: "/party/$code", params: { code: party.code } });
     } catch (error) { toast.error(error instanceof Error ? error.message : "Could not open party."); }
-    finally { setBusy(false); }
+    finally { setActive(false); setBusy(false); }
   };
 
   return (

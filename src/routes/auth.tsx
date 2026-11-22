@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import logo from "@/assets/baggle-logo.png.asset.json";
 import { supabase } from "@/integrations/supabase/client";
 import { AuthShell } from "@/components/BagelScene";
+import { useBagelTransition } from "@/components/BagelTransition";
 import { Field, PopButton } from "@/components/Field";
 import { GoogleButton } from "@/components/GoogleButton";
 import { isStrongPassword } from "@/lib/password";
@@ -38,15 +39,33 @@ function AuthPage() {
   const [username, setUsername] = useState("");
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState<string | null>(null);
+  const { setActive } = useBagelTransition();
   const navigate = useNavigate();
 
   useEffect(() => { setSent(null); }, [tab]);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => { if (data.user) navigate({ to: "/home", replace: true }); });
-    const { data } = supabase.auth.onAuthStateChange((e) => { if (e === "SIGNED_IN") navigate({ to: "/home", replace: true }); });
-    return () => data.subscription.unsubscribe();
-  }, [navigate]);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let transitioning = false;
+    const goHome = () => {
+      if (transitioning) return;
+      transitioning = true;
+      setActive(true);
+      timer = setTimeout(() => {
+        timer = undefined;
+        void navigate({ to: "/home", replace: true }).catch(() => {
+          toast.error("Could not open your dashboard. Please try again.");
+          transitioning = false;
+        }).finally(() => setActive(false));
+      }, 0);
+    };
+    supabase.auth.getUser().then(({ data }) => { if (data.user) goHome(); });
+    const { data } = supabase.auth.onAuthStateChange((e) => { if (e === "SIGNED_IN") goHome(); });
+    return () => {
+      if (timer) { clearTimeout(timer); setActive(false); }
+      data.subscription.unsubscribe();
+    };
+  }, [navigate, setActive]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
