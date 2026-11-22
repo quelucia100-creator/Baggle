@@ -40,3 +40,14 @@ use the editor.
 - Planning extends existing parties through capability-verified RPCs; private preferences/snapshots have no client table grants or realtime publication so neither hosts nor guests can read others' limits.
 - Planning locks snapshot submissions under the existing party row lock and finish through service-only lease RPCs; this prevents duplicate computation and stale completion without changing guest identity or map navigation.
 - Planning ranking is pure TypeScript with Montreal civil-time conversion in one helper; server functions orchestrate forecasts and persist only privacy-safe results so rerolls never recompute or expose individual costs.
+
+
+## Baggle v3 shared agent workflow
+
+The accepted product BASE and current code gaps are documented in `docs/BAGGLE-V3-BASE.md`.
+The two-agent working rules are in `docs/AGENT-PROTOCOL.md`. Always read the newest comments on [GitHub Agent Hub #4](https://github.com/quelucia100-creator/baggel/issues/4) and your assigned Agent A [#5](https://github.com/quelucia100-creator/baggel/issues/5) or Agent B [#6](https://github.com/quelucia100-creator/baggel/issues/6) issue before changing shared contracts.
+
+- Agent A owns group-state, privacy, RPC/session lifecycle and orchestration. Agent B owns pure flavour matching, venue discovery, and their tests.
+- The existing `docs/baggel-planning-contract.md` describes the implemented v2 foundation; the original `docs/hangout-flow-v2-reference.md` is a historical reference from a different architecture.
+- Propose and mutually acknowledge a `BagglePlanningSnapshot -> BaggleRecommendationResult` contract before parallel work; do not concurrently edit `src/lib/planning/types.ts` or `src/lib/planning/service.server.ts`.
+- Keep all Lovable-owned schema and generated file restrictions above intact. No commits directly to main. Report actual test results and PR links in Hub #4.
