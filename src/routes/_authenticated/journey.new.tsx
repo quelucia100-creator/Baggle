@@ -7,6 +7,7 @@ import { PopButton } from "@/components/Field";
 import { PaperIcon } from "@/components/PaperIcon";
 import { accessParty } from "@/lib/party";
 import { accountPreferencesQuery } from "@/lib/account-preferences";
+import { rememberGroupInvite } from "@/lib/pending-group-invite";
 
 export const Route = createFileRoute("/_authenticated/journey/new")({
   head: () => ({
@@ -44,11 +45,9 @@ function StartJourney() {
     setBusy(true); setError(null);
     try {
       const party = await accessParty("create", "", prefs.preferences?.username ?? "Host");
-      if (choice !== "solo") {
-        const { data, error } = await supabase.rpc("invite_group_to_journey", { p_group: choice, p_code: party.code });
-        if (error || !(data as { ok?: boolean })?.ok) setError("Journey started, but the group couldn't be invited. Share the code instead.");
-      }
-      await navigate({ to: "/party/$code", params: { code: party.code } });
+      // The host sets up the whole hangout first; the group is invited once that's done.
+      if (choice !== "solo") rememberGroupInvite(party.code, choice);
+      await navigate({ to: "/party/$code/plan", params: { code: party.code }, search: { step: "day" } });
     } catch {
       setError("Couldn't start the journey. Please try again.");
     } finally { setBusy(false); }
@@ -69,8 +68,8 @@ function StartJourney() {
         <h1 className="mt-4 text-3xl font-extrabold">Start a journey</h1>
         <p className="mt-1 text-sm text-muted-foreground">Who's coming?</p>
         <div role="radiogroup" aria-label="Who's coming" className="mt-6 space-y-3">
-          {option("solo", "Invite people later", "Start now and share the party code.", <User className="h-5 w-5" />)}
-          {option("group", "Choose group", "Everyone in the group gets an invite to join.", <Users className="h-5 w-5" />)}
+          {option("solo", "Invite people later", "Set up the hangout, then share the party code.", <User className="h-5 w-5" />)}
+          {option("group", "Choose group", "Set up the hangout, then everyone in the group gets an invite.", <Users className="h-5 w-5" />)}
         </div>
         {choice !== "solo" && (
           <div role="radiogroup" aria-label="Choose group" className="mt-4 space-y-2 border-l-4 border-crust/30 pl-4">

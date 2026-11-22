@@ -1,9 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { preferencesSchema } from "./types";
 import {
-  FULL_DAY,
-  dayTimeLabel,
-  eventDayWindow,
+  DAY_SLOTS,
+  slotLabel,
+  dayWindowsFor,
+  freeRuns,
+  paintSlots,
+  windowsToSlots,
+  clampFree,
+  replaceBlock,
+  moveBlock,
   budgetLevelToSpend,
   dateToPlanDay,
   draftToPreferences,
@@ -36,7 +42,7 @@ const complete: PlanDraft = {
   freeFrom: "19:00",
   freeTo: "23:00",
   travelMin: 25,
-  dayTimes: {},
+  dayFree: {},
   vibe: "chill",
 };
 
@@ -73,20 +79,10 @@ describe("time slider helpers", () => {
 });
 
 describe("travel radius", () => {
-  it("saves the event day's vertical window, or nothing when that day doesn't work", () => {
-    expect(eventDayWindow({}, "2026-11-28")).toEqual({ freeFrom: "00:00", freeTo: "00:00" });
-    expect(
-      eventDayWindow({ "2026-11-28": { works: true, from: 18, to: 44 } }, "2026-11-28"),
-    ).toEqual({ freeFrom: "09:00", freeTo: "22:00" });
-    expect(
-      eventDayWindow({ "2026-11-28": { works: false, from: 0, to: 48 } }, "2026-11-28"),
-    ).toBeNull();
-  });
-
-  it("labels vertical day positions from 12 AM to midnight", () => {
-    expect(dayTimeLabel(0)).toBe("12:00 AM");
-    expect(dayTimeLabel(19)).toBe("9:30 AM");
-    expect(dayTimeLabel(FULL_DAY.steps)).toBe("Midnight");
+  it("labels grid cell edges from 12 AM to midnight", () => {
+    expect(slotLabel(0)).toBe("12:00 AM");
+    expect(slotLabel(19)).toBe("9:30 AM");
+    expect(slotLabel(DAY_SLOTS)).toBe("Midnight");
   });
 });
 
@@ -171,15 +167,16 @@ describe("day choice", () => {
 });
 
 describe("step completion", () => {
-  it("gives the host a day step that guests skip", () => {
-    expect(planSteps).toEqual(["budget", "day", "time", "radius", "vibe"]);
+  it("has the host pick the day first, a step guests skip", () => {
+    expect(planSteps).toEqual(["day", "budget", "time", "radius", "vibe"]);
     expect(planStepsFor(true)).toEqual(planSteps);
     expect(planStepsFor(false)).toEqual(["budget", "time", "radius", "vibe"]);
   });
 
   it("finds the first unanswered step", () => {
     const guest = planStepsFor(false);
-    expect(firstIncompletePlanStep(emptyPlanDraft)).toBe("budget");
+    expect(firstIncompletePlanStep(emptyPlanDraft)).toBe("day");
+    expect(firstIncompletePlanStep({ ...emptyPlanDraft, day: "today" })).toBe("budget");
     expect(firstIncompletePlanStep({ ...emptyPlanDraft, spend: 0 })).toBe("day");
     expect(firstIncompletePlanStep({ ...emptyPlanDraft, spend: 0 }, guest)).toBe("time");
     expect(firstIncompletePlanStep({ ...complete, travelMin: null })).toBe("radius");
@@ -224,5 +221,89 @@ describe("timeIndexLabel", () => {
     expect(timeIndexLabel(19 * 60, 1)).toBe("7:30 PM");
     expect(timeIndexLabel(19 * 60, 12)).toBe("1:00 AM (tomorrow)");
     expect(timeIndexLabel(9 * 60, 6)).toBe("12:00 PM");
+  });
+});
+
+describe("free-time grid", () => {
+  const days = ["2026-11-28", "2026-11-29", "2026-11-30"];
+  it("paints and erases a dragged range in either direction", () => {
+    expect(paintSlots([], 20, 18, true)).toEqual([18, 19, 20]);
+    expect(paintSlots([18, 19, 20, 30], 19, 30, false)).toEqual([18]);
+    expect(paintSlots([], 46, 60, true)).toEqual([46, 47]);
+  });
+  it("splits a day into separate free stretches around busy time", () => {
+    // 9-11 AM and 3-8 PM, busy at midday.
+    const free = [...paintSlots([], 18, 21, true), ...paintSlots([], 30, 39, true)];
+    expect(freeRuns(free)).toEqual([
+      { from: 18, to: 22 },
+      { from: 30, to: 40 },
+    ]);
+    expect(dayWindowsFor({ "2026-11-28": free }, days)).toEqual({
+      "2026-11-28": [
+        { freeFrom: "09:00", freeTo: "11:00" },
+        { freeFrom: "15:00", freeTo: "20:00" },
+      ],
+    });
+  });
+  it("leaves out stretches shorter than the hangout and days with nothing painted", () => {
+    const free = [...paintSlots([], 18, 18, true), ...paintSlots([], 30, 33, true)];
+    expect(dayWindowsFor({ "2026-11-28": free, "2026-11-29": [] }, days, 3)).toEqual({
+      "2026-11-28": [{ freeFrom: "15:00", freeTo: "17:00" }],
+    });
+  });
+  it("saves a stretch reaching midnight as ending at 00:00", () => {
+    expect(dayWindowsFor({ "2026-11-28": paintSlots([], 44, 47, true) }, days)).toEqual({
+      "2026-11-28": [{ freeFrom: "22:00", freeTo: "00:00" }],
+    });
+  });
+  it("ignores answers for days the host didn't offer", () => {
+    expect(dayWindowsFor({ "2026-12-01": [36, 37] }, ["2026-11-28"])).toEqual({});
+  });
+  it("puts saved windows back on the grid", () => {
+    expect(
+      windowsToSlots([
+        { freeFrom: "09:00", freeTo: "10:00" },
+        { freeFrom: "23:00", freeTo: "00:00" },
+      ]),
+    ).toEqual([18, 19, 46, 47]);
+    expect(windowsToSlots([{ freeFrom: "00:00", freeTo: "00:00" }])).toHaveLength(DAY_SLOTS);
+  });
+});
+
+describe("calendar blocks", () => {
+  const morning = paintSlots([], 18, 21, true); // 9-11 AM
+  it("resizes a block and keeps it at least half an hour", () => {
+    expect(freeRuns(replaceBlock(morning, { from: 18, to: 22 }, { from: 18, to: 26 }))).toEqual([
+      { from: 18, to: 26 },
+    ]);
+    // Dragging the bottom edge up past the top leaves the shortest block, half an hour.
+    expect(freeRuns(replaceBlock(morning, { from: 18, to: 22 }, { from: 20, to: 20 }))).toEqual([
+      { from: 19, to: 20 },
+    ]);
+  });
+  it("removes a block", () => {
+    expect(replaceBlock(morning, { from: 18, to: 22 }, null)).toEqual([]);
+  });
+  it("moves a block within a day and onto another day, keeping its length", () => {
+    const value = { a: morning, b: [] };
+    expect(moveBlock(value, "a", { from: 18, to: 22 }, "a", 36)).toEqual({
+      a: [36, 37, 38, 39],
+      b: [],
+    });
+    const moved = moveBlock(value, "a", { from: 18, to: 22 }, "b", 46);
+    expect(moved).toEqual({ a: [], b: [44, 45, 46, 47] });
+  });
+  it("leaves a block in place when it's too long for what's left of the day", () => {
+    const value = { a: [10, 11, 12, 13] };
+    expect(moveBlock(value, "a", { from: 10, to: 14 }, "a", 40, () => 46)).toBe(value);
+  });
+  it("never lets blocks land in the past", () => {
+    expect(clampFree([10, 30, 31], 30)).toEqual([30, 31]);
+    expect(moveBlock({ a: morning }, "a", { from: 18, to: 22 }, "a", 0, () => 20)).toEqual({
+      a: [20, 21, 22, 23],
+    });
+    expect(replaceBlock([], { from: 0, to: 0 }, { from: 10, to: 30 }, 24)).toEqual(
+      paintSlots([], 24, 29, true),
+    );
   });
 });

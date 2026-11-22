@@ -596,6 +596,15 @@ export type Database = {
         Args: { p_code: string; p_lease: string }
         Returns: Json
       }
+      party_plan_days: {
+        Args: {
+          p_action: string
+          p_code: string
+          p_payload?: Json
+          p_token: string
+        }
+        Returns: Json
+      }
       party_v3_bool: { Args: { v: Json }; Returns: boolean }
       party_v3_config: { Args: { p: Json }; Returns: Json }
       party_v3_date: { Args: { v: Json }; Returns: string }

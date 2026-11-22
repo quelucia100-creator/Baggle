@@ -33,9 +33,30 @@ export const solverMemberSchema = z.object({
   maxTravelMin: z.number().int().min(5).max(90),
   origin: pointSchema.nullable(),
 });
+export const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+/** Most free stretches one day can hold (every other half-hour). */
+export const MAX_DAY_WINDOWS = 24;
+/**
+ * Host-picked days a member is free on, each with one or more free stretches
+ * (Montreal wall time; a stretch ending at or before its start runs past midnight).
+ */
+export const dayWindowsSchema = z.record(
+  dateSchema,
+  z
+    .array(z.object({ freeFrom: timeSchema, freeTo: timeSchema }))
+    .min(1)
+    .max(MAX_DAY_WINDOWS),
+);
+export type DayWindows = z.infer<typeof dayWindowsSchema>;
+/** Upper bound on the days a host can offer (today plus the following week). */
+export const MAX_CANDIDATE_DATES = 7;
 export const snapshotSchema = z.object({
-  config: configSchema,
-  members: z.array(solverMemberSchema).min(2).max(10),
+  // `dates` lists the host's candidate days; absent or empty means `date` only.
+  config: configSchema.extend({ dates: z.array(dateSchema).max(MAX_CANDIDATE_DATES).optional() }),
+  members: z
+    .array(solverMemberSchema.extend({ dayWindows: dayWindowsSchema.optional() }))
+    .min(2)
+    .max(10),
 });
 export type Point = z.infer<typeof pointSchema>;
 export type PlanningConfig = z.infer<typeof configSchema>;

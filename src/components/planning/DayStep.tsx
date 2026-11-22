@@ -16,7 +16,6 @@ export function DayStep({ day, pickedDays, today, onChange }: Props) {
   );
   const upcoming = Array.from({ length: PICKABLE_DAYS }, (_, i) => shiftDate(today, i + 1));
   const pick = (next: string[]) => onChange({ day: next[0] ?? null, pickedDays: next });
-  const first = pickedDays[0];
   return (
     <div className="space-y-3">
       <fieldset className="space-y-3">
@@ -25,7 +24,7 @@ export function DayStep({ day, pickedDays, today, onChange }: Props) {
           name="day-mode"
           emoji="⚡"
           label="Today"
-          note="Everyone slides from now until 12 hours from now"
+          note="Everyone marks when they're free for the rest of today"
           selected={!isPicking && day === "today"}
           onSelect={() => {
             setIsPicking(false);
@@ -35,8 +34,8 @@ export function DayStep({ day, pickedDays, today, onChange }: Props) {
         <ChoiceCard
           name="day-mode"
           emoji="📅"
-          label="Pick days"
-          note="Choose one or more days in the next week"
+          label="Pick one or more days"
+          note="Offer several days. Everyone marks when they're free on each"
           selected={isPicking}
           onSelect={() => {
             setIsPicking(true);
@@ -70,9 +69,9 @@ export function DayStep({ day, pickedDays, today, onChange }: Props) {
             })}
           </div>
           <p className="mt-3 text-xs text-muted-foreground" aria-live="polite">
-            {pickedDays.length > 1 && first
-              ? `${pickedDays.length} days picked. Voting between days is coming soon, so for now we'll plan for ${dayParts(first).long}.`
-              : "Tap as many days as you like."}
+            {pickedDays.length > 1
+              ? `${pickedDays.length} days offered. Everyone picks which ones work for them.`
+              : "Tap as many days as you like. Each one gets its own column in the calendar."}
           </p>
         </div>
       )}

@@ -2,12 +2,16 @@ import { z } from "zod";
 import { shiftDate } from "./tz";
 import type { ForecastHour, PlanningConfig } from "./types";
 
+/** Covers every candidate day (plus overnight spill into the next morning). */
+const lastDate = (config: PlanningConfig & { dates?: string[] | undefined }) =>
+  [config.date, ...(config.dates ?? [])].sort().at(-1) ?? config.date;
+
 const responseSchema = z.object({ hourly: z.object({ time: z.array(z.string()), temperature_2m: z.array(z.number().nullable()),
   precipitation_probability: z.array(z.number().nullable()), weather_code: z.array(z.number().nullable()) }) });
 
-export async function fetchPlanningForecast(config: PlanningConfig): Promise<ForecastHour[]> {
+export async function fetchPlanningForecast(config: PlanningConfig & { dates?: string[] | undefined }): Promise<ForecastHour[]> {
   const params = new URLSearchParams({ latitude: String(config.area.lat), longitude: String(config.area.lng), timezone: "GMT",
-    start_date: config.date, end_date: shiftDate(config.date, 1), hourly: "temperature_2m,precipitation_probability,weather_code" });
+    start_date: [config.date, ...(config.dates ?? [])].sort()[0] ?? config.date, end_date: shiftDate(lastDate(config), 1), hourly: "temperature_2m,precipitation_probability,weather_code" });
   try {
     const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`, { signal: AbortSignal.timeout(2500), redirect: "manual" });
     if (!response.ok) return [];
