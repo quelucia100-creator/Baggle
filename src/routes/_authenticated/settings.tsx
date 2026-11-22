@@ -7,7 +7,7 @@ import { accountPreferencesQuery, ageFromBirthDate, alcoholChoices, firstMissing
 
 export const Route = createFileRoute("/_authenticated/settings")({
   loader: async ({ context }) => {
-    const result = await context.queryClient.ensureQueryData(accountPreferencesQuery());
+    const result = await context.queryClient.fetchQuery(accountPreferencesQuery());
     const missing = firstMissingStep(result.preferences);
     if (missing || !result.preferences?.completed) throw redirect({ to: "/preferences/$step", params: { step: missing ?? "alcohol" }, replace: true });
     return result;

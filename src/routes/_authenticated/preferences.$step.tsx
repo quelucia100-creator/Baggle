@@ -16,7 +16,7 @@ function getStep(value: string): PreferenceStep {
 }
 export const Route = createFileRoute("/_authenticated/preferences/$step")({
   loader: async ({ context, params }) => {
-    const result = await context.queryClient.ensureQueryData(accountPreferencesQuery());
+    const result = await context.queryClient.fetchQuery(accountPreferencesQuery());
     const step = getStep(params.step);
     const missing = firstMissingStep(result.preferences);
     if (step !== params.step || (missing && preferenceSteps.indexOf(step) > preferenceSteps.indexOf(missing))) {

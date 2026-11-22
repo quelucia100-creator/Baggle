@@ -17,7 +17,8 @@
 - [x] Implement tested Montreal-time fairness ranking and atomic lock/reroll/final/reopen operations.
 - [x] Verify real-database privacy, permissions, concurrency, and existing party regressions — 49 tests pass; real guest browser RPC submission/lock/reroll/final/reload pass.
 - Planning screens and live Places/expanded verified catalogue remain separate workstreams; existing blank event buttons stay unchanged.
-- [ ] Add mandatory private account preferences, separate steps, and preference editing.
-- [ ] Verify validation, privacy, and signed-in setup flow.
+- [x] Add mandatory private account preferences, separate steps, and preference editing.
+- [x] Verify validation, owner-only policies, unique username index, signed-in setup redirect, skipped-step rejection, reload, and mobile/desktop layout; 30 regression tests pass.
+- [ ] Verify saving all seven pages and editing saved answers end-to-end — blocked because temporary test-account creation was declined; existing account answers were not modified.
 
-- [ ] Add a separate mandatory food preferences page including allergies.
+- [x] Add a separate mandatory food preferences page including allergies.

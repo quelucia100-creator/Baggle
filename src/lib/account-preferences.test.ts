@@ -37,4 +37,9 @@ describe("mandatory account preferences", () => {
     expect(toggleChoice(["Italian"], "No preference", "No preference")).toEqual(["No preference"]);
     expect(isStepComplete("food", { ...complete, food_preferences: ["No preference", "Italian"] })).toBe(false);
   });
+  it("requires a valid unique-username format", () => {
+    expect(isStepComplete("username", { ...complete, username: "sam" })).toBe(true);
+    expect(isStepComplete("username", { ...complete, username: "a b" })).toBe(false);
+    expect(isStepComplete("username", { ...complete, username: "ab" })).toBe(false);
+  });
 });

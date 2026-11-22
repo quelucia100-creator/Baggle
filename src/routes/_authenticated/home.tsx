@@ -10,7 +10,7 @@ import { accountPreferencesQuery, firstMissingStep } from "@/lib/account-prefere
 
 export const Route = createFileRoute("/_authenticated/home")({
   loader: async ({ context }) => {
-    const result = await context.queryClient.ensureQueryData(accountPreferencesQuery());
+    const result = await context.queryClient.fetchQuery(accountPreferencesQuery());
     const missing = firstMissingStep(result.preferences);
     if (missing || !result.preferences?.completed) throw redirect({ to: "/preferences/$step", params: { step: missing ?? "alcohol" }, replace: true });
     return result;
