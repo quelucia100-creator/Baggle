@@ -110,12 +110,12 @@ function Home() {
             <h1 className="text-3xl font-extrabold">Hey {name || "there"}</h1>
             <p className="text-sm text-muted-foreground">Your Baggle dashboard</p>
           </div>
-          <Link to="/settings" aria-label="Settings" title="Settings" className="ml-auto rounded-lg focus:outline-none focus-visible:ring-4 focus-visible:ring-tangerine">
-            <PaperIcon tone="sage" back="cream" rotate={4} className="h-12 w-12"><Settings className="h-6 w-6" /></PaperIcon>
-          </Link>
-          <Link to="/notifications" title="Notifications" aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"} className="relative rounded-lg focus:outline-none focus-visible:ring-4 focus-visible:ring-tangerine">
+          <Link to="/notifications" title="Notifications" aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"} className="relative ml-auto rounded-lg focus:outline-none focus-visible:ring-4 focus-visible:ring-tangerine">
             <PaperIcon tone="tangerine" back="cream" rotate={-5} className="h-12 w-12"><Bell className="h-6 w-6" /></PaperIcon>
             {unread > 0 && <span className="absolute -right-1 -top-1 rounded-full border-2 border-crust bg-chartreuse px-1.5 text-xs font-extrabold">{unread}</span>}
+          </Link>
+          <Link to="/settings" aria-label="Settings" title="Settings" className="rounded-lg focus:outline-none focus-visible:ring-4 focus-visible:ring-tangerine">
+            <PaperIcon tone="sage" back="cream" rotate={4} className="h-12 w-12"><Settings className="h-6 w-6" /></PaperIcon>
           </Link>
         </div>
 
