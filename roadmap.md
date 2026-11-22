@@ -31,5 +31,6 @@
 - [x] Sweep both planners, entry points, retries, provider adapters and live planning functions for the same failure; existing party reloads, 287 unit tests pass (9 skipped), live Google responses remain unverified.
 - [x] Private accounts: group adds by non-friends need acceptance (friend requests no longer blocked)
 - [x] Replace falling bagels with one rotating-bagel loading screen for guest/auth and route loading, with lighter background blur; falling-bagel SFX cancelled.
-- [ ] Add a dashboard Availability page using guest planning’s Montreal date/30-minute busy-grid rules, with private account saves and revisit/edit support.
-- [ ] Verify availability validation, persistence, privacy, and mobile navigation.
+- [x] Add a dashboard Availability page using guest planning’s Montreal date/30-minute busy-grid rules, with private account saves and revisit/edit support.
+- [x] Verify availability validation, owner-scoped calls, Back/edit behavior and mobile layout: 41 focused/regression tests pass; live access metadata confirms owner-only policies and no anonymous read.
+- [ ] Verify signed-in availability save/reload through the real page — blocked because temporary test-account creation was declined.

@@ -14,18 +14,20 @@ export function AvailabilityEditor({ days, onSave, onRemove }: {
   const [now] = useState(() => Date.now());
   const today = todayIn(now);
   const [draft, setDraft] = useState<AvailabilityDay | null>(null);
+  const [drafts, setDrafts] = useState<Record<string, AvailabilityDay>>({});
   const [history, setHistory] = useState<AvailabilityDay[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const choose = (date: string) => {
-    setDraft(days.find((d) => d.date === date) ?? { date, busy: [], confirmed: false });
+    setDraft(drafts[date] ?? days.find((d) => d.date === date) ?? { date, busy: [], confirmed: false });
     setHistory([]); setError(""); setNotice("");
   };
   const update = (next: { busy: number[]; confirmed: boolean }) => {
     if (!draft) return;
     setHistory((previous) => [...previous.slice(-19), draft]);
-    setDraft({ date: draft.date, ...next }); setError(""); setNotice("");
+    const updated = { date: draft.date, ...next };
+    setDraft(updated); setDrafts((v) => ({ ...v, [draft.date]: updated })); setError(""); setNotice("");
   };
   const save = async () => {
     if (!draft || busy) return;
@@ -40,7 +42,11 @@ export function AvailabilityEditor({ days, onSave, onRemove }: {
   };
   const remove = async (date: string) => {
     setBusy(true); setError(""); setNotice("");
-    try { await onRemove(date); setNotice("Day removed."); }
+    try {
+      await onRemove(date);
+      setDrafts((v) => { const next = { ...v }; delete next[date]; return next; });
+      setNotice("Day removed.");
+    }
     catch (err) { setError(err instanceof Error ? err.message : "Could not remove this day."); }
     finally { setBusy(false); }
   };
@@ -70,7 +76,7 @@ export function AvailabilityEditor({ days, onSave, onRemove }: {
       <fieldset disabled={busy} className="min-w-0">
         <BusyGrid key={draft.date} date={draft.date} now={now} value={draft} onChange={update} canUndo={history.length > 0} onUndo={() => {
           const previous = history.at(-1); if (!previous) return;
-          setDraft(previous); setHistory((v) => v.slice(0, -1)); setError("");
+          setDraft(previous); setDrafts((v) => ({ ...v, [previous.date]: previous })); setHistory((v) => v.slice(0, -1)); setError("");
         }} />
         <label className="paper mt-6 flex min-h-12 items-center gap-3 rounded-lg border-2 border-crust bg-sage/30 p-4 font-bold">
           <input type="checkbox" className="h-5 w-5 accent-crust" checked={draft.confirmed} onChange={(e) => update({ busy: draft.busy, confirmed: e.target.checked })} />

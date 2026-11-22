@@ -41,3 +41,15 @@ it("does not show success before the save resolves and keeps answers on failure"
   await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Save failed"));
   expect(screen.getByLabelText("Confirm this day’s availability")).toBeChecked();
 });
+
+it("preserves screen-local answers when going Back without pretending they are saved", () => {
+  const save = vi.fn();
+  render(<AvailabilityEditor days={[]} onSave={save} onRemove={vi.fn()} />);
+  fireEvent.click(screen.getByRole("button", { name: "Sun, Nov 22" }));
+  fireEvent.click(screen.getByLabelText("Confirm this day’s availability"));
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  expect(save).not.toHaveBeenCalled();
+  expect(screen.queryByText("Saved")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Sun, Nov 22" }));
+  expect(screen.getByLabelText("Confirm this day’s availability")).toBeChecked();
+});
