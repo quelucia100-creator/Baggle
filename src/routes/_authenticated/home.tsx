@@ -40,14 +40,6 @@ type DashboardSection = {
 
 const SECTIONS: DashboardSection[] = [
   {
-    title: "Past journeys",
-    description: "Your finished trips and hangouts will live here.",
-    tone: "apricot",
-    back: "sage",
-    rotate: -6,
-    icon: <TicketIcon className="h-6 w-6" />,
-  },
-  {
     title: "Friends list",
     to: "/friends",
     description: "Add friends and see who you plan with most.",
@@ -72,6 +64,14 @@ const SECTIONS: DashboardSection[] = [
     back: "chartreuse",
     rotate: 6,
     icon: <ClockIcon className="h-6 w-6" />,
+  },
+  {
+    title: "Past journeys",
+    description: "Your finished trips and hangouts will live here.",
+    tone: "apricot",
+    back: "sage",
+    rotate: -6,
+    icon: <TicketIcon className="h-6 w-6" />,
   },
 ];
 
