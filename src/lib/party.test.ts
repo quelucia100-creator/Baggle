@@ -1,10 +1,18 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { supabase } from "@/integrations/supabase/client";
+import { describeIsolatedDatabase, useIsolatedSupabase } from "@/test/isolated-supabase";
 import { partySchema, LOCATION_RADIUS_METRES } from "./party";
+
+describe("Guest party settings", () => {
+  it("uses a zero-metre location radius", () => {
+    expect(LOCATION_RADIUS_METRES).toBe(0);
+  });
+});
 
 // Exercise the real guest endpoint: permissions and capacity must hold even
 // when callers bypass the interface. Credentials are never printed.
-describe("Guest party access rules", () => {
+describeIsolatedDatabase("Guest party access rules", { sequential: true }, () => {
+  const ownedParties = useIsolatedSupabase();
   const tokens: string[] = [];
   let code = "";
   let hostId = "";
@@ -21,6 +29,7 @@ describe("Guest party access rules", () => {
     if (result.error) throw new Error(result.error.message);
     const party = partySchema.parse(result.data);
     code = party.code;
+    ownedParties.push(code);
     hostId = party.selfId;
     for (const token of tokens.slice(1, 10)) {
       const joined = await rpc("join", token);
@@ -43,9 +52,6 @@ describe("Guest party access rules", () => {
     const host = tokens[0];
     if (!host) throw new Error("Missing test credential");
     expect((await rpc("remove", host, hostId)).error?.message).toContain("host cannot be removed");
-  });
-  it("uses a zero-metre location radius", () => {
-    expect(LOCATION_RADIUS_METRES).toBe(0);
   });
   it("only lets the host start the journey", async () => {
     const host = tokens[0]; const guest = tokens[1];

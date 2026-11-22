@@ -1,6 +1,7 @@
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { beforeAll, expect, it, vi } from "vitest";
 import { supabase } from "@/integrations/supabase/client";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { describeIsolatedDatabase, useIsolatedSupabase } from "@/test/isolated-supabase";
 import { partySchema } from "../party";
 import { executePlanning } from "./service.server";
 import { planningStateSchema } from "./types";
@@ -9,7 +10,7 @@ import type { Json } from "@/integrations/supabase/types";
 
 vi.mock("./forecast.server", () => ({ fetchPlanningForecast: vi.fn(async () => []) }));
 const credential = () => Array.from(crypto.getRandomValues(new Uint8Array(32)), (n) => n.toString(16).padStart(2, "0")).join("");
-const ownedParties: string[] = [];
+const ownedParties = useIsolatedSupabase();
 async function newParty(count: number) {
   const tokens = Array.from({ length: count }, credential); const host = tokens[0];
   if (!host) throw new Error("Missing test host");
@@ -27,15 +28,7 @@ const prefs = { budget: 0, freeFrom: "18:00", freeTo: "23:00", maxTravelMin: 30,
 async function call(code: string, token: string, action: string, payload: Json = {}) {
   return supabase.rpc("party_plan", { p_code: code, p_token: token, p_action: action, p_payload: payload });
 }
-afterAll(async () => {
-  // Only parties created by this suite, never preexisting application records.
-  if (ownedParties.length) {
-    const cleanup = await supabaseAdmin.from("parties").delete().in("code", ownedParties);
-    if (cleanup.error) throw new Error("Could not clean up planning test parties");
-  }
-});
-
-describe.sequential("Real database planning security and lifecycle", () => {
+describeIsolatedDatabase("Real database planning security and lifecycle", { sequential: true }, () => {
   let party: Awaited<ReturnType<typeof newParty>>; let guest = ""; let other = "";
   beforeAll(async () => {
     party = await newParty(5); guest = party.tokens[1] ?? ""; other = party.tokens[2] ?? "";
@@ -66,13 +59,18 @@ describe.sequential("Real database planning security and lifecycle", () => {
     expect(result.error).toBeNull();
     const guestState = planningStateSchema.parse(result.data);
     expect(guestState.selfPreferences?.budget).toBe(3); expect(guestState.selfPreferences?.originLat).toBe(45.51);
-    const hostState = planningStateSchema.parse((await call(party.code, party.host, "read")).data);
+    const hostRead = await call(party.code, party.host, "read");
+    expect(hostRead.error).toBeNull();
+    const hostState = planningStateSchema.parse(hostRead.data);
     expect(hostState.selfPreferences?.budget).toBe(0);
     expect(hostState.members.filter((m) => m.submitted)).toHaveLength(2);
-    expect(hostState.members.every((m) => Object.keys(m).sort().join(",") === "id,submitted")).toBe(true);
-    const outsiderState = planningStateSchema.parse((await call(party.code, other, "read")).data);
-    expect(outsiderState.selfPreferences).toBeNull(); expect(outsiderState).not.toHaveProperty("lockSnapshot");
-    expect(JSON.stringify(hostState)).not.toContain("45.51");
+    expect((hostRead.data as { members?: unknown } | null)?.members).toStrictEqual(hostState.members);
+    expect(hostRead.data).not.toHaveProperty("lockSnapshot");
+    expect(JSON.stringify(hostRead.data)).not.toContain("45.51");
+    const otherRead = await call(party.code, other, "read");
+    expect(otherRead.error).toBeNull();
+    expect(otherRead.data).toHaveProperty("selfPreferences", null);
+    expect(otherRead.data).not.toHaveProperty("lockSnapshot");
   });
   it("rejects invalid budget, travel, incomplete preferences and coordinate pairs", async () => {
     for (const invalid of [{ ...prefs, budget: 5 }, { ...prefs, maxTravelMin: 4 }, { ...prefs, maxTravelMin: 91 }, { ...prefs, originLat: 45.5 }, { ...prefs, freeFrom: "25:00" }, { budget: 0 }]) {
@@ -85,7 +83,10 @@ describe.sequential("Real database planning security and lifecycle", () => {
     const results = await Promise.all([executePlanning({ action: "lock", code: party.code, token: party.host, payload: {} }), executePlanning({ action: "lock", code: party.code, token: party.host, payload: {} })]);
     expect(fetchPlanningForecast).toHaveBeenCalledTimes(1);
     expect(results.every((r) => ["locking", "locked"].includes(r.status))).toBe(true);
-    const saved = planningStateSchema.parse((await call(party.code, guest, "read")).data);
+    const raw = (await call(party.code, guest, "read")).data as { plan?: Record<string, unknown> } | null;
+    expect(raw?.plan).toEqual(expect.objectContaining({ venue: expect.any(Object) }));
+    expect(raw?.plan).not.toHaveProperty("score");
+    const saved = planningStateSchema.parse(raw);
     expect(saved.status).toBe("locked"); expect(saved.optionCount).toBe(20); expect(saved.plan?.venue.priceTier).toBe(0);
     expect(saved.selfPreferences?.originLat).toBeNull(); expect(saved).not.toHaveProperty("outlierNames");
     expect((await call(party.code, guest, "save", prefs)).error?.message).toContain("frozen");
@@ -127,7 +128,7 @@ describe.sequential("Real database planning security and lifecycle", () => {
   });
 });
 
-describe("Real database no-plan recovery and lock leases", () => {
+describeIsolatedDatabase("Real database no-plan recovery and lock leases", () => {
   it("restores collecting after pipeline failure and supports a successful retry", async () => {
     const party = await newParty(2); const guest = party.tokens[1]; if (!guest) throw new Error("Missing member");
     await call(party.code, party.host, "save", prefs); await call(party.code, guest, "save", prefs);
@@ -154,8 +155,17 @@ describe("Real database no-plan recovery and lock leases", () => {
     const party = await newParty(2); const guest = party.tokens[1]; if (!guest) throw new Error("Missing member");
     await call(party.code, party.host, "save", prefs); await call(party.code, guest, "save", prefs);
     const first = planningStateSchema.parse((await call(party.code, party.host, "begin_lock")).data); if (!first.lease) throw new Error("Missing lease");
+    const snapshotArgs = { p_code: party.code, p_lease: first.lease };
+    expect((await supabase.rpc("party_plan_snapshot", snapshotArgs)).error).not.toBeNull();
+    expect((await supabase.rpc("party_plan_complete", { ...snapshotArgs, p_failed: true })).error).not.toBeNull();
+    const snapshot = await supabaseAdmin.rpc("party_plan_snapshot", snapshotArgs);
+    expect(snapshot.error).toBeNull();
+    expect(snapshot.data).toEqual(expect.objectContaining({ members: expect.arrayContaining([expect.objectContaining({ id: party.ids[1], budget: prefs.budget })]) }));
     const row = await supabaseAdmin.from("parties").select("id").eq("code", party.code).single(); if (!row.data) throw new Error("Missing test party");
-    await supabaseAdmin.from("party_planning").update({ lock_started_at: new Date(Date.now() - 31_000).toISOString() }).eq("party_id", row.data.id);
+    const aged = await supabaseAdmin.from("party_planning").update({ lock_started_at: new Date(Date.now() - 60_000).toISOString() }).eq("party_id", row.data.id);
+    expect(aged.error).toBeNull();
+    expect((await supabaseAdmin.rpc("party_plan_snapshot", snapshotArgs)).error?.message).toContain("no longer valid");
+    expect((await supabaseAdmin.rpc("party_plan_complete", { ...snapshotArgs, p_failed: true })).data).toBe(false);
     const second = planningStateSchema.parse((await call(party.code, party.host, "begin_lock")).data); if (!second.lease) throw new Error("Missing replacement lease");
     expect(second.acquired).toBe(true); expect(second.lease).not.toBe(first.lease);
     expect((await supabaseAdmin.rpc("party_plan_complete", { p_code: party.code, p_lease: first.lease, p_failed: true })).data).toBe(false);

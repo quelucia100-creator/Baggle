@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Database, Json } from "@/integrations/supabase/types";
-import { planningStateSchema, snapshotSchema } from "./types";
+import { planningStateSchema, snapshotSchema, toPublicPlanOptions } from "./types";
 import { solvePlans } from "./solver";
 import { FALLBACK_VENUES } from "./venues";
 import { fetchPlanningForecast } from "./forecast.server";
@@ -33,7 +33,7 @@ export async function executePlanning(command: PlanningCommand) {
     const forecast = await fetchPlanningForecast(snapshot.config);
     const ranking = solvePlans(snapshot, FALLBACK_VENUES, forecast);
     const completed = await supabaseAdmin.rpc("party_plan_complete", { p_code: command.code, p_lease: lease,
-      p_options: ranking.options, p_outliers: ranking.outliers, p_source: "fallback" });
+      p_options: toPublicPlanOptions(ranking.options), p_outliers: ranking.outliers, p_source: "fallback" });
     if (completed.error || !completed.data) throw new Error("Planning lease expired.");
   } catch {
     // A stale lease cannot reset a newer job. Failures preserve submissions for retry.

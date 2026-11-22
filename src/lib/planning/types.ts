@@ -37,10 +37,15 @@ export const planOptionSchema = z.object({
   weather: z.object({ temperature: z.number(), precipitation: z.number(), code: z.number() }).nullable(),
 });
 export type PlanOption = z.infer<typeof planOptionSchema>;
+// `score` is the least-satisfied member's satisfaction. In small parties a member can solve it for another member's
+// budget or travel limit, so it is used only for server-side ranking and never stored in, or returned from, shared state.
+export const publicPlanOptionSchema = planOptionSchema.omit({ score: true });
+export type PublicPlanOption = z.infer<typeof publicPlanOptionSchema>;
+export const toPublicPlanOptions = (options: PlanOption[]): PublicPlanOption[] => z.array(publicPlanOptionSchema).parse(options);
 export const planningStateSchema = z.object({
   status: z.enum(["collecting", "locking", "locked", "no_plan", "final"]), revision: z.number().int(),
   selfPreferences: preferencesSchema.nullable(), members: z.array(z.object({ id: z.string().uuid(), submitted: z.boolean() })),
-  config: configSchema, plan: planOptionSchema.nullable(), planIndex: z.number().int(), optionCount: z.number().int(),
+  config: configSchema, plan: publicPlanOptionSchema.nullable(), planIndex: z.number().int(), optionCount: z.number().int(),
   groupRerollsUsed: z.number().int(), votes: z.number().int(), voteThreshold: z.number().int(), selfVoted: z.boolean(),
   outlierCount: z.number().int(), outlierNames: z.array(z.string()).optional(), venueSource: z.string().nullable(),
   acquired: z.boolean().optional(), lease: z.string().uuid().nullable().optional(),
