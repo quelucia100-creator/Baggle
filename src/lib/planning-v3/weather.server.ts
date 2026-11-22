@@ -28,7 +28,7 @@ export async function fetchV3Weather(venues: VenueCandidateV3[], days: string[],
   try {
     const response = await request(`https://api.open-meteo.com/v1/forecast?${params}`, {
       signal: AbortSignal.timeout(2200),
-      redirect: "error",
+      redirect: "manual",
     });
     if (!response.ok) return forecasts;
     const data: unknown = await response.json();

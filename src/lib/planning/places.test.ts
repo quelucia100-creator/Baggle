@@ -10,7 +10,8 @@ const sample = { id: "test-place", displayName: { text: "Sample venue" }, locati
 
 const fetchMock = vi.fn<typeof fetch>();
 beforeEach(() => {
-  vi.stubEnv("GOOGLE_PLACES_API_KEY", "test-key");
+  vi.stubEnv("GOOGLE_MAPS_API_KEY", "test-key");
+  vi.stubEnv("LOVABLE_API_KEY", "gateway-token");
   fetchMock.mockReset();
   vi.stubGlobal("fetch", fetchMock);
 });
@@ -27,9 +28,12 @@ describe("Google Places Nearby Search", () => {
     fetchMock.mockResolvedValue(Response.json({ places: [sample] }));
     const [venue] = await fetchPlanningVenues({ area, category });
     expect(venue).toMatchObject({ category, outdoor: category === "park", hours: null, rating: null, priceTier: null, season: null });
-    const [url, init] = fetchMock.mock.calls[0]!;
-    expect(url).toBe("https://places.googleapis.com/v1/places:searchNearby");
-    expect(init).toMatchObject({ method: "POST", redirect: "error", headers: { "X-Goog-Api-Key": "test-key" } });
+    const call = fetchMock.mock.calls[0];
+    if (!call) throw new Error("Expected a venue lookup");
+    const [url, init] = call;
+    expect(url).toBe("https://connector-gateway.lovable.dev/google_maps/places/v1/places:searchNearby");
+    expect(init).toMatchObject({ method: "POST", redirect: "manual", headers: { "X-Connection-Api-Key": "test-key", Authorization: "Bearer gateway-token" } });
+    expect(new Headers(init?.headers).has("X-Goog-Api-Key")).toBe(false);
     expect(new Headers(init?.headers).get("X-Goog-FieldMask")).toContain("places.regularOpeningHours");
     expect(JSON.parse(String(init?.body))).toEqual({
       includedTypes: expect.arrayContaining([type]), maxResultCount: 20,
@@ -82,7 +86,7 @@ describe("Google Places Nearby Search", () => {
   });
 
   it("skips the request when the dedicated server credential is absent", async () => {
-    vi.stubEnv("GOOGLE_PLACES_API_KEY", undefined);
+    vi.stubEnv("GOOGLE_MAPS_API_KEY", undefined);
     expect(await fetchPlanningVenues(config)).toEqual([]);
     expect(fetchMock).not.toHaveBeenCalled();
   });

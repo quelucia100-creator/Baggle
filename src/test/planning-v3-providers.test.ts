@@ -22,6 +22,35 @@ function requests(call: typeof fetch) {
 const duration = 600_000;
 
 describe("Google route adapter", () => {
+  it("uses the linked connector for a real route response without a direct Google key", async () => {
+    const request = requests(async () => response());
+    const provider = googleRoutes({ key: "connection-key", gatewayToken: "gateway-token", request });
+    expect(await provider.route(defaultQuery)).toEqual({ start: at, end: at + duration });
+    expect(request).toHaveBeenCalledWith(
+      "https://connector-gateway.lovable.dev/google_maps/routes/distanceMatrix/v2:computeRouteMatrix",
+      expect.objectContaining({ redirect: "manual" }),
+    );
+    const headers = new Headers(request.mock.calls[0]?.[1]?.headers);
+    expect(headers.get("Authorization")).toBe("Bearer gateway-token");
+    expect(headers.get("X-Connection-Api-Key")).toBe("connection-key");
+    expect(headers.has("X-Goog-Api-Key")).toBe(false);
+  });
+
+  it("never calls the provider without both connector credentials", async () => {
+    const request = requests(async () => response());
+    expect(await googleRoutes({ key: "connection-key", request }).route(defaultQuery)).toBeNull();
+    expect(await googleRoutes({ gatewayToken: "gateway-token", request }).route(defaultQuery)).toBeNull();
+    expect(request).not.toHaveBeenCalled();
+  });
+
+  it("reports a Routes permission failure instead of inventing a route and stops retrying", async () => {
+    const request = requests(async () => Response.json({ error: { details: [{ reason: "API_KEY_SERVICE_BLOCKED" }] } }, { status: 403 }));
+    const provider = googleRoutes({ key: "connection-key", gatewayToken: "gateway-token", request });
+    expect(await provider.route(defaultQuery)).toBeNull();
+    expect(provider.failure).toContain("enable Routes API");
+    expect(await provider.route({ ...defaultQuery, mode: "bike" })).toBeNull();
+    expect(request).toHaveBeenCalledTimes(1);
+  });
   it("batches walk origins, memoizes request-local legs, and uses traffic timed driving", async () => {
     const fetch = requests(async () =>
       Response.json([
@@ -29,7 +58,7 @@ describe("Google route adapter", () => {
         { destinationIndex: 1, condition: "ROUTE_EXISTS", duration: "300s" },
       ]),
     );
-    const provider = googleRoutes({ key: "key", request: fetch });
+    const provider = googleRoutes({ key: "key", gatewayToken: "gateway-token", request: fetch });
     const other = { lat: 45.53, lng: -73.58 };
     const walking = [
       provider.route({ ...defaultQuery, from: destination, to: point }),
@@ -78,7 +107,7 @@ describe("Google route adapter", () => {
         ],
       });
     });
-    const provider = googleRoutes({ key: "key", request: fetch });
+    const provider = googleRoutes({ key: "key", gatewayToken: "gateway-token", request: fetch });
     expect(await provider.route({ ...defaultQuery, mode: "bike" })).toEqual({
       start: at,
       end: at + duration,
@@ -121,7 +150,7 @@ describe("Google route adapter", () => {
           }),
     );
     expect(
-      await googleRoutes({ key: "key", request: fetch }).route({
+      await googleRoutes({ key: "key", gatewayToken: "gateway-token", request: fetch }).route({
         ...defaultQuery,
         mode: "transit",
       }),
@@ -129,12 +158,12 @@ describe("Google route adapter", () => {
     const fallback = requests(async () =>
       Response.json([{ condition: "ROUTE_EXISTS", duration: "600s", fallbackInfo: {} }]),
     );
-    expect(await googleRoutes({ key: "key", request: fallback }).route(defaultQuery)).toBeNull();
-    const limited = googleRoutes({ key: "key", request: fetch, maxCalls: 0 });
+    expect(await googleRoutes({ key: "key", gatewayToken: "gateway-token", request: fallback }).route(defaultQuery)).toBeNull();
+    const limited = googleRoutes({ key: "key", gatewayToken: "gateway-token", request: fetch, maxCalls: 0 });
     expect(await limited.route(defaultQuery)).toBeNull();
     expect(limited.limited).toBe(true);
     const unavailable = requests(async () => new Response(null, { status: 429 }));
-    const provider = googleRoutes({ key: "key", request: unavailable });
+    const provider = googleRoutes({ key: "key", gatewayToken: "gateway-token", request: unavailable });
     expect(await provider.route(defaultQuery)).toBeNull();
     expect(await provider.route({ ...defaultQuery, mode: "bike" })).toBeNull();
     expect(unavailable).toHaveBeenCalledTimes(1);

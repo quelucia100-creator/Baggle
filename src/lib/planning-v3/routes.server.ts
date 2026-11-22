@@ -3,7 +3,8 @@ import { z } from "zod";
 import type { Point } from "./schema";
 import type { Route, RouteProvider, RouteQuery } from "./travel";
 
-const url = "https://routes.googleapis.com";
+const url = "https://connector-gateway.lovable.dev/google_maps/routes";
+export class PlanningProviderError extends Error {}
 const modes = { walk: "WALK", drive: "DRIVE", transit: "TRANSIT", bike: "BICYCLE" };
 const iso = (at: number) => new Date(at).toISOString();
 const pointKey = ({ lat, lng }: Point) => `${lat},${lng}`;
@@ -57,6 +58,7 @@ const transitResponse = z.object({
 type Pending = { query: RouteQuery; resolve: (route: Route | null) => void };
 type Options = {
   key?: string;
+  gatewayToken?: string;
   request?: typeof fetch;
   now?: () => number;
   maxCalls?: number;
@@ -66,17 +68,19 @@ type Options = {
 
 export function googleRoutes({
   key,
+  gatewayToken,
   request = fetch,
   now = Date.now,
   maxCalls = 96,
   maxElements = 480,
   deadlineMs = 15_000,
-}: Options): RouteProvider {
+}: Options): RouteProvider & { readonly failure: string | null } {
   const deadline = now() + deadlineMs;
   let calls = 0;
   let elements = 0;
   let stop = false;
   let limited = false;
+  let failure: string | null = null;
   let scheduled = false;
   let pending: Pending[] = [];
   let inFlight = 0;
@@ -95,7 +99,7 @@ export function googleRoutes({
   }
 
   async function post(path: string, mask: string, body: object, count: number): Promise<unknown> {
-    if (!key || stop) return null;
+    if (!key || !gatewayToken || stop) return null;
     if (now() >= deadline || calls >= maxCalls || elements + count > maxElements) {
       limited = true;
       return null;
@@ -105,18 +109,34 @@ export function googleRoutes({
     try {
       const response = await request(url + path, {
         method: "POST",
-        redirect: "error",
+        redirect: "manual",
         signal: AbortSignal.timeout(Math.max(1, Math.min(2200, deadline - now()))),
         headers: {
           "Content-Type": "application/json",
-          "X-Goog-Api-Key": key,
+          Authorization: `Bearer ${gatewayToken}`,
+          "X-Connection-Api-Key": key,
           "X-Goog-FieldMask": mask,
         },
         body: JSON.stringify(body),
       });
-      if ([401, 403, 429, 503].includes(response.status)) stop = true;
-      return response.ok ? await response.json() : null;
+      if (!response.ok) {
+        const body = await response.text();
+        console.error(`Event routing failed [${response.status}]: ${body}`);
+        if ([401, 403, 429, 503].includes(response.status)) stop = true;
+        if (response.status === 403) {
+          if (body.includes("API_KEY_HTTP_REFERRER_BLOCKED"))
+            failure = "Google Maps server key is referrer-restricted (403). In Google Cloud Console, set the server key's application restrictions to None or IP addresses.";
+          else if (body.includes("API_KEY_SERVICE_BLOCKED"))
+            failure = "Google Maps server key does not allow Routes (403). In Google Cloud Console, enable Routes API and add it to the server key's allowed APIs.";
+          else failure = "Google Maps denied event travel checks (403). Check the connection's permissions before trying again.";
+        } else if (response.status === 401)
+          failure = "Google Maps connection needs authorization (401). Reconnect it before trying again.";
+        else failure = `Event travel checks are unavailable (${response.status}). Please try again later; your answers are saved.`;
+        return null;
+      }
+      return await response.json();
     } catch {
+      failure = "Event travel checks could not be reached. Please try again; your answers are saved.";
       return null;
     }
   }
@@ -306,11 +326,14 @@ export function googleRoutes({
   }
 
   return {
+    get failure() {
+      return failure;
+    },
     get limited() {
       return limited;
     },
     async route(query) {
-      if (!key) return null;
+      if (!key || !gatewayToken) return null;
       if (query.mode === "drive" && query.timing === "arrive") {
         query = { ...query, earliest: Math.max(query.earliest, now() + 2_000) };
         if (query.earliest >= query.at) return null;

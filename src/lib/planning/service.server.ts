@@ -7,6 +7,7 @@ import { FALLBACK_VENUES } from "./venues";
 import { fetchPlanningForecast } from "./forecast.server";
 import { fetchPlanningVenues } from "./places.server";
 import { computeV3 } from "../planning-v3/compute.server";
+import { PlanningProviderError } from "../planning-v3/routes.server";
 import { normalizeConfig, normalizePreferences } from "../planning-v3/schema";
 import { leaseFields, projectState } from "../planning-v3/state";
 
@@ -153,7 +154,7 @@ export async function executePlanning(command: PlanningCommand) {
       });
       if (completed.error || !completed.data) throw new Error("Planning lease expired.");
     }
-  } catch {
+  } catch (error) {
     // A stale lease cannot reset a newer job. Failures preserve submissions for retry.
     try {
       await supabaseAdmin.rpc("party_plan_complete", {
@@ -164,6 +165,7 @@ export async function executePlanning(command: PlanningCommand) {
     } catch {
       // If the database is unreachable, the lease can still expire normally.
     }
+    if (error instanceof PlanningProviderError) throw error;
     throw new Error("Could not finish planning. Please try again; your preferences are saved.");
   }
   return requireVersion(await read());

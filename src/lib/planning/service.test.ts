@@ -58,7 +58,8 @@ const fetchMock = vi.fn<typeof fetch>();
 beforeEach(() => {
   vi.stubEnv("SUPABASE_URL", "https://example.invalid");
   vi.stubEnv("SUPABASE_PUBLISHABLE_KEY", "test-key");
-  vi.stubEnv("GOOGLE_PLACES_API_KEY", "test-places-key");
+  vi.stubEnv("GOOGLE_MAPS_API_KEY", "test-places-key");
+  vi.stubEnv("LOVABLE_API_KEY", "gateway-token");
   fetchMock.mockReset();
   vi.stubGlobal("fetch", fetchMock);
   partyRpc
@@ -157,7 +158,7 @@ describe("Planning venue selection", () => {
   it.each(configSchema.shape.category.options)(
     "uses only verified fallback facts for %s",
     async (category) => {
-      vi.stubEnv("GOOGLE_PLACES_API_KEY", undefined);
+      vi.stubEnv("GOOGLE_MAPS_API_KEY", undefined);
       adminRpc
         .mockReset()
         .mockResolvedValueOnce({

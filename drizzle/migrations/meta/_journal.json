@@ -92,6 +92,13 @@
       "when": 1795340614953,
       "tag": "0012_restrict_profile_reads_to_owner",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1795344219868,
+      "tag": "0013_fix_party_plan_record_alias_collision",
+      "breakpoints": true
     }
   ]
 }

@@ -7,7 +7,7 @@ import { executePlanning } from "@/lib/planning/service.server";
 import { solveV3 } from "@/lib/planning-v3/solver";
 import { day, hostConfig, memberIds, now, prefs, snapshot, venue } from "./planning-v3-fixtures";
 
-const { rpc, admin } = vi.hoisted(() => ({ rpc: vi.fn(), admin: vi.fn() }));
+const { rpc, admin, routes } = vi.hoisted(() => ({ rpc: vi.fn(), admin: vi.fn(), routes: vi.fn() }));
 vi.mock("@supabase/supabase-js", () => ({ createClient: () => ({ rpc }) }));
 vi.mock("@/integrations/supabase/client.server", () => ({ supabaseAdmin: { rpc: admin } }));
 vi.mock("@/lib/planning-v3/catalogue", async () => {
@@ -16,10 +16,11 @@ vi.mock("@/lib/planning-v3/catalogue", async () => {
 });
 vi.mock("@/lib/planning-v3/weather.server", () => ({ fetchV3Weather: async () => new Map() }));
 vi.mock("@/lib/planning-v3/routes.server", () => ({
-  googleRoutes: () => ({
+  PlanningProviderError: class PlanningProviderError extends Error {},
+  googleRoutes: routes.mockImplementation(() => ({
     route: async ({ at, timing }: { at: number; timing: string }) =>
       timing === "arrive" ? { start: at - 600_000, end: at } : { start: at, end: at + 600_000 },
-  }),
+  })),
 }));
 const lease = "33333333-3333-4333-8333-333333333333";
 const credentials = { code: "ABC123", token: "a".repeat(64), schemaVersion: 3 } as const;
@@ -47,6 +48,9 @@ beforeEach(() => {
   vi.spyOn(Date, "now").mockReturnValue(now);
   vi.stubEnv("SUPABASE_URL", "https://example.invalid");
   vi.stubEnv("SUPABASE_PUBLISHABLE_KEY", "test");
+  vi.stubEnv("GOOGLE_MAPS_API_KEY", "connection-key");
+  vi.stubEnv("LOVABLE_API_KEY", "gateway-token");
+  routes.mockClear();
 });
 afterEach(() => {
   vi.restoreAllMocks();
@@ -54,6 +58,14 @@ afterEach(() => {
 });
 
 describe("V3 service and RPC boundary", () => {
+  it("preserves answers and returns a setup error when the new workspace has no Maps credential", async () => {
+    vi.stubEnv("GOOGLE_MAPS_API_KEY", undefined);
+    rpc.mockResolvedValue({ data: { ...state, status: "locking", acquired: true, lease } });
+    admin.mockResolvedValueOnce({ data: snapshot() }).mockResolvedValueOnce({ data: true });
+    await expect(executePlanning({ ...credentials, action: "lock", payload: {} })).rejects.toThrow("Connect Google Maps Platform");
+    expect(admin).toHaveBeenLastCalledWith("party_plan_complete", { p_code: credentials.code, p_lease: lease, p_failed: true });
+    expect(routes).not.toHaveBeenCalled();
+  });
   it("bootstraps a collecting V2 party with host configure, then reads and saves V3", async () => {
     const legacy = {
       ...state,
@@ -232,6 +244,7 @@ describe("V3 service and RPC boundary", () => {
       [1, 2].map(() => executePlanning({ ...credentials, action: "lock", payload: {} })),
     );
     expect(admin).toHaveBeenCalledTimes(2);
+    expect(routes).toHaveBeenCalledWith({ key: "connection-key", gatewayToken: "gateway-token" });
     expect(admin).toHaveBeenNthCalledWith(1, "party_plan_snapshot", {
       p_code: credentials.code,
       p_lease: lease,

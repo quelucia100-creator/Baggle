@@ -2,7 +2,7 @@ import "@tanstack/react-start/server-only";
 import { z } from "zod";
 import type { PlanningConfig, Venue } from "./types";
 
-const placesUrl = "https://places.googleapis.com/v1/places:searchNearby";
+const placesUrl = "https://connector-gateway.lovable.dev/google_maps/places/v1/places:searchNearby";
 const fields = ["id", "displayName", "location", "businessStatus", "priceLevel", "regularOpeningHours", "rating"];
 const searchTypes: Record<PlanningConfig["category"], string[]> = {
   park: ["park"],
@@ -73,15 +73,17 @@ function readHours(value: unknown): Venue["hours"] {
 }
 
 export async function fetchPlanningVenues({ area, category }: Pick<PlanningConfig, "area" | "category">): Promise<Venue[]> {
-  const key = process.env["GOOGLE_PLACES_API_KEY"]?.trim();
-  if (!key) return [];
+  const key = process.env["GOOGLE_MAPS_API_KEY"]?.trim();
+  const gatewayToken = process.env["LOVABLE_API_KEY"];
+  if (!key || !gatewayToken) return [];
 
   try {
     const response = await fetch(placesUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-Goog-Api-Key": key,
+        Authorization: `Bearer ${gatewayToken}`,
+        "X-Connection-Api-Key": key,
         "X-Goog-FieldMask": fields.map((field) => `places.${field}`).join(","),
       },
       body: JSON.stringify({
@@ -90,10 +92,15 @@ export async function fetchPlanningVenues({ area, category }: Pick<PlanningConfi
         locationRestriction: { circle: { center: { latitude: area.lat, longitude: area.lng }, radius: 5000 } },
       }),
       signal: AbortSignal.timeout(4000),
-      redirect: "error",
+      redirect: "manual",
     });
     // A provider denial, quota response or outage should immediately use the fallback.
-    if (!response.ok) return [];
+    if (!response.ok) {
+      const body = await response.text();
+      console.error(`Event venue search failed [${response.status}]: ${body}`);
+      // Legacy planning retains its curated fallback when live search is unavailable.
+      return [];
+    }
     const parsed = responseSchema.safeParse(await response.json());
     if (!parsed.success || parsed.data.error != null) return [];
 
