@@ -11,7 +11,6 @@ import {
   Vote,
 } from "lucide-react";
 import { PopButton } from "@/components/Field";
-import { Button } from "@/components/ui/button";
 import { PaperIcon } from "@/components/PaperIcon";
 import bagel from "@/assets/bagel-single.png.asset.json";
 import type { PartyState } from "@/lib/party";
@@ -25,6 +24,7 @@ import {
 } from "./model";
 import { CollectingInputs } from "./CollectingInputs";
 import type { WizardSubmit } from "./WizardFrame";
+import { PlanMap } from "./PlanMap";
 
 export function PlanningExperience({
   party,
@@ -291,18 +291,22 @@ function PlanResult({
           <p className="mt-6 border-t-2 border-crust/15 pt-4 text-sm font-bold">
             {plan.compromise}
           </p>
-          <Button
-            asChild
-            variant="outline"
-            className="mt-5 h-12 w-full border-2 bg-offwhite font-bold"
-          >
-            <a href={plan.venue.mapsUrl} target="_blank" rel="noopener noreferrer">
-              Open in Google Maps
-              <ExternalLink aria-hidden="true" />
-            </a>
-          </Button>
         </div>
       </div>
+      <PlanMap
+        party={party}
+        destination={{ ...plan.venue.location, name: plan.venue.name }}
+        revision={state.revision}
+      />
+      <a
+        href={plan.venue.mapsUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-4 inline-flex min-h-11 items-center gap-2 text-sm font-bold underline"
+      >
+        Directions in Google Maps
+        <ExternalLink aria-hidden="true" className="h-4 w-4" />
+      </a>
       {final ? (
         <p role="status" className="mt-7 flex items-center gap-2 font-bold">
           <Check className="h-5 w-5" />

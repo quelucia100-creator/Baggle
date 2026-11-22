@@ -29,6 +29,7 @@ import {
 import { buildIcs, downloadIcs } from "./ics";
 import { formatInstant } from "./time";
 import { formatDuration } from "./host-model";
+import { PlanMap } from "../PlanMap";
 
 type Submit = (command: PlanningCommandV3) => Promise<boolean>;
 type LifecycleState = Pick<
@@ -457,15 +458,6 @@ export function ResultV3({
             {plan.compromise}
           </p>
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            <a
-              href={plan.venue.mapsUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="paper flex min-h-12 items-center justify-center gap-2 rounded-lg border-2 border-crust bg-offwhite px-4 font-bold"
-            >
-              Open in Google Maps
-              <ExternalLink aria-hidden="true" className="h-4 w-4" />
-            </a>
             {final && (
               <button
                 type="button"
@@ -484,6 +476,20 @@ export function ResultV3({
           )}
         </div>
       </div>
+      <PlanMap
+        party={party}
+        destination={{ ...plan.venue.location, name: plan.venue.name }}
+        revision={state.revision}
+      />
+      <a
+        href={plan.venue.mapsUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-4 inline-flex min-h-11 items-center gap-2 text-sm font-bold underline"
+      >
+        Directions in Google Maps
+        <ExternalLink aria-hidden="true" className="h-4 w-4" />
+      </a>
       {final ? (
         <p role="status" className="mt-7 flex items-center gap-2 font-bold">
           <Check aria-hidden="true" className="h-5 w-5" />

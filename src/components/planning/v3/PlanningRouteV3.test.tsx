@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ComponentType } from "react";
 import { guestId, hostId, party, thirdId, v2State, v3Config, v3Plan, v3State } from "./test-utils";
+vi.mock("../PlanMap", () => ({ PlanMap: () => null }));
 
 // MOCKED server function and party RPC: these tests never reach a database.
 const mocks = vi.hoisted(() => ({ planning: vi.fn(), party: vi.fn(), navigate: vi.fn(), days: vi.fn() }));

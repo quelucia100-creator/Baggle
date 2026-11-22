@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PartyState } from "@/lib/party";
 import type { PlanningState } from "@/lib/planning/types";
+vi.mock("./PlanMap", () => ({ PlanMap: () => null }));
 
 const m = vi.hoisted(() => ({
   party: vi.fn(),

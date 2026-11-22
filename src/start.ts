@@ -5,6 +5,7 @@ import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
 
 // The Start compiler visits this entry in both builds and registers the capability-verified RPC.
 export { updatePartyPlanning } from "./lib/planning.functions";
+export { getJourneyRoutes } from "./lib/journey-routes.functions";
 
 const errorMiddleware = createMiddleware().server(async ({ next }) => {
   try {

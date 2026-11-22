@@ -5,6 +5,7 @@ import { ConfigForm, PreferencesForm } from "./PlanningForms";
 import { planningControls, validateConfig, validatePreferences, formatPlanTime, planningError } from "./model";
 import type { PlanningState } from "@/lib/planning/types";
 import type { PartyState } from "@/lib/party";
+vi.mock("./PlanMap", () => ({ PlanMap: () => null }));
 
 const hostId = "00000000-0000-4000-8000-000000000001";
 const guestId = "00000000-0000-4000-8000-000000000002";
