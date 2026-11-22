@@ -1,132 +1,60 @@
-# Baggel 
+# Baggel
 
-A social planning and activity discovery app
+A social planning and activity discovery app.
 
-Mission: Make it effortless for students to turn free time into real-life experiences with friends.
+**Mission:** Make it effortless for students to turn free time into real-life experiences with friends.
 
-Core idea: An app that answers three simple questions:
+Baggel answers three simple questions:
 
-Who is free?
-
-What should we do?
-
-Where and when should we do it?
+- **Who is free?**
+- **What should we do?**
+- **Where and when should we do it?**
 
 Instead of spending hours coordinating plans in group chats, users can discover activities, match their availability, and make group decisions in minutes.
 
-1. The Problem
+## The problem
 
-Students often want to socialize or explore new experiences but struggle to make plans.
+People want to do things together, but planning becomes more difficult than the activity itself. Students face endless group chats without decisions, repeated suggestions of the same activities, unclear locations, costs, and timing, and too much effort required to organize something simple.
 
-Personal barriers
+## Who it's for
 
-Lack of motivation or procrastination
+University and college students — especially those living on or near campus and new students looking to build social circles. The recommended starting point is one campus: a concentrated user base with nearby activities, shared schedules, and existing social connections.
 
-Feeling too busy or overwhelmed
+## What the app does
 
-Seasonal depression and bad weather
+### Parties and planning
 
-Not knowing what to do or where to go
+- **Guest parties:** anyone can create a party or join one with a six-character code — no account needed. Hosts configure the category, date, duration, and meeting area.
+- **Private preferences:** each member answers a short, one-question-at-a-time wizard — availability, budget, max travel time, and an optional rough starting area. Preferences stay private: hosts and other members only ever see whether someone has submitted, never their answers.
+- **Find event:** once at least two members are ready, the host generates a shared plan. A fairness solver ranks real venues (via Google Maps) against everyone's private constraints and returns one venue and time with a public price tier, local times, a Maps link, and an optional weather forecast.
+- **Rerolls and finalization:** members vote to reroll; the host rerolls or finalizes the plan. If no option fits, the app says so neutrally and the host can reopen planning.
+- **Map and weather:** a shared map shows the meeting area and forecast, requesting location only when needed.
 
-Limited budgets
+### Accounts and social features
 
-Excessive time spent on phones
+Signed-in users (Google or email) get:
 
-Social barriers
+- **Dashboard** with quick access to everything, including joining a party by code.
+- **Friends:** send and accept friend requests by username.
+- **Groups:** create groups of friends, see the recurring weekdays when *all* members are free (without revealing anyone's private schedule), and poke the group to hang out.
+- **Availability:** a recurring Monday–Sunday availability grid, kept private and separate from party submissions.
+- **Notifications:** friend requests, group invites, and group journey alerts, with an unread indicator.
+- **Preferences:** mandatory onboarding (username, date of birth, tastes, dietary restrictions and allergies, accessibility, alcohol presence, activity interests), editable later, plus a public/private account toggle.
 
-Not knowing which friends are available
+### Design
 
-Difficulty coordinating different schedules
+A playful, gamified look grounded in realism: real bagel photography, paper textures with subtle grain, pop shadows, and a fixed colour palette (off white, chartreuse, sage, apricot, tangerine, vista, cream, crust brown). No emojis — icons are coloured-paper cutouts.
 
-Group indecision
+## Tech stack
 
-Different interests and spending preferences
-
-Feeling uncomfortable initiating plans
-
-New students struggling to meet people
-
-Existing planning frustrations
-
-Endless group chats without decisions
-
-Repeated suggestions of the same activities
-
-Unclear locations, costs, and timing
-
-Missing opportunities and campus events
-
-Too much effort required to organize something simple
-
-The central problem: People want to do things together, but planning becomes more difficult than the activity itself.
-
-2. Target Audience
-
-Primary audience: University and college students
-
-Students aged approximately 18–25
-
-Students living on or near campus
-
-New students looking to build social circles
-
-Existing friend groups struggling to coordinate
-
-Future audiences
-
-Teenagers
-
-Pre-teens, with appropriate safeguarding and privacy protections
-
-Young professionals and newcomers to a city
-
-Recommendation: Start with university students at one campus. This creates a concentrated user base with nearby activities, shared schedules, and existing social connections.
-
-3. The Solution
-
-Cookie Monsters combines three functions into one experience.
-
-
-Welcome page: 2 options
-
-
-
-
-Website theme: A mix of playful and gamified elements, with realism (such as real textures, and real “bagel” picture assets for a “pop” effect).
-
-
-
-
-Design: Left side of screen is a log in, input field banner, with flat colours from the colour pallet (note all colours for the website should be from the colour palette). The right side of the screen (what is not covered by the banner) has a realistic element (to add on to the theme) and is a different colour, and has bagels scattered throughout. 
-
-
-
-
-options:
-
-Guest sign-in: enter party code or create the group (tentative)
-
-Display name 
-
-Login/signup page: google, email 
-
-Signup page: prompt with google or email
-
-Add username (display name)
-
-Password (set secure requirements)
-
-This project was built with [Lovable](https://lovable.dev).
-
-## Build with Lovable
-
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/c9d12ae2-be6f-447b-b56a-0abb152936c7).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
+- **Frontend:** React 19, TanStack Start (SSR), TanStack Router, Tailwind CSS v4, shadcn-style components
+- **Backend:** Lovable Cloud (managed Postgres, auth, and server functions)
+- **Maps and places:** Google Maps Platform
+- **Testing:** Vitest
 
 ## Development
+
+This project is built with [Lovable](https://lovable.dev). Continue developing in the [Lovable editor](https://lovable.dev/projects/c9d12ae2-be6f-447b-b56a-0abb152936c7) — every change is committed straight to this repository, and pushes to `main` on GitHub sync back into Lovable.
 
 Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
 
@@ -136,3 +64,13 @@ cd <repository-name>
 npm i
 npm run dev
 ```
+
+Run the test suite with:
+
+```sh
+npm test
+```
+
+## Documentation
+
+Detailed design and integration notes live in [`docs/`](docs/), including the planning contract, frontend handoff, and flow references.
