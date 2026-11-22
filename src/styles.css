@@ -190,9 +190,15 @@
   to { transform: rotate(360deg); }
 }
 @utility animate-bagel-spin { animation: bagel-spin 1.4s linear infinite; }
+@keyframes bagel-fall {
+  from { transform: translateY(0) rotate(0deg); }
+  to { transform: translateY(130vh) rotate(var(--spin, 360deg)); }
+}
+@utility bagel-fall { animation: bagel-fall 1.4s ease-in forwards; }
 @media (prefers-reduced-motion: reduce) {
   .wizard-enter { animation: none; }
   .animate-bob { animation: none; }
   .animate-bagel-spin { animation: none; }
+  .bagel-fall { display: none; }
   .pop-press { transition: none; }
 }

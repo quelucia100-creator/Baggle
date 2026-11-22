@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import logo from "@/assets/baggle-logo.png.asset.json";
 import { supabase } from "@/integrations/supabase/client";
 import { AuthShell } from "@/components/BagelScene";
+import { FallingBagels } from "@/components/FallingBagels";
 import { Field, PopButton } from "@/components/Field";
 import { GoogleButton } from "@/components/GoogleButton";
 import { isStrongPassword } from "@/lib/password";
@@ -38,14 +39,20 @@ function AuthPage() {
   const [username, setUsername] = useState("");
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState<string | null>(null);
+  const [raining, setRaining] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => { setSent(null); }, [tab]);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => { if (data.user) navigate({ to: "/home", replace: true }); });
-    const { data } = supabase.auth.onAuthStateChange((e) => { if (e === "SIGNED_IN") navigate({ to: "/home", replace: true }); });
-    return () => data.subscription.unsubscribe();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const rainThenGoHome = () => {
+      setRaining(true);
+      timer = setTimeout(() => void navigate({ to: "/home", replace: true }), 1100);
+    };
+    supabase.auth.getUser().then(({ data }) => { if (data.user) rainThenGoHome(); });
+    const { data } = supabase.auth.onAuthStateChange((e) => { if (e === "SIGNED_IN") rainThenGoHome(); });
+    return () => { if (timer) clearTimeout(timer); data.subscription.unsubscribe(); };
   }, [navigate]);
 
   const submit = async (e: React.FormEvent) => {
@@ -76,6 +83,7 @@ function AuthPage() {
 
   return (
     <AuthShell>
+      {raining && <FallingBagels />}
       <BackLink />
       <Link to="/"><img src={logo.url} alt="Baggle home" className="mx-auto mb-4 w-56 max-w-full" /></Link>
       {sent ? (

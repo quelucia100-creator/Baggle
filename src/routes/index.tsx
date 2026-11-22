@@ -4,6 +4,7 @@ import logo from "@/assets/baggle-logo.png.asset.json";
 import bagelPlain from "@/assets/bagel-single.png.asset.json";
 import bagelCream from "@/assets/bagel-cream.png.asset.json";
 import { AuthShell } from "@/components/BagelScene";
+import { FallingBagels } from "@/components/FallingBagels";
 import { Field, PopButton } from "@/components/Field";
 import { PaperIcon } from "@/components/PaperIcon";
 import { normalizePartyCode } from "@/lib/password";
@@ -31,12 +32,15 @@ function Welcome() {
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [raining, setRaining] = useState(false);
   const navigate = useNavigate();
 
   const go = async (created: boolean) => {
     setBusy(true);
     try {
       const party = await accessParty(created ? "create" : "join", normalizePartyCode(code), name.trim());
+      setRaining(true);
+      await new Promise((resolve) => setTimeout(resolve, 1100));
       await navigate({ to: "/party/$code", params: { code: party.code } });
     } catch (error) { toast.error(error instanceof Error ? error.message : "Could not open party."); }
     finally { setBusy(false); }
@@ -44,6 +48,7 @@ function Welcome() {
 
   return (
     <AuthShell>
+      {raining && <FallingBagels />}
       <img src={logo.url} alt="Baggle" className="mx-auto mb-4 w-44" />
       <h1 className="text-center text-3xl font-extrabold">Free time? Let's make it a plan.</h1>
       <p className="mt-2 text-center text-muted-foreground">Who's free, what to do, where and when, all sorted in minutes.</p>
