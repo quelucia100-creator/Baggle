@@ -9,6 +9,8 @@ import type { Json } from "@/integrations/supabase/types";
 
 vi.mock("./forecast.server", () => ({ fetchPlanningForecast: vi.fn(async () => []) }));
 const credential = () => Array.from(crypto.getRandomValues(new Uint8Array(32)), (n) => n.toString(16).padStart(2, "0")).join("");
+// Creates real parties: opt in only against an authorized isolated database.
+const dbDescribe = describe.skipIf(process.env["PLANNING_DB_TESTS"] !== "1");
 const ownedParties: string[] = [];
 async function newParty(count: number) {
   const tokens = Array.from({ length: count }, credential); const host = tokens[0];
@@ -35,7 +37,7 @@ afterAll(async () => {
   }
 });
 
-describe.sequential("Real database planning security and lifecycle", () => {
+dbDescribe.sequential("Real database planning security and lifecycle", () => {
   let party: Awaited<ReturnType<typeof newParty>>; let guest = ""; let other = "";
   beforeAll(async () => {
     party = await newParty(5); guest = party.tokens[1] ?? ""; other = party.tokens[2] ?? "";
@@ -127,7 +129,7 @@ describe.sequential("Real database planning security and lifecycle", () => {
   });
 });
 
-describe("Real database no-plan recovery and lock leases", () => {
+dbDescribe("Real database no-plan recovery and lock leases", () => {
   it("restores collecting after pipeline failure and supports a successful retry", async () => {
     const party = await newParty(2); const guest = party.tokens[1]; if (!guest) throw new Error("Missing member");
     await call(party.code, party.host, "save", prefs); await call(party.code, guest, "save", prefs);
@@ -143,9 +145,9 @@ describe("Real database no-plan recovery and lock leases", () => {
     await call(party.code, party.host, "save", prefs); await call(party.code, guest, "save", prefs);
     await call(party.code, other, "save", { ...prefs, freeFrom: "08:00", freeTo: "10:00" });
     const locked = await executePlanning({ action: "lock", code: party.code, token: party.host, payload: {} });
-    expect(locked.status).toBe("no_plan"); expect(locked.noPlanReason).toBe("no_overlap"); expect(locked).not.toHaveProperty("outlierNames");
+    expect(locked.status).toBe("no_plan"); expect(locked.noPlanReason).toBe("no_match"); expect(locked).not.toHaveProperty("outlierNames");
     const guestState = planningStateSchema.parse((await call(party.code, guest, "read")).data);
-    expect(guestState.noPlanReason).toBe("no_overlap"); expect(guestState).not.toHaveProperty("outlierCount"); expect(guestState).not.toHaveProperty("outlierNames");
+    expect(guestState.noPlanReason).toBe("no_match"); expect(guestState).not.toHaveProperty("outlierCount"); expect(guestState).not.toHaveProperty("outlierNames");
     const reopened = planningStateSchema.parse((await call(party.code, party.host, "reopen")).data);
     expect(reopened.status).toBe("collecting"); expect(reopened.members.filter((m) => m.submitted)).toHaveLength(3);
     expect((await call(party.code, other, "save", prefs)).error).toBeNull();
@@ -173,8 +175,8 @@ describe("Real database no-plan recovery and lock leases", () => {
     expect((await call(party.code, party.host, "configure", configuration)).error?.message).toContain("frozen");
   });
 });
-describe("Legacy stored plans", () => {
-  it("strips scores and count-revealing compromises from historical rows", async () => {
+dbDescribe("Legacy stored plans", () => {
+  it("strips scores and private compromise text from historical rows", async () => {
     const party = await newParty(2); const guest = party.tokens[1]; if (!guest) throw new Error("Missing member");
     await call(party.code, party.host, "read");
     const row = await supabaseAdmin.from("parties").select("id").eq("code", party.code).single(); if (!row.data) throw new Error("Missing test party");
@@ -184,7 +186,7 @@ describe("Legacy stored plans", () => {
     for (const token of [party.host, guest]) {
       const raw = (await call(party.code, token, "read")).data as Record<string, unknown> & { plan: Record<string, unknown> & { venue: object } };
       expect(raw.plan).not.toHaveProperty("score"); expect(raw.plan).not.toHaveProperty("mean"); expect(raw.plan.venue).not.toHaveProperty("secret");
-      expect(raw.plan["compromise"]).toBe("Some trade-offs on cost or travel");
+      expect(raw.plan["compromise"]).toBe("Review this option");
       expect(raw).not.toHaveProperty("outlierNames"); expect(raw).not.toHaveProperty("outlierCount");
     }
   });

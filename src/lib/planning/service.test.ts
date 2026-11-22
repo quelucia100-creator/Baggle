@@ -36,6 +36,13 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+
+const storedOptions = () => (adminRpc.mock.calls.find(([fn]) => fn === "party_plan_complete")?.[1] as { p_options: Array<Record<string, unknown>> }).p_options;
+const expectPublicOptions = () => {
+  const options = storedOptions();
+  expect(options.length).toBeGreaterThan(0);
+  expect(options.every((o) => !("score" in o) && o["compromise"] === "Review this option")).toBe(true);
+};
 describe("Planning venue selection", () => {
   it("stores a live ranking with the existing planning lease", async () => {
     fetchMock.mockResolvedValue(Response.json({ places: [place] }));
@@ -45,6 +52,7 @@ describe("Planning venue selection", () => {
         expect.objectContaining({ venue: expect.objectContaining({ placeId: place.id }) }),
       ]),
     }));
+    expectPublicOptions();
   });
 
   it.each([
@@ -59,6 +67,7 @@ describe("Planning venue selection", () => {
         expect.objectContaining({ venue: expect.objectContaining({ placeId: "fallback:la-banquise" }) }),
       ]),
     }));
+    expectPublicOptions();
   });
 
   it("skips the providers when another request already holds the lease", async () => {

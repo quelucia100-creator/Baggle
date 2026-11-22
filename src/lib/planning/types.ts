@@ -38,15 +38,15 @@ export const planOptionSchema = z.object({
 });
 export type PlanOption = z.infer<typeof planOptionSchema>;
 // `score` ranks plans server-side only; in small parties it reveals a member's private limits.
-export const publicPlanOptionSchema = planOptionSchema.omit({ score: true });
+export const publicPlanOptionSchema = planOptionSchema.omit({ score: true }).extend({ compromise: z.literal("Review this option") });
 export type PublicPlanOption = z.infer<typeof publicPlanOptionSchema>;
-export const toPublicPlanOptions = (options: PlanOption[]): PublicPlanOption[] => z.array(publicPlanOptionSchema).parse(options);
+export const toPublicPlanOptions = (options: PlanOption[]): PublicPlanOption[] => z.array(publicPlanOptionSchema).parse(options.map(({ score: _score, ...rest }) => ({ ...rest, compromise: "Review this option" })));
 export const planningStateSchema = z.object({
   status: z.enum(["collecting", "locking", "locked", "no_plan", "final"]), revision: z.number().int(),
   selfPreferences: preferencesSchema.nullable(), members: z.array(z.object({ id: z.string().uuid(), submitted: z.boolean() })),
   config: configSchema, plan: publicPlanOptionSchema.nullable(), planIndex: z.number().int(), optionCount: z.number().int(),
   groupRerollsUsed: z.number().int(), votes: z.number().int(), voteThreshold: z.number().int(), selfVoted: z.boolean(),
-  noPlanReason: z.enum(["no_overlap", "no_venue_or_slot"]).nullable(), venueSource: z.string().nullable(),
+  noPlanReason: z.literal("no_match").nullable(), venueSource: z.string().nullable(),
   acquired: z.boolean().optional(), lease: z.string().uuid().nullable().optional(),
 });
 export type PlanningState = z.infer<typeof planningStateSchema>;
