@@ -24,6 +24,9 @@ const safeRpcErrors = new Set([
   "This plan changed. Refresh and try again.",
   "Only the host can reroll now.",
   "Last option reached.",
+  "Last option: there are no more plans.",
+  "Submit your own preferences before locking.",
+  "At least 2 members must submit before locking.",
   "Only a no-plan result can be reopened.",
 ]);
 
@@ -82,19 +85,25 @@ export async function executePlanning(command: PlanningCommand) {
     } else if (command.action === "save") {
       const state = await read();
       if (state.schemaVersion !== 3) throw new Error("The host must enable V3 planning first.");
+      const save =
+        payload && typeof payload === "object" && !Array.isArray(payload) ? payload : null;
+      if (save?.["expectedRevision"] !== state.revision)
+        throw new Error("This plan changed. Refresh and try again.");
       payload = {
-        preferences: normalizePreferences(payload, state.config, now),
+        preferences: normalizePreferences(save["preferences"], state.config, now),
         expectedRevision: state.revision,
       };
     } else {
-      requireVersion(await read());
+      const state = requireVersion(await read());
       const revision =
         payload && !Array.isArray(payload) && typeof payload === "object"
           ? payload["revision"]
           : undefined;
       if (
-        command.action === "finalize" &&
-        (typeof revision !== "number" || !Number.isInteger(revision) || revision < 0)
+        (command.action === "finalize" ||
+          command.action === "vote" ||
+          command.action === "host_reroll") &&
+        revision !== state.revision
       )
         throw new Error("This plan changed. Refresh and try again.");
       payload = revision === undefined ? { schemaVersion: 3 } : { schemaVersion: 3, revision };

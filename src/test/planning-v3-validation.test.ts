@@ -6,10 +6,48 @@ import {
   normalizePreferences,
   unambiguous,
 } from "@/lib/planning-v3/schema";
-import { parsePlanningRequest } from "@/lib/planning-v3/request";
+import { parsePlanningRequest, preparePlanningCommand } from "@/lib/planning-v3/request";
 import { clock, day, hostConfig, iso, now, prefs } from "./planning-v3-fixtures";
 
 describe("Planning V3 canonical requests", () => {
+  it("keeps the legacy RPC payload untagged and requires revision for V3 save and finalize", () => {
+    const credentials = { code: "ABC123", token: "a".repeat(64) };
+    const v2 = {
+      date: day,
+      durationMin: 60,
+      areaLabel: "Montreal",
+      area: { lat: 45.51, lng: -73.57 },
+      category: "park",
+    };
+    const legacy = preparePlanningCommand(
+      parsePlanningRequest({
+        ...credentials,
+        action: "configure",
+        schemaVersion: 2,
+        config: { ...v2, version: 2 },
+      }),
+    );
+    expect(legacy).toMatchObject({
+      schemaVersion: 2,
+      payload: { ...v2, areaLat: 45.51, areaLng: -73.57 },
+    });
+    expect(legacy.payload).not.toHaveProperty("version");
+    const v3 = { ...credentials, schemaVersion: 3, action: "save", preferences: prefs() };
+    expect(() => parsePlanningRequest(v3)).toThrow("Check the planning");
+    expect(preparePlanningCommand(parsePlanningRequest({ ...v3, revision: 8 })).payload).toEqual({
+      preferences: prefs(),
+      expectedRevision: 8,
+    });
+    expect(
+      preparePlanningCommand(
+        parsePlanningRequest({ ...credentials, schemaVersion: 3, action: "finalize", revision: 9 }),
+      ).payload,
+    ).toEqual({ revision: 9 });
+    expect(
+      preparePlanningCommand(parsePlanningRequest({ ...credentials, action: "finalize" })).payload,
+    ).toEqual({});
+  });
+
   it("uses the Montreal date, even when UTC is tomorrow", () => {
     expect(iso(now).slice(0, 10)).toBe(day);
     const input = hostConfig();

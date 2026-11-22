@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Json } from "@/integrations/supabase/types";
+import { canBootstrapPlanningV3 } from "@/lib/planning-v3/contract";
+import type { PlanningCommandV3 } from "@/lib/planning-v3/contract";
+import { parsePlanningRequest, preparePlanningCommand } from "@/lib/planning-v3/request";
 import { executePlanning } from "@/lib/planning/service.server";
 import { solveV3 } from "@/lib/planning-v3/solver";
 import { day, hostConfig, memberIds, now, prefs, snapshot, venue } from "./planning-v3-fixtures";
@@ -51,10 +54,92 @@ afterEach(() => {
 });
 
 describe("V3 service and RPC boundary", () => {
+  it("bootstraps a collecting V2 party with host configure, then reads and saves V3", async () => {
+    const legacy = {
+      ...state,
+      schemaVersion: 2,
+      revision: 0,
+      config: {
+        date: day,
+        durationMin: 60,
+        areaLabel: "Montreal",
+        area: { lat: 45.51, lng: -73.57 },
+        category: "park",
+      },
+    };
+    rpc
+      .mockResolvedValueOnce({ data: legacy })
+      .mockResolvedValueOnce({ data: state })
+      .mockResolvedValueOnce({ data: state })
+      .mockResolvedValueOnce({ data: state })
+      .mockResolvedValueOnce({ data: { ...state, selfPreferences: prefs() } });
+    const send = (request: PlanningCommandV3) =>
+      executePlanning(preparePlanningCommand(parsePlanningRequest({ ...credentials, ...request })));
+    const before = await send({ action: "read" });
+    expect(canBootstrapPlanningV3(before, true)).toBe(true);
+    expect(canBootstrapPlanningV3(before, false)).toBe(false);
+    expect(canBootstrapPlanningV3({ ...before, status: "final" }, true)).toBe(false);
+    const configured = await send({ action: "configure", config: hostConfig() });
+    expect(configured.schemaVersion).toBe(3);
+    expect(canBootstrapPlanningV3(configured, true)).toBe(false);
+    expect((await send({ action: "read" })).schemaVersion).toBe(3);
+    await expect(
+      send({ action: "save", preferences: prefs(), revision: configured.revision }),
+    ).resolves.toHaveProperty("selfPreferences", prefs());
+    expect(rpc.mock.calls.map(([, a]) => a.p_action)).toEqual([
+      "read",
+      "configure",
+      "read",
+      "read",
+      "save",
+    ]);
+    expect(rpc.mock.calls[1]?.[1].p_payload).toEqual(hostConfig());
+    expect(admin).not.toHaveBeenCalled();
+  });
+
+  it("rejects a stale client save or finalize and preserves a database race rejection", async () => {
+    const revisionError = "This plan changed. Refresh and try again.";
+    rpc.mockResolvedValue({ data: state });
+    await expect(
+      executePlanning({
+        ...credentials,
+        action: "save",
+        payload: { preferences: prefs(), expectedRevision: state.revision - 1 },
+      }),
+    ).rejects.toThrow(revisionError);
+    await expect(
+      executePlanning({
+        ...credentials,
+        action: "finalize",
+        payload: { revision: state.revision - 1 },
+      }),
+    ).rejects.toThrow(revisionError);
+    expect(rpc.mock.calls.map(([, a]) => a.p_action)).toEqual(["read", "read"]);
+    rpc
+      .mockReset()
+      .mockResolvedValueOnce({ data: state })
+      .mockResolvedValueOnce({ error: { message: revisionError } });
+    await expect(
+      executePlanning({
+        ...credentials,
+        action: "save",
+        payload: { preferences: prefs(), expectedRevision: state.revision },
+      }),
+    ).rejects.toThrow(revisionError);
+    expect(rpc.mock.calls[1]?.[1].p_payload).toEqual({
+      preferences: prefs(),
+      expectedRevision: state.revision,
+    });
+  });
+
   it("sends canonical config and saves only after validating the host dates and revision", async () => {
     rpc.mockResolvedValue({ data: state });
     await executePlanning({ ...credentials, action: "configure", payload: hostConfig() });
-    await executePlanning({ ...credentials, action: "save", payload: prefs() });
+    await executePlanning({
+      ...credentials,
+      action: "save",
+      payload: { preferences: prefs(), expectedRevision: state.revision },
+    });
     expect(rpc.mock.calls.map(([name, args]) => [name, args.p_action])).toEqual([
       ["party_plan", "configure"],
       ["party_plan", "read"],
@@ -68,7 +153,11 @@ describe("V3 service and RPC boundary", () => {
     const invalid = prefs();
     invalid.availability.days[0]!.confirmed = false;
     await expect(
-      executePlanning({ ...credentials, action: "save", payload: invalid }),
+      executePlanning({
+        ...credentials,
+        action: "save",
+        payload: { preferences: invalid, expectedRevision: state.revision },
+      }),
     ).rejects.toThrow("Check the planning");
     expect(rpc).toHaveBeenCalledTimes(4);
   });

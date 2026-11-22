@@ -98,6 +98,14 @@ describeIsolatedDatabase("Planning V3 isolated RPC", () => {
         })
       ).error,
     ).not.toBeNull();
+    expect(
+      (
+        await party.call(party.guest, "save", {
+          preferences: guestAnswer,
+          expectedRevision: before.revision - 1,
+        })
+      ).error?.message,
+    ).toContain("plan changed");
     expect((await party.save(party.guest, guestAnswer)).error).toBeNull();
     expect((await party.save(party.host)).error).toBeNull();
     const guest = parse((await party.call(party.guest, "read")).data);
@@ -220,6 +228,45 @@ describeIsolatedDatabase("Planning V3 isolated RPC", () => {
       revision: state.revision,
     });
     expect(parse(finalized.data).status).toBe("final");
+  });
+
+  it("persists and reads the actual date for an overnight slot outside the selected date list", async () => {
+    const party = await makeParty();
+    await configure(party);
+    for (const who of [party.host, party.guest]) expect((await party.save(who)).error).toBeNull();
+    const lock = await party.call(party.host, "begin_lock");
+    const lease = leaseFields.parse(lock.data).lease!;
+    const rawSnapshot = await supabaseAdmin.rpc("party_plan_snapshot", {
+      p_code: party.code,
+      p_lease: lease,
+    });
+    expect(rawSnapshot.error).toBeNull();
+    const candidate = venue();
+    const start = wallTime(party.day, "01:00", 1);
+    candidate.opening = [{ start, end: wallTime(party.day, "02:00", 1) }];
+    candidate.expiresAt = wallTime(party.day, "06:00", 1);
+    const options = await solveV3(
+      rawSnapshot.data as unknown as SnapshotV3,
+      [candidate],
+      {
+        route: async ({ at, timing }) =>
+          timing === "arrive" ? { start: at - 600_000, end: at } : { start: at, end: at + 600_000 },
+      },
+      new Map(),
+      Date.now(),
+    );
+    expect(options).toEqual([
+      expect.objectContaining({ date: shiftDate(party.day, 1), startAt: iso(start) }),
+    ]);
+    const completed = await supabaseAdmin.rpc("party_plan_complete", {
+      p_code: party.code,
+      p_lease: lease,
+      p_options: options,
+      p_source: "curated",
+    });
+    expect(completed.error).toBeNull();
+    expect(completed.data).toBe(true);
+    expect(parse((await party.call(party.guest, "read")).data).plan).toEqual(options[0]);
   });
 
   it("reopens no-match without leaks and invalidates readiness when dates change", async () => {
