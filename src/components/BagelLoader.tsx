@@ -7,7 +7,7 @@ export function BagelLoader({ label = "Loading…" }: { label?: string }) {
   if (active) return null;
   return (
     <div
-      className="paper flex min-h-screen flex-col items-center justify-center gap-6 bg-background px-6"
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-background/30 px-6 backdrop-blur-xl"
       role="status"
       aria-live="polite"
     >

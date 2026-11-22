@@ -27,7 +27,7 @@ export function FallingBagels() {
   );
 
   return (
-    <div className="paper fixed inset-0 z-50 overflow-hidden bg-background" role="status" aria-live="polite" aria-label="Loading…">
+    <div className="fixed inset-0 z-50 overflow-hidden bg-background/30 backdrop-blur-xl" role="status" aria-live="polite" aria-label="Loading…">
       <span className="sr-only">Loading…</span>
       {drops.map((d, i) => (
         <img
