@@ -141,11 +141,14 @@ export async function executePlanning(command: PlanningCommand) {
         fetchPlanningForecast(snapshot.config),
         fetchPlanningVenues(snapshot.config),
       ]);
-      const liveRanking = liveVenues.length ? solvePlans(snapshot, liveVenues, forecast) : null;
+      const searchTime = Date.now();
+      const liveRanking = liveVenues.length
+        ? solvePlans(snapshot, liveVenues, forecast, searchTime)
+        : null;
       const useLiveRanking = liveRanking && liveRanking.options.length > 0;
       const ranking = useLiveRanking
         ? liveRanking
-        : solvePlans(snapshot, FALLBACK_VENUES, forecast);
+        : solvePlans(snapshot, FALLBACK_VENUES, forecast, searchTime);
       const completed = await supabaseAdmin.rpc("party_plan_complete", {
         p_code: command.code,
         p_lease: lease,

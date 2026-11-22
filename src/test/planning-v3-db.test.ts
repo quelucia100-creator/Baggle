@@ -33,6 +33,21 @@ async function makeParty() {
   if (created.error) throw new Error("Could not create isolated party.");
   const party = partySchema.parse(created.data);
   owned.push(party.code);
+  const call = (as: string, action: string, p_payload: Json = { schemaVersion: 3 }) =>
+    supabase.rpc("party_plan", {
+      p_code: party.code,
+      p_token: as,
+      p_action: action,
+      p_payload,
+    });
+  // These fixtures start as V2 parties, then explicitly upgrade in each test.
+  const setup = await call(host, "save", {
+    budget: 2,
+    freeFrom: "12:00",
+    freeTo: "20:00",
+    maxTravelMin: 30,
+  });
+  if (setup.error) throw new Error("Could not confirm isolated host setup.");
   const joined = await supabase.rpc("party_access", {
     p_action: "join",
     p_code: party.code,
@@ -41,13 +56,6 @@ async function makeParty() {
   });
   if (joined.error) throw new Error("Could not join isolated party.");
   const guestId = partySchema.parse(joined.data).selfId;
-  const call = (as: string, action: string, p_payload: Json = { schemaVersion: 3 }) =>
-    supabase.rpc("party_plan", {
-      p_code: party.code,
-      p_token: as,
-      p_action: action,
-      p_payload,
-    });
   const day = shiftDate(montrealToday(), 1);
   const config = hostConfig();
   config.dateSelection.candidateDates = [day];
@@ -81,6 +89,7 @@ describeIsolatedDatabase("Planning V3 isolated RPC", () => {
     expect((await configure(party)).config).toEqual(party.config);
     expect((await party.call(party.guest, "begin_lock")).error).not.toBeNull();
     expect((await party.call(party.host, "begin_lock")).error).not.toBeNull();
+    expect((await party.save(party.host)).error).toBeNull();
     const guestAnswer = answers(party.day);
     guestAnswer.origin.lat = 45.523456;
     guestAnswer.origin.accuracy = "precise_ephemeral";
@@ -107,7 +116,6 @@ describeIsolatedDatabase("Planning V3 isolated RPC", () => {
       ).error?.message,
     ).toContain("plan changed");
     expect((await party.save(party.guest, guestAnswer)).error).toBeNull();
-    expect((await party.save(party.host)).error).toBeNull();
     const guest = parse((await party.call(party.guest, "read")).data);
     const rawHost = (await party.call(party.host, "read")).data;
     expect(guest.selfPreferences?.dietaryHardRequirements).toEqual(

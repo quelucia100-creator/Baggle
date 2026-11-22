@@ -1,9 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { openForSlot, solvePlans, weatherForSlot } from "./solver";
 import { localDay, wallTime } from "./tz";
 import type { Snapshot, Venue } from "./types";
 
 const area = { lat: 45.5, lng: -73.57 };
+
+beforeEach(() => {
+  vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-01-01T00:00:00Z"));
+});
+afterEach(() => vi.restoreAllMocks());
 const snapshot: Snapshot = {
   config: { date: "2026-11-22", durationMin: 90, area, areaLabel: "Montreal", category: "park" },
   members: [
@@ -37,6 +42,19 @@ const venue: Venue = {
   rating: 4,
   mapsUrl: "https://www.google.com/maps/search/?api=1&query=Montreal",
 };
+
+it("skips elapsed half-hour slots and returns no options after the last feasible start", () => {
+  const options = solvePlans(
+    snapshot,
+    [venue],
+    [],
+    wallTime(snapshot.config.date, "18:01"),
+  ).options;
+  expect(options[0]?.startAt).toBe(new Date(wallTime(snapshot.config.date, "18:30")).toISOString());
+  expect(
+    solvePlans(snapshot, [venue], [], wallTime(snapshot.config.date, "20:31")).options,
+  ).toEqual([]);
+});
 describe("Planning feasibility and ranking", () => {
   it.each([1, 4, null, -1, 0.5])(
     "rules out an infeasible or unverified price tier of %s for a zero budget",
