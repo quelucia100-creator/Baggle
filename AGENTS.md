@@ -54,3 +54,4 @@ use the editor.
 - Dashboard code joining uses the account username with the existing capability-verified party join and navigates only after confirmation; this preserves guest membership and avoids a separate room-authentication flow.
 - Plan maps use only capability-visible device locations and the selected public venue, never private planning origins; optional route requests reverify membership and the plan, cap concurrency and cache briefly to bound provider usage.
 - Export and register the canonical planning server-function builder directly alongside typed aliases; keeping its stable name makes endpoint discovery independent of alias analysis and preserves open-client function IDs.
+- Invitation entry polls only after confirmed membership and never follows stored map-view flags; the retired map URL redirects to plan results to keep old links usable without navigation loops.

@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ComponentType, ReactNode } from "react";
@@ -63,6 +63,44 @@ beforeEach(() => {
 afterEach(() => { cleanup(); client?.clear(); });
 
 describe("planning entry compatibility and confirmed readiness", () => {
+  it("keeps the QR join form and typed name stable until a confirmed join, then resumes roster polling", async () => {
+    let joined = false;
+    mocks.party.mockImplementation(async (action: string) => {
+      if (action === "join") joined = true;
+      if (!joined) throw new Error("Join this party to continue");
+      return { ...party, isHost: false, selfId: guestId };
+    });
+    open("lobby");
+    const input = await screen.findByLabelText("Display name");
+    input.focus();
+    fireEvent.change(input, { target: { value: "QR Guest" } });
+    vi.useFakeTimers();
+    try {
+      await act(async () => { await vi.advanceTimersByTimeAsync(6500); });
+      expect(mocks.party).toHaveBeenCalledTimes(1);
+      expect(screen.getByLabelText("Display name")).toBe(input);
+      expect(input).toHaveValue("QR Guest");
+      expect(input).toHaveFocus();
+    } finally {
+      vi.useRealTimers();
+    }
+    fireEvent.click(screen.getByRole("button", { name: "Join party" }));
+    await screen.findByRole("heading", { name: "Who's in?" });
+    expect(mocks.party).toHaveBeenCalledWith("join", "ABC123", "QR Guest");
+    const before = mocks.party.mock.calls.length;
+    await waitFor(() => expect(mocks.party.mock.calls.length).toBeGreaterThan(before), { timeout: 4500 });
+    expect(mocks.navigate).not.toHaveBeenCalled();
+  });
+
+  it("keeps a QR revisit in the lobby despite a previously saved map view", async () => {
+    mocks.party.mockResolvedValue({ ...party, started: true, view: "map" });
+    open("lobby");
+    await screen.findByRole("button", { name: "Make a Plan" });
+    await act(async () => { await client.invalidateQueries({ queryKey: ["party", "ABC123"] }); });
+    expect(mocks.navigate).not.toHaveBeenCalled();
+    expect(mocks.party.mock.calls.every(([action]) => action === "read")).toBe(true);
+  });
+
   it.each(["42501", "PGRST000", "PGRST202"])("does not unlock lobby invitations on a failed readiness check: %s", async (code) => {
     mocks.rpc.mockResolvedValue({ data: null, error: { code, message: "Read failed" } });
     open("lobby");

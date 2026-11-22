@@ -1,7 +1,7 @@
-import { createFileRoute, Link, useNavigate, useHydrated } from "@tanstack/react-router";
+import { createFileRoute, Link, useHydrated } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { Copy, Link2, Trash2, Crown, ArrowRight } from "lucide-react";
+import { Copy, Link2, Trash2, Crown } from "lucide-react";
 import { toast } from "sonner";
 import { PartyHeader } from "@/components/PartyHeader";
 import bagel from "@/assets/bagel-single.png.asset.json";
@@ -33,7 +33,6 @@ export const Route = createFileRoute("/party/$code")({
 
 function Party() {
   const { code } = Route.useParams();
-  const navigate = useNavigate();
   const hydrated = useHydrated();
   const queryClient = useQueryClient();
   const queryKey = ["party", code];
@@ -41,7 +40,11 @@ function Party() {
     queryKey,
     queryFn: () => accessParty("read", code),
     enabled: hydrated,
-    refetchInterval: 3000,
+    // Invitation visitors have no capability yet. Poll only after membership
+    // is confirmed, so failed reads cannot repeatedly replace the join form.
+    refetchInterval: (current) => current.state.data ? 3000 : false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
     retry: false,
   });
   const [name, setName] = useState("");
@@ -54,7 +57,6 @@ function Party() {
   const workflow = usePartyWorkflow(code, hydrated && !!party);
   const readiness = party && workflowReadiness(party, workflow);
   const hostReady = readiness?.hostReady === true;
-  const canOpenMap = hostReady || readiness?.legacyReady === true || party?.started === true;
   const setupPending = !workflow.state.data || (
     workflow.state.data.status === "collecting" &&
     (workflow.days.data?.hostReady === false || (party?.isHost && !readiness?.selfReady))
@@ -76,10 +78,6 @@ function Party() {
         else toast.error("Couldn't invite your group yet. Share the party code instead.");
       });
   }, [party?.isHost, hostReady, code]);
-  useEffect(() => {
-    if (canOpenMap && party?.started && party.view === "map")
-      void navigate({ to: "/party/$code/map", params: { code }, replace: true });
-  }, [canOpenMap, party?.started, party?.view, navigate, code]);
 
   const copy = async (kind: "code" | "link") => {
     try {
@@ -93,30 +91,6 @@ function Party() {
     }
   };
 
-  const mapControl = party && canOpenMap && (party.started || party.isHost) ? (
-      <PopButton
-        tone="sage"
-        className="mt-6 flex items-center justify-center gap-3 !bg-offwhite !shadow-none"
-        disabled={busy}
-        onClick={async () => {
-          setBusy(true);
-          try {
-            await queryClient.cancelQueries({ queryKey });
-            queryClient.setQueryData(
-              queryKey,
-              await accessParty(party.started ? "map" : "start", code),
-            );
-          } catch (err) {
-            toast.error(err instanceof Error ? err.message : "Could not open journey.");
-          } finally {
-            setBusy(false);
-          }
-        }}
-      >
-        {party.started ? "Return to map" : "Open shared map"}
-        <ArrowRight className="h-5 w-5" />
-      </PopButton>
-  ) : null;
 
   return (
     <div className="paper-sheet min-h-screen bg-offwhite">
@@ -147,7 +121,6 @@ function Party() {
                   </p>
                 </div>}
                 <PartyPlanningActions party={party} workflow={workflow} />
-                {mapControl}
               </section>
             ) : (
               <section aria-label="Party code">
@@ -184,7 +157,6 @@ function Party() {
                   <PartyPlanningActions party={party} workflow={workflow} busy={busy} />
                 </section>
                 <PartyInviteQR code={code} />
-                {mapControl}
               </section>
             )}
             <section aria-label="Party members">

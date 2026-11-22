@@ -1,7 +1,12 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { PartyInviteQR, partyJoinUrl } from "./PartyInviteQR";
+import type { ReactNode } from "react";
 const qr = vi.hoisted(() => vi.fn());
+vi.mock("@tanstack/react-router", () => ({
+  Link: ({ params, children, ...props }: { params: { code: string }; children: ReactNode }) =>
+    <a {...props} href={`/party/${params.code}`}>{children}</a>,
+}));
 vi.mock("qrcode.react", () => ({
   QRCodeSVG: (props: { value: string }) => {
     qr(props.value);
@@ -21,7 +26,7 @@ it("encodes only the current origin and join URL, never a membership token", () 
   expect(qr).toHaveBeenCalledWith(expected);
   expect(screen.getByRole("link", { name: "Open this party invitation" })).toHaveAttribute(
     "href",
-    expected,
+    "/party/ABC123",
   );
 });
 it("replaces the QR destination when the party changes", () => {

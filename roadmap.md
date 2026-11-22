@@ -48,3 +48,4 @@
 - [x] Embed a live shared plan map with up-to-two-letter member markers, an authoritative venue pin, and opt-in device location sharing.
 - [x] Add optional bounded Google route overlays with graceful failure; 526 tests passed, 30 isolated database tests skipped, and preview compilation passed without live Google requests.
 - [ ] Verify Google Maps rendering and route overlays on an authorized deployed origin — live Maps testing is unsupported in the agent sandbox.
+- [x] Stabilize QR invitation entry and polling; remove the retired standalone map screen and controls while preserving old-link redirects to the plan map. 22 focused tests pass; real invitation form preserves text/focus without repeated reads or navigation for 9.5 seconds, and old map links reach plan results without page errors. Preview compilation passes; no database changes or publication.

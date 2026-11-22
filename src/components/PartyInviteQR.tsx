@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
+import { Link } from "@tanstack/react-router";
 
 export const partyJoinUrl = (origin: string, code: string) =>
   new URL(`/party/${encodeURIComponent(code)}`, origin).href;
@@ -12,7 +13,7 @@ export function PartyInviteQR({ code }: { code: string }) {
     <div className="mt-6 flex items-center gap-5 border-y-2 border-crust/15 py-5">
       <div className="h-32 w-32 shrink-0 bg-offwhite text-crust">
         {url ? (
-          <a href={url} aria-label="Open this party invitation">
+          <Link to="/party/$code" params={{ code }} aria-label="Open this party invitation">
             <QRCodeSVG
               value={url}
               size={128}
@@ -22,7 +23,7 @@ export function PartyInviteQR({ code }: { code: string }) {
               fgColor="currentColor"
               title={`Join party ${code}`}
             />
-          </a>
+          </Link>
         ) : (
           <span role="status" className="text-xs">
             Preparing invitation…
