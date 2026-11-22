@@ -27,3 +27,4 @@
 - [x] Replace collecting forms with private and host question wizards, preserve real saves, promote planning, add scannable party invitations, and correct forecast units.
 - [x] Verify wizard validation, saved-state recovery, role/privacy boundaries, QR target, keyboard and mobile behavior without live database writes: 152 unit tests pass; intercepted browser flows and rendered QR decoding pass.
 - [x] Describe deferred public flavour-board and full Room/Bake/Reveal/acceptance backend requirements without pretending they are functional.
+- [x] Add the "Plan the hangout" step wizard (`/party/$code/plan?step=budget|time|radius|vibe`) launched from the map; the host's vibe sets the category and "Find our hangout" locks and pins the plan. Live lock → plan → pin needs the server service-role key and was not verified locally.

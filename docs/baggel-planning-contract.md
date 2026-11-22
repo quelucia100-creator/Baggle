@@ -17,4 +17,6 @@ Feasible options rank by weather score, then earliest start, venue rating, and p
 
 ## Verification and frontend
 
+- Planning screens now exist: the map's "Plan the hangout" opens a one-question-per-screen wizard (budget, time, travel radius, vibe) that saves through `save`. Only the host's vibe is used, sent as `config.category` through `configure` before `lock`; a per-member vibe is not stored by the backend.
+
 See [the frontend handoff](FRONTEND-HANDOFF.md) for the TanStack Start call contract. Default Vitest runs skip the real database cases. To enable them, use an authorized isolated Supabase project with the current Lovable migrations. Set `PLANNING_DB_TESTS=1` and provide `PLANNING_TEST_SUPABASE_URL`, `PLANNING_TEST_SUPABASE_PUBLISHABLE_KEY`, and `PLANNING_TEST_SUPABASE_SERVICE_ROLE_KEY` in the process environment. The preflight rejects application endpoints and keys, and restricts requests to the isolated origin. The tests create and clean up their own parties.
