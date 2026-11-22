@@ -85,6 +85,13 @@
       "when": 1795336377571,
       "tag": "0011_planning_v3_private_rpc",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1795340614953,
+      "tag": "0012_restrict_profile_reads_to_owner",
+      "breakpoints": true
     }
   ]
 }
