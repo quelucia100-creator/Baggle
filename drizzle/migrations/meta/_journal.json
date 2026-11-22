@@ -64,6 +64,13 @@
       "when": 1795316922885,
       "tag": "0008_account_food_preferences",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795319872749,
+      "tag": "0009_harden_party_plan_privacy",
+      "breakpoints": true
     }
   ]
 }

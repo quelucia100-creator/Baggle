@@ -376,6 +376,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      party_plan_public_option: { Args: { o: Json }; Returns: Json }
       party_plan_snapshot: {
         Args: { p_code: string; p_lease: string }
         Returns: Json

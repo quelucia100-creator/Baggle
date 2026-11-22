@@ -87,7 +87,7 @@ describe.sequential("Real database planning security and lifecycle", () => {
     expect(results.every((r) => ["locking", "locked"].includes(r.status))).toBe(true);
     const saved = planningStateSchema.parse((await call(party.code, guest, "read")).data);
     expect(saved.status).toBe("locked"); expect(saved.optionCount).toBe(20); expect(saved.plan?.venue.priceTier).toBe(0);
-    expect(saved.selfPreferences?.originLat).toBeNull(); expect(saved).not.toHaveProperty("outlierNames");
+    expect(saved.plan).not.toHaveProperty("score"); expect(saved.plan?.compromise).not.toMatch(/\d/); expect(saved.selfPreferences?.originLat).toBeNull(); expect(saved).not.toHaveProperty("outlierNames");
     expect((await call(party.code, guest, "save", prefs)).error?.message).toContain("frozen");
   });
   it("rejects unsubmitted votes, stale revisions, and counts duplicates only once", async () => {
@@ -138,14 +138,14 @@ describe("Real database no-plan recovery and lock leases", () => {
     expect(retryable.status).toBe("collecting"); expect(retryable.members.filter((m) => m.submitted)).toHaveLength(2);
     expect((await executePlanning({ action: "lock", code: party.code, token: party.host, payload: {} })).status).toBe("locked");
   });
-  it("shows outlier names only to host and reopens without losing submissions", async () => {
+  it("hides blocking members from everyone and reopens without losing submissions", async () => {
     const party = await newParty(3); const guest = party.tokens[1]; const other = party.tokens[2]; if (!guest || !other) throw new Error("Missing test member");
     await call(party.code, party.host, "save", prefs); await call(party.code, guest, "save", prefs);
     await call(party.code, other, "save", { ...prefs, freeFrom: "08:00", freeTo: "10:00" });
     const locked = await executePlanning({ action: "lock", code: party.code, token: party.host, payload: {} });
-    expect(locked.status).toBe("no_plan"); expect(locked.outlierNames).toHaveLength(1);
+    expect(locked.status).toBe("no_plan"); expect(locked.noPlanReason).toBe("no_overlap"); expect(locked).not.toHaveProperty("outlierNames");
     const guestState = planningStateSchema.parse((await call(party.code, guest, "read")).data);
-    expect(guestState.outlierCount).toBe(1); expect(guestState).not.toHaveProperty("outlierNames");
+    expect(guestState.noPlanReason).toBe("no_overlap"); expect(guestState).not.toHaveProperty("outlierCount"); expect(guestState).not.toHaveProperty("outlierNames");
     const reopened = planningStateSchema.parse((await call(party.code, party.host, "reopen")).data);
     expect(reopened.status).toBe("collecting"); expect(reopened.members.filter((m) => m.submitted)).toHaveLength(3);
     expect((await call(party.code, other, "save", prefs)).error).toBeNull();
@@ -171,5 +171,21 @@ describe("Real database no-plan recovery and lock leases", () => {
     await call(party.code, party.host, "save", prefs); await call(party.code, guest, "save", prefs);
     await call(party.code, party.host, "begin_lock");
     expect((await call(party.code, party.host, "configure", configuration)).error?.message).toContain("frozen");
+  });
+});
+describe("Legacy stored plans", () => {
+  it("strips scores and count-revealing compromises from historical rows", async () => {
+    const party = await newParty(2); const guest = party.tokens[1]; if (!guest) throw new Error("Missing member");
+    await call(party.code, party.host, "read");
+    const row = await supabaseAdmin.from("parties").select("id").eq("code", party.code).single(); if (!row.data) throw new Error("Missing test party");
+    const legacy = { venue: { placeId: "x", name: "X", category: "park", priceTier: 4, location: { lat: 45.5, lng: -73.57 }, mapsUrl: "https://www.google.com/maps", outdoor: true, secret: 1 },
+      startAt: "2026-11-22T23:00:00.000Z", endAt: "2026-11-23T00:30:00.000Z", score: 0.25, compromise: "Stretches the budget for 1 person · Longer travel for 1 person", hoursUnknown: false, weather: null, mean: 0.5 };
+    expect((await supabaseAdmin.from("party_planning").update({ status: "locked", options: [legacy], outliers: [party.ids[1] ?? ""] }).eq("party_id", row.data.id)).error).toBeNull();
+    for (const token of [party.host, guest]) {
+      const raw = (await call(party.code, token, "read")).data as Record<string, unknown> & { plan: Record<string, unknown> & { venue: object } };
+      expect(raw.plan).not.toHaveProperty("score"); expect(raw.plan).not.toHaveProperty("mean"); expect(raw.plan.venue).not.toHaveProperty("secret");
+      expect(raw.plan["compromise"]).toBe("Some trade-offs on cost or travel");
+      expect(raw).not.toHaveProperty("outlierNames"); expect(raw).not.toHaveProperty("outlierCount");
+    }
   });
 });

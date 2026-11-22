@@ -17,7 +17,7 @@ const command = { action: "lock", code: "ABC123", token: "a".repeat(64), payload
 const state = {
   status: "locking", revision: 0, selfPreferences: null, members: [], config, plan: null,
   planIndex: 0, optionCount: 0, groupRerollsUsed: 0, votes: 0, voteThreshold: 0,
-  selfVoted: false, outlierCount: 0, venueSource: null,
+  selfVoted: false, noPlanReason: null, venueSource: null,
 };
 const place = { id: "live-restaurant", displayName: { text: "Mock restaurant" }, location: { latitude: 45.51, longitude: -73.58 } };
 const fetchMock = vi.fn<typeof fetch>();

@@ -86,7 +86,7 @@ export function solvePlans(snapshot: Snapshot, venues: Venue[], forecast: Foreca
       const weather = weatherForSlot(venue, start, end, forecast);
       const stretched = members.filter((m) => venue.priceTier !== null && venue.priceTier > m.budget).length;
       const travelStretch = members.filter((m) => travelCost(m.origin ?? config.area, venue.location, m.maxTravelMin) > 0).length;
-      const compromises = [stretched ? `Stretches the budget for ${stretched} ${stretched === 1 ? "person" : "people"}` : "", travelStretch ? `Longer travel for ${travelStretch} ${travelStretch === 1 ? "person" : "people"}` : "",
+      const compromises = [stretched || travelStretch ? "Some trade-offs on cost or travel" : "",
         weather.penalty ? "Outdoor conditions may be uncomfortable" : ""].filter(Boolean);
       ranked.push({ plan: { venue: { placeId: venue.placeId, name: venue.name, category: venue.category, priceTier: venue.priceTier, location: venue.location, mapsUrl: venue.mapsUrl, outdoor: venue.outdoor },
         startAt: new Date(start).toISOString(), endAt: new Date(end).toISOString(), score: Math.min(...satisfaction) * (1 - weather.penalty), compromise: compromises.join(" · ") || "Works for everyone", hoursUnknown: venue.hours === null, weather: weather.weather },
