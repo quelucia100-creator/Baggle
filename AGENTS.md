@@ -40,4 +40,5 @@ use the editor.
 - Planning extends existing parties through capability-verified RPCs; private preferences/snapshots have no client table grants or realtime publication so neither hosts nor guests can read others' limits.
 - Planning locks snapshot submissions under the existing party row lock and finish through service-only lease RPCs; this prevents duplicate computation and stale completion without changing guest identity or map navigation.
 - Planning ranking is pure TypeScript with Montreal civil-time conversion in one helper; server functions orchestrate forecasts and persist only privacy-safe results so rerolls never recompute or expose individual costs.
+- Shared plan options are allowlist-projected in SQL (`party_plan_public_option`) on read and completion with constant compromise text and a single neutral no-plan reason, because the guest RPC is directly callable and any variation can reveal private limits.
 - Account preferences use owner-only database access, case-insensitive unique usernames, and separate protected step URLs; persist partial answers and gate account home until setup is complete, without changing guest capability flows.

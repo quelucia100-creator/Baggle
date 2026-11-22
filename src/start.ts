@@ -3,6 +3,9 @@ import { createStart, createCsrfMiddleware, createMiddleware } from "@tanstack/r
 import { renderErrorPage } from "./lib/error-page";
 import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
 
+// The Start compiler visits this entry in both builds and registers the capability-verified RPC.
+export { updatePartyPlanning } from "./lib/planning.functions";
+
 const errorMiddleware = createMiddleware().server(async ({ next }) => {
   try {
     return await next();
