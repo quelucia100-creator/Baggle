@@ -12,6 +12,7 @@ vi.mock("@/lib/planning-client", async (importOriginal) => ({
 vi.mock("@/lib/planning/tz", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/planning/tz")>()),
   montrealNowMinutes: () => 18 * 60,
+  montrealToday: () => "2026-11-22",
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 import { PlanWizard } from "./PlanWizard";
@@ -40,6 +41,7 @@ const party: PartyState = {
     },
   ],
 };
+const host: PartyState = { ...party, isHost: true };
 const state: PlanningState = {
   status: "collecting",
   revision: 1,
@@ -62,6 +64,20 @@ const state: PlanningState = {
   noPlanReason: null,
   venueSource: null,
 };
+const draft = (values: Record<string, unknown>) =>
+  sessionStorage.setItem(
+    "baggle-plan-draft-ABC123",
+    JSON.stringify({
+      spend: null,
+      day: null,
+      pickedDays: [],
+      freeFrom: null,
+      freeTo: null,
+      km: null,
+      vibe: null,
+      ...values,
+    }),
+  );
 
 function open(
   step: PlanStep,
@@ -70,31 +86,22 @@ function open(
   const goToStep = vi.fn();
   const exit = vi.fn();
   const finish = vi.fn();
-  const view = render(
+  const element = (current: PlanStep) => (
     <PlanWizard
       code="ABC123"
       party={overrides.party ?? party}
       state={overrides.state ?? state}
-      step={step}
+      step={current}
       goToStep={goToStep}
       exit={exit}
       finish={finish}
-    />,
+    />
   );
-  const rerender = (next: PlanStep) =>
-    view.rerender(
-      <PlanWizard
-        code="ABC123"
-        party={overrides.party ?? party}
-        state={overrides.state ?? state}
-        step={next}
-        goToStep={goToStep}
-        exit={exit}
-        finish={finish}
-      />,
-    );
+  const view = render(element(step));
+  const rerender = (next: PlanStep) => view.rerender(element(next));
   return { goToStep, exit, finish, rerender };
 }
+const next = () => fireEvent.click(screen.getByRole("button", { name: "Next" }));
 
 beforeEach(() => {
   sessionStorage.clear();
@@ -105,28 +112,36 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("Plan the hangout wizard", () => {
-  it("asks one question per screen with a budget slider", () => {
+  it("asks for a per-person budget in dollars on a slider", () => {
     const { goToStep } = open("budget");
     expect(screen.getByRole("heading", { name: "What's your budget?" })).toBeInTheDocument();
-    const slider = screen.getByRole("slider", { name: "Budget" });
-    expect(screen.getAllByRole("slider")).toHaveLength(1);
+    const slider = screen.getByRole("slider", { name: "Budget per person" });
     expect(screen.queryByRole("radio")).toBeNull();
-    expect(slider).toHaveAttribute("aria-valuetext", "$$, A normal night out");
-    fireEvent.keyDown(slider, { key: "ArrowRight" });
-    expect(slider).toHaveAttribute("aria-valuetext", "$$$, A bit fancy");
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(slider).toHaveAttribute("aria-valuetext", "$25 per person, A normal night out");
+    expect(screen.getByText("Up to $25")).toBeInTheDocument();
+    fireEvent.focus(slider);
+    fireEvent.keyDown(slider, { key: "End" });
+    expect(slider).toHaveAttribute("aria-valuetext", "$100+ per person, Treat ourselves");
+    next();
     expect(goToStep).toHaveBeenCalledWith("time");
   });
 
   it("needs a vibe card picked before saving", () => {
-    sessionStorage.setItem(
-      "baggle-plan-draft-ABC123",
-      JSON.stringify({ budget: 1, freeFrom: "18:00", freeTo: "22:00", km: 5, vibe: null }),
-    );
+    draft({ spend: 15, freeFrom: "18:00", freeTo: "22:00", km: 5 });
     open("vibe");
     expect(screen.getByRole("button", { name: "Save my answers" })).toBeDisabled();
-    fireEvent.click(screen.getByRole("radio", { name: "Getting food" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Getting eats" }));
     expect(screen.getByRole("button", { name: "Save my answers" })).toBeEnabled();
+  });
+
+  it("offers six vibes including surprise", () => {
+    draft({ spend: 15, freeFrom: "18:00", freeTo: "22:00", km: 5 });
+    open("vibe");
+    expect(screen.getAllByRole("radio")).toHaveLength(6);
+    for (const name of ["Sporty", "Competitive", "Chill", "Getting eats", "Creative", "Surprise"])
+      expect(screen.getByRole("radio", { name })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("radio", { name: "Surprise" }));
+    expect(screen.getByText(/We'll roll a random kind of place/)).toBeInTheDocument();
   });
 
   it("returns to the map from the first step and to the previous step after that", () => {
@@ -134,10 +149,7 @@ describe("Plan the hangout wizard", () => {
     fireEvent.click(screen.getByRole("button", { name: "Back to map" }));
     expect(first.exit).toHaveBeenCalled();
     cleanup();
-    sessionStorage.setItem(
-      "baggle-plan-draft-ABC123",
-      JSON.stringify({ budget: 1, freeFrom: null, freeTo: null, km: null, vibe: null }),
-    );
+    draft({ spend: 15 });
     const second = open("time");
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
     expect(second.goToStep).toHaveBeenCalledWith("budget");
@@ -148,11 +160,27 @@ describe("Plan the hangout wizard", () => {
     await waitFor(() => expect(goToStep).toHaveBeenCalledWith("budget", true));
   });
 
-  it("lets both ends of the time slider move independently", () => {
-    sessionStorage.setItem(
-      "baggle-plan-draft-ABC123",
-      JSON.stringify({ budget: 1, freeFrom: null, freeTo: null, km: null, vibe: null }),
+  it("sends guests away from the host-only day step", async () => {
+    draft({ spend: 15 });
+    const { goToStep } = open("day");
+    await waitFor(() => expect(goToStep).toHaveBeenCalledWith("time", true));
+  });
+
+  it("shows a now-to-12-hours window with two labelled thumbs", () => {
+    draft({ spend: 15 });
+    open("time");
+    expect(screen.getByRole("slider", { name: "Free from" })).toHaveAttribute(
+      "aria-valuetext",
+      "Now",
     );
+    expect(screen.getByRole("slider", { name: "Free until" })).toHaveAttribute(
+      "aria-valuetext",
+      "6:00 AM (tomorrow)",
+    );
+  });
+
+  it("lets both ends of the time slider move independently", () => {
+    draft({ spend: 15 });
     open("time");
     const from = screen.getByRole("slider", { name: "Free from" });
     const until = screen.getByRole("slider", { name: "Free until" });
@@ -167,39 +195,40 @@ describe("Plan the hangout wizard", () => {
     expect(until).toHaveAttribute("aria-valuetext", "5:30 AM (tomorrow)");
   });
 
-  it("shows a now-to-12-hours window with two labelled thumbs", () => {
-    sessionStorage.setItem(
-      "baggle-plan-draft-ABC123",
-      JSON.stringify({ budget: 1, freeFrom: null, freeTo: null, km: null, vibe: null }),
-    );
-    open("time");
+  it("gives guests an 8 AM to 2 AM slider when the host picked another day", () => {
+    draft({ spend: 15 });
+    open("time", { state: { ...state, config: { ...state.config, date: "2026-11-28" } } });
+    expect(screen.getByText("Saturday, November 28")).toBeInTheDocument();
     expect(screen.getByRole("slider", { name: "Free from" })).toHaveAttribute(
       "aria-valuetext",
-      "Now",
+      "8:00 AM",
     );
     expect(screen.getByRole("slider", { name: "Free until" })).toHaveAttribute(
       "aria-valuetext",
-      "6:00 AM (tomorrow)",
+      "2:00 AM (next day)",
     );
   });
 
   it("keeps answers across steps and saves rounded preferences on the last step", async () => {
     const { goToStep, finish, rerender } = open("budget");
-    fireEvent.keyDown(screen.getByRole("slider", { name: "Budget" }), { key: "Home" });
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    const budget = screen.getByRole("slider", { name: "Budget per person" });
+    fireEvent.focus(budget);
+    fireEvent.keyDown(budget, { key: "Home" });
+    next();
     rerender("time");
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    next();
     rerender("radius");
     expect(screen.getByText("Up to 5 km (~25 min)")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    next();
     rerender("vibe");
     expect(
       screen.getByText("The host's pick sets the type of place for the group."),
     ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("radio", { name: "Coffee & chat" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Getting eats" }));
     fireEvent.click(screen.getByRole("button", { name: "Save my answers" }));
     await waitFor(() => expect(finish).toHaveBeenCalled());
     expect(goToStep).toHaveBeenCalledWith("vibe");
+    expect(mocks.runPlanning).toHaveBeenCalledTimes(1);
     expect(mocks.runPlanning).toHaveBeenCalledWith("ABC123", {
       action: "save",
       preferences: {
@@ -211,22 +240,74 @@ describe("Plan the hangout wizard", () => {
         originLng: -73.57,
       },
     });
-    expect(localStorage.getItem("baggle-plan-vibe-ABC123")).toBe("coffee");
+    expect(localStorage.getItem("baggle-plan-vibe-ABC123")).toBe("eats");
     expect(sessionStorage.getItem("baggle-plan-draft-ABC123")).toBeNull();
+  });
+
+  it("lets the host pick today or several days in the next week", () => {
+    draft({ spend: 15 });
+    const { goToStep } = open("day", { party: host });
+    expect(screen.getByRole("heading", { name: "When's the hangout?" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("radio", { name: /Pick days/ }));
+    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
+    const days = screen.getAllByRole("button", { name: /day, (November|December) / });
+    expect(days).toHaveLength(7);
+    expect(days[0]).toHaveAccessibleName("Monday, November 23");
+    fireEvent.click(screen.getByRole("button", { name: "Saturday, November 28" }));
+    fireEvent.click(screen.getByRole("button", { name: "Wednesday, November 25" }));
+    expect(screen.getByRole("button", { name: "Saturday, November 28" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "Wednesday, November 25" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByText(/2 days picked/)).toHaveTextContent(
+      "for now we'll plan for Wednesday, November 25",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Wednesday, November 25" }));
+    expect(screen.getByRole("button", { name: "Wednesday, November 25" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    next();
+    expect(goToStep).toHaveBeenCalledWith("time");
+    expect(JSON.parse(sessionStorage.getItem("baggle-plan-draft-ABC123") ?? "{}")).toMatchObject({
+      day: "2026-11-28",
+      pickedDays: ["2026-11-28"],
+    });
+  });
+
+  it("sets the host's picked day on the party before saving their answers", async () => {
+    draft({ spend: 50, day: "2026-11-28", freeFrom: "10:00", freeTo: "14:00", km: 7 });
+    const { finish } = open("vibe", { party: host });
+    fireEvent.click(screen.getByRole("radio", { name: "Sporty" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save my answers" }));
+    await waitFor(() => expect(finish).toHaveBeenCalled());
+    expect(mocks.runPlanning.mock.calls.map(([, command]) => command.action)).toEqual([
+      "configure",
+      "save",
+    ]);
+    expect(mocks.runPlanning.mock.calls[0]?.[1]).toEqual({
+      action: "configure",
+      config: { ...state.config, date: "2026-11-28" },
+    });
+    expect(mocks.runPlanning.mock.calls[1]?.[1]).toMatchObject({
+      preferences: { budget: 3, freeFrom: "10:00", freeTo: "14:00", maxTravelMin: 33 },
+    });
   });
 
   it("keeps the draft when saving fails", async () => {
     mocks.runPlanning.mockRejectedValue(new Error("network down"));
-    sessionStorage.setItem(
-      "baggle-plan-draft-ABC123",
-      JSON.stringify({ budget: 3, freeFrom: "18:00", freeTo: "22:00", km: 7, vibe: "food" }),
-    );
+    draft({ spend: 50, freeFrom: "18:00", freeTo: "22:00", km: 7, vibe: "eats" });
     const { finish } = open("vibe");
     fireEvent.click(screen.getByRole("button", { name: "Save my answers" }));
     await waitFor(() => expect(mocks.runPlanning).toHaveBeenCalled());
     expect(finish).not.toHaveBeenCalled();
     expect(JSON.parse(sessionStorage.getItem("baggle-plan-draft-ABC123") ?? "{}")).toMatchObject({
-      budget: 3,
+      spend: 50,
       km: 7,
     });
   });

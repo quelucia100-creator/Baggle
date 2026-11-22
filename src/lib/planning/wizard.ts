@@ -1,77 +1,159 @@
 import { preferencesSchema, type PlanningConfig } from "./types";
 
 // Pure helpers for the one-question-per-screen hangout wizard at /party/$code/plan?step=.
-export const planSteps = ["budget", "time", "radius", "vibe"] as const;
+export const planSteps = ["budget", "day", "time", "radius", "vibe"] as const;
 export type PlanStep = (typeof planSteps)[number];
 
-export const budgetOptions = [
-  { value: 0, label: "Free", note: "No spending" },
-  { value: 1, label: "$", note: "Cheap eats" },
-  { value: 2, label: "$$", note: "A normal night out" },
-  { value: 3, label: "$$$", note: "A bit fancy" },
-  { value: 4, label: "$$$$", note: "Treat ourselves" },
-] as const;
+/** Only the host chooses the day; guests answer for whatever day the host set. */
+export function planStepsFor(isHost: boolean): readonly PlanStep[] {
+  return isHost ? planSteps : planSteps.filter((step) => step !== "day");
+}
+
+/* ---------- Budget: a dollar slider stored as the backend's 0-4 price level ---------- */
+
+export const SPEND_MAX = 100;
+export const SPEND_STEP = 5;
+// Upper dollar bound (per person) for price levels 0..3; anything above is level 4.
+const LEVEL_CEILINGS = [0, 15, 35, 70] as const;
+// Where a previously saved level lands on the slider.
+const LEVEL_SPEND = [0, 15, 30, 60, SPEND_MAX] as const;
+
+export function spendToBudgetLevel(spend: number): number {
+  const level = LEVEL_CEILINGS.findIndex((ceiling) => spend <= ceiling);
+  return level === -1 ? 4 : level;
+}
+export function budgetLevelToSpend(level: number): number {
+  return LEVEL_SPEND[Math.min(4, Math.max(0, Math.round(level)))] ?? LEVEL_SPEND[2];
+}
+export function spendLabel(spend: number): string {
+  if (spend <= 0) return "$0";
+  return spend >= SPEND_MAX ? `$${SPEND_MAX}+` : `$${spend}`;
+}
+export function spendNote(spend: number): string {
+  return ["Free stuff only", "Cheap eats", "A normal night out", "A bit fancy", "Treat ourselves"][
+    spendToBudgetLevel(spend)
+  ]!;
+}
+
+/* ---------- Vibe ---------- */
 
 export const vibeOptions = [
-  { value: "chill", label: "Chill outdoors", category: "park" },
-  { value: "coffee", label: "Coffee & chat", category: "cafe" },
-  { value: "food", label: "Getting food", category: "restaurant" },
-  { value: "culture", label: "Arts & culture", category: "museum" },
-  { value: "active", label: "Do something active", category: "activity" },
+  { value: "sporty", label: "Sporty", emoji: "🏀", category: "activity" },
+  { value: "competitive", label: "Competitive", emoji: "🏆", category: "activity" },
+  { value: "chill", label: "Chill", emoji: "😌", category: "park" },
+  { value: "eats", label: "Getting eats", emoji: "🍜", category: "restaurant" },
+  { value: "creative", label: "Creative", emoji: "🎨", category: "museum" },
+  { value: "surprise", label: "Surprise", emoji: "🎲", category: null },
 ] as const satisfies ReadonlyArray<{
   value: string;
   label: string;
-  category: PlanningConfig["category"];
+  emoji: string;
+  category: PlanningConfig["category"] | null;
 }>;
 export type Vibe = (typeof vibeOptions)[number]["value"];
+const allCategories: PlanningConfig["category"][] = [
+  "park",
+  "cafe",
+  "museum",
+  "restaurant",
+  "activity",
+];
 
-export function vibeCategory(vibe: Vibe): PlanningConfig["category"] {
-  return vibeOptions.find((option) => option.value === vibe)?.category ?? "park";
+/** Surprise rolls a random place type each time the host searches. */
+export function vibeCategory(vibe: Vibe, random = Math.random): PlanningConfig["category"] {
+  const fixed = vibeOptions.find((option) => option.value === vibe)?.category;
+  if (fixed) return fixed;
+  return allCategories[Math.floor(random() * allCategories.length)] ?? "park";
 }
 export function isVibe(value: unknown): value is Vibe {
   return vibeOptions.some((option) => option.value === value);
 }
 
-/** The time slider covers now → now + 12 h in 30-minute steps (indices 0..24). */
+/* ---------- Day + time ---------- */
+
+/** "today", or a Montreal date (YYYY-MM-DD) the host picked. */
+export type PlanDay = "today" | string;
 export const STEP_MIN = 30;
-export const TIME_STEPS = 24;
+export const TIME_STEPS = 24; // today: now -> now + 12 h
+const DAY_START_MIN = 8 * 60; // another day: 8:00 AM ...
+const DAY_STEPS = 36; // ... -> 2:00 AM the next morning
 const DAY_MIN = 24 * 60;
 const LATEST_START_MIN = DAY_MIN - 5;
-export const MIN_KM = 1;
-export const MAX_KM = 20;
-const MIN_PER_KM = 4;
-const BASE_TRAVEL_MIN = 5;
+export const PICKABLE_DAYS = 7;
+
+export type TimeWindow = { baseMin: number; steps: number; isToday: boolean };
+export function timeWindow(day: PlanDay, nowMin: number): TimeWindow {
+  return day === "today"
+    ? { baseMin: nowMin, steps: TIME_STEPS, isToday: true }
+    : { baseMin: DAY_START_MIN, steps: DAY_STEPS, isToday: false };
+}
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n));
 
-export function timeIndexToHHMM(nowMin: number, index: number): string {
-  const minutes = (nowMin + index * STEP_MIN) % DAY_MIN;
+export function timeIndexToHHMM(baseMin: number, index: number): string {
+  const minutes = (baseMin + index * STEP_MIN) % DAY_MIN;
   return `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}`;
 }
 
-/** Position of a saved HH:MM on today's slider, or null when it is outside the next 12 hours. */
-export function hhmmToTimeIndex(nowMin: number, hhmm: string): number | null {
+/** Position of a saved HH:MM on a slider, or null when it falls outside the window. */
+export function hhmmToTimeIndex(
+  baseMin: number,
+  hhmm: string,
+  steps: number = TIME_STEPS,
+): number | null {
   const [hours, minutes] = hhmm.split(":").map(Number);
   if (hours === undefined || minutes === undefined || Number.isNaN(hours) || Number.isNaN(minutes))
     return null;
-  const diff = (hours * 60 + minutes - nowMin + DAY_MIN) % DAY_MIN;
-  if (diff > TIME_STEPS * STEP_MIN) return null;
+  const diff = (hours * 60 + minutes - baseMin + DAY_MIN) % DAY_MIN;
+  if (diff > steps * STEP_MIN) return null;
   return Math.round(diff / STEP_MIN);
 }
 
 /**
- * freeFrom is stored against the event date (today), so it must stay before midnight.
- * Only freeTo may roll into tomorrow (freeTo <= freeFrom means the next day to the solver).
+ * freeFrom is stored against the event date, so it must stay before midnight.
+ * Only freeTo may roll into the next day (freeTo <= freeFrom means the next day to the solver).
  */
-export function maxStartIndex(nowMin: number, gapSteps: number): number {
-  const beforeMidnight = Math.floor((LATEST_START_MIN - nowMin) / STEP_MIN);
-  return clamp(Math.min(beforeMidnight, TIME_STEPS - gapSteps), 0, TIME_STEPS);
+export function maxStartIndex(baseMin: number, gapSteps: number, steps: number = TIME_STEPS) {
+  const beforeMidnight = Math.floor((LATEST_START_MIN - baseMin) / STEP_MIN);
+  return clamp(Math.min(beforeMidnight, steps - gapSteps), 0, steps);
 }
 
 export function minGapSteps(durationMin: number): number {
   return Math.max(1, Math.ceil(durationMin / STEP_MIN));
 }
+
+/** "Now", "7:30 PM" or "1:00 AM (next day)" for a slider position. */
+export function timeIndexLabel(baseMin: number, index: number, isToday = true): string {
+  if (index === 0 && isToday) return "Now";
+  const total = baseMin + index * STEP_MIN;
+  const minutes = total % DAY_MIN;
+  const hours = Math.floor(minutes / 60);
+  const label = `${hours % 12 || 12}:${pad(minutes % 60)} ${hours < 12 ? "AM" : "PM"}`;
+  if (total < DAY_MIN) return label;
+  return `${label} (${isToday ? "tomorrow" : "next day"})`;
+}
+
+/** Scale under the time slider, e.g. Now +3h +6h ... or 8 AM 2 PM 8 PM 2 AM. */
+export function timeMarks(window: TimeWindow): string[] {
+  const every = window.isToday ? 6 : 12;
+  return Array.from({ length: window.steps / every + 1 }, (_, i) =>
+    window.isToday
+      ? i === 0
+        ? "Now"
+        : `+${(i * every * STEP_MIN) / 60}h`
+      : timeIndexLabel(window.baseMin, i * every, false)
+          .replace(":00", "")
+          .replace(" (next day)", ""),
+  );
+}
+
+/* ---------- Travel ---------- */
+
+export const MIN_KM = 1;
+export const MAX_KM = 20;
+const MIN_PER_KM = 4;
+const BASE_TRAVEL_MIN = 5;
 
 export function kmToTravelMin(km: number): number {
   return clamp(Math.round(km * MIN_PER_KM + BASE_TRAVEL_MIN), 5, 90);
@@ -80,15 +162,23 @@ export function travelMinToKm(minutes: number): number {
   return clamp(Math.round((minutes - BASE_TRAVEL_MIN) / MIN_PER_KM), MIN_KM, MAX_KM);
 }
 
+/* ---------- Draft ---------- */
+
 export type PlanDraft = {
-  budget: number | null;
+  spend: number | null;
+  /** The event day: "today", or the earliest of pickedDays. */
+  day: PlanDay | null;
+  /** Every day the host tapped (sorted). Voting between them needs backend support. */
+  pickedDays: string[];
   freeFrom: string | null;
   freeTo: string | null;
   km: number | null;
   vibe: Vibe | null;
 };
 export const emptyPlanDraft: PlanDraft = {
-  budget: null,
+  spend: null,
+  day: null,
+  pickedDays: [],
   freeFrom: null,
   freeTo: null,
   km: null,
@@ -98,7 +188,9 @@ export const emptyPlanDraft: PlanDraft = {
 export function isPlanStepComplete(step: PlanStep, draft: PlanDraft): boolean {
   switch (step) {
     case "budget":
-      return draft.budget !== null;
+      return draft.spend !== null;
+    case "day":
+      return draft.day !== null;
     case "time":
       return draft.freeFrom !== null && draft.freeTo !== null;
     case "radius":
@@ -108,8 +200,11 @@ export function isPlanStepComplete(step: PlanStep, draft: PlanDraft): boolean {
   }
 }
 
-export function firstIncompletePlanStep(draft: PlanDraft): PlanStep | null {
-  return planSteps.find((step) => !isPlanStepComplete(step, draft)) ?? null;
+export function firstIncompletePlanStep(
+  draft: PlanDraft,
+  steps: readonly PlanStep[] = planSteps,
+): PlanStep | null {
+  return steps.find((step) => !isPlanStepComplete(step, draft)) ?? null;
 }
 
 const roundOrigin = (n: number) => Math.round(n * 100) / 100;
@@ -117,7 +212,7 @@ const roundOrigin = (n: number) => Math.round(n * 100) / 100;
 /** Builds the private `save` payload. Origins are rounded to ~1 km before leaving the browser. */
 export function draftToPreferences(draft: PlanDraft, origin: { lat: number; lng: number } | null) {
   return preferencesSchema.parse({
-    budget: draft.budget,
+    budget: draft.spend === null ? null : spendToBudgetLevel(draft.spend),
     freeFrom: draft.freeFrom,
     freeTo: draft.freeTo,
     maxTravelMin: draft.km === null ? null : kmToTravelMin(draft.km),
@@ -126,12 +221,16 @@ export function draftToPreferences(draft: PlanDraft, origin: { lat: number; lng:
   });
 }
 
-/** "Now", "7:30 PM" or "1:00 AM (tomorrow)" for a slider position. */
-export function timeIndexLabel(nowMin: number, index: number): string {
-  if (index === 0) return "Now";
-  const total = nowMin + index * STEP_MIN;
-  const minutes = total % DAY_MIN;
-  const hours = Math.floor(minutes / 60);
-  const label = `${hours % 12 || 12}:${pad(minutes % 60)} ${hours < 12 ? "AM" : "PM"}`;
-  return total >= DAY_MIN ? `${label} (tomorrow)` : label;
+/** Adds or removes a day; the earliest picked day becomes the event day. */
+export function togglePickedDay(picked: readonly string[], date: string): string[] {
+  return picked.includes(date) ? picked.filter((day) => day !== date) : [...picked, date].sort();
+}
+
+/** The event date to configure: today, or the host's pick. */
+export function planDayToDate(day: PlanDay, today: string): string {
+  return day === "today" ? today : day;
+}
+/** Reads the shared config date back as a day choice (past dates count as today). */
+export function dateToPlanDay(date: string, today: string): PlanDay {
+  return date > today ? date : "today";
 }

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { preferencesSchema } from "./types";
 import {
+  budgetLevelToSpend,
+  dateToPlanDay,
   draftToPreferences,
   emptyPlanDraft,
   firstIncompletePlanStep,
@@ -9,17 +11,32 @@ import {
   kmToTravelMin,
   maxStartIndex,
   minGapSteps,
+  planDayToDate,
   planSteps,
+  planStepsFor,
+  spendLabel,
+  spendToBudgetLevel,
   timeIndexLabel,
   timeIndexToHHMM,
+  timeMarks,
+  timeWindow,
   TIME_STEPS,
+  togglePickedDay,
   travelMinToKm,
   vibeCategory,
   vibeOptions,
   type PlanDraft,
 } from "./wizard";
 
-const complete: PlanDraft = { budget: 2, freeFrom: "19:00", freeTo: "23:00", km: 5, vibe: "chill" };
+const complete: PlanDraft = {
+  spend: 30,
+  day: "today",
+  pickedDays: [],
+  freeFrom: "19:00",
+  freeTo: "23:00",
+  km: 5,
+  vibe: "chill",
+};
 
 describe("time slider helpers", () => {
   it("maps slider steps to Montreal clock times in 30-minute steps", () => {
@@ -72,32 +89,105 @@ describe("travel radius", () => {
   });
 });
 
+describe("budget in dollars", () => {
+  it("maps per-person dollars onto the backend's 0-4 price levels", () => {
+    expect(spendToBudgetLevel(0)).toBe(0);
+    expect(spendToBudgetLevel(5)).toBe(1);
+    expect(spendToBudgetLevel(15)).toBe(1);
+    expect(spendToBudgetLevel(20)).toBe(2);
+    expect(spendToBudgetLevel(35)).toBe(2);
+    expect(spendToBudgetLevel(50)).toBe(3);
+    expect(spendToBudgetLevel(75)).toBe(4);
+    expect(spendToBudgetLevel(100)).toBe(4);
+  });
+
+  it("puts a saved level back on the slider at a matching amount", () => {
+    for (let level = 0; level <= 4; level++)
+      expect(spendToBudgetLevel(budgetLevelToSpend(level))).toBe(level);
+  });
+
+  it("labels the top of the slider as open-ended", () => {
+    expect(spendLabel(0)).toBe("$0");
+    expect(spendLabel(35)).toBe("$35");
+    expect(spendLabel(100)).toBe("$100+");
+  });
+});
+
 describe("vibe", () => {
-  it("maps every vibe to a category the solver supports", () => {
+  it("maps fixed vibes to categories the solver supports", () => {
+    expect(vibeCategory("sporty")).toBe("activity");
+    expect(vibeCategory("competitive")).toBe("activity");
     expect(vibeCategory("chill")).toBe("park");
-    expect(vibeCategory("coffee")).toBe("cafe");
-    expect(vibeCategory("food")).toBe("restaurant");
-    expect(vibeCategory("culture")).toBe("museum");
-    expect(vibeCategory("active")).toBe("activity");
-    expect(new Set(vibeOptions.map((option) => option.category)).size).toBe(vibeOptions.length);
+    expect(vibeCategory("eats")).toBe("restaurant");
+    expect(vibeCategory("creative")).toBe("museum");
+  });
+
+  it("rolls a random supported category for surprise", () => {
+    expect(vibeCategory("surprise", () => 0)).toBe("park");
+    expect(vibeCategory("surprise", () => 0.25)).toBe("cafe");
+    expect(vibeCategory("surprise", () => 0.99)).toBe("activity");
+  });
+
+  it("offers six vibes, each with an emoji", () => {
+    expect(vibeOptions.map((option) => option.value)).toEqual([
+      "sporty",
+      "competitive",
+      "chill",
+      "eats",
+      "creative",
+      "surprise",
+    ]);
+    expect(vibeOptions.every((option) => option.emoji.length > 0)).toBe(true);
+  });
+});
+
+describe("day choice", () => {
+  it("gives today a now-to-12h slider and another day an 8 AM to 2 AM slider", () => {
+    expect(timeWindow("today", 18 * 60)).toEqual({ baseMin: 18 * 60, steps: 24, isToday: true });
+    const other = timeWindow("2026-11-28", 18 * 60);
+    expect(other).toEqual({ baseMin: 8 * 60, steps: 36, isToday: false });
+    expect(timeIndexLabel(other.baseMin, 0, false)).toBe("8:00 AM");
+    expect(timeIndexLabel(other.baseMin, 36, false)).toBe("2:00 AM (next day)");
+    expect(timeMarks(other)).toEqual(["8 AM", "2 PM", "8 PM", "2 AM"]);
+    expect(timeMarks(timeWindow("today", 0))).toEqual(["Now", "+3h", "+6h", "+9h", "+12h"]);
+  });
+
+  it("toggles several picked days and keeps them in date order", () => {
+    let picked = togglePickedDay([], "2026-11-28");
+    picked = togglePickedDay(picked, "2026-11-24");
+    picked = togglePickedDay(picked, "2026-11-26");
+    expect(picked).toEqual(["2026-11-24", "2026-11-26", "2026-11-28"]);
+    expect(togglePickedDay(picked, "2026-11-24")).toEqual(["2026-11-26", "2026-11-28"]);
+  });
+
+  it("converts between the day choice and the shared config date", () => {
+    expect(planDayToDate("today", "2026-11-22")).toBe("2026-11-22");
+    expect(planDayToDate("2026-11-28", "2026-11-22")).toBe("2026-11-28");
+    expect(dateToPlanDay("2026-11-28", "2026-11-22")).toBe("2026-11-28");
+    expect(dateToPlanDay("2026-11-22", "2026-11-22")).toBe("today");
+    expect(dateToPlanDay("2026-11-01", "2026-11-22")).toBe("today");
   });
 });
 
 describe("step completion", () => {
-  it("orders the steps budget, time, radius, vibe", () => {
-    expect(planSteps).toEqual(["budget", "time", "radius", "vibe"]);
+  it("gives the host a day step that guests skip", () => {
+    expect(planSteps).toEqual(["budget", "day", "time", "radius", "vibe"]);
+    expect(planStepsFor(true)).toEqual(planSteps);
+    expect(planStepsFor(false)).toEqual(["budget", "time", "radius", "vibe"]);
   });
 
   it("finds the first unanswered step", () => {
+    const guest = planStepsFor(false);
     expect(firstIncompletePlanStep(emptyPlanDraft)).toBe("budget");
-    expect(firstIncompletePlanStep({ ...emptyPlanDraft, budget: 0 })).toBe("time");
+    expect(firstIncompletePlanStep({ ...emptyPlanDraft, spend: 0 })).toBe("day");
+    expect(firstIncompletePlanStep({ ...emptyPlanDraft, spend: 0 }, guest)).toBe("time");
     expect(firstIncompletePlanStep({ ...complete, km: null })).toBe("radius");
     expect(firstIncompletePlanStep({ ...complete, vibe: null })).toBe("vibe");
     expect(firstIncompletePlanStep(complete)).toBeNull();
   });
 
-  it("treats a free budget of 0 as answered", () => {
-    expect(isPlanStepComplete("budget", { ...emptyPlanDraft, budget: 0 })).toBe(true);
+  it("treats a $0 budget as answered", () => {
+    expect(isPlanStepComplete("budget", { ...emptyPlanDraft, spend: 0 })).toBe(true);
   });
 });
 
