@@ -9,6 +9,7 @@ import { montrealToday } from "./tz";
 import type { Json } from "@/integrations/supabase/types";
 
 vi.mock("./forecast.server", () => ({ fetchPlanningForecast: vi.fn(async () => []) }));
+vi.mock("./places.server", () => ({ fetchPlanningVenues: vi.fn(async () => []) }));
 const credential = () => Array.from(crypto.getRandomValues(new Uint8Array(32)), (n) => n.toString(16).padStart(2, "0")).join("");
 const ownedParties = useIsolatedSupabase();
 async function newParty(count: number) {

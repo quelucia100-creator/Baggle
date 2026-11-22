@@ -14,6 +14,53 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_preferences: {
+        Row: {
+          accessibility: string[] | null
+          alcohol: string | null
+          completed: boolean
+          date_of_birth: string | null
+          dietary: string[] | null
+          food_allergies: string[] | null
+          food_preferences: string[] | null
+          tastes: string[] | null
+          user_id: string
+          username: string | null
+        }
+        Insert: {
+          accessibility?: string[] | null
+          alcohol?: string | null
+          completed?: boolean
+          date_of_birth?: string | null
+          dietary?: string[] | null
+          food_allergies?: string[] | null
+          food_preferences?: string[] | null
+          tastes?: string[] | null
+          user_id: string
+          username?: string | null
+        }
+        Update: {
+          accessibility?: string[] | null
+          alcohol?: string | null
+          completed?: boolean
+          date_of_birth?: string | null
+          dietary?: string[] | null
+          food_allergies?: string[] | null
+          food_preferences?: string[] | null
+          tastes?: string[] | null
+          user_id?: string
+          username?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_preferences_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       parties: {
         Row: {
           code: string

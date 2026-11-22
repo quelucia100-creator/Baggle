@@ -4,6 +4,7 @@ import { planningStateSchema, snapshotSchema, toPublicPlanOptions } from "./type
 import { solvePlans } from "./solver";
 import { FALLBACK_VENUES } from "./venues";
 import { fetchPlanningForecast } from "./forecast.server";
+import { fetchPlanningVenues } from "./places.server";
 
 export type PlanningCommand = { action: "read" | "save" | "configure" | "lock" | "vote" | "host_reroll" | "finalize" | "reopen"; code: string; token: string; payload: Json };
 
@@ -30,10 +31,14 @@ export async function executePlanning(command: PlanningCommand) {
     const loaded = await supabaseAdmin.rpc("party_plan_snapshot", { p_code: command.code, p_lease: lease });
     if (loaded.error) throw new Error("Cannot load planning snapshot.");
     const snapshot = snapshotSchema.parse(loaded.data);
-    const forecast = await fetchPlanningForecast(snapshot.config);
-    const ranking = solvePlans(snapshot, FALLBACK_VENUES, forecast);
+    const [forecast, liveVenues] = await Promise.all([
+      fetchPlanningForecast(snapshot.config), fetchPlanningVenues(snapshot.config),
+    ]);
+    const liveRanking = liveVenues.length ? solvePlans(snapshot, liveVenues, forecast) : null;
+    const useLiveRanking = liveRanking && liveRanking.options.length > 0;
+    const ranking = useLiveRanking ? liveRanking : solvePlans(snapshot, FALLBACK_VENUES, forecast);
     const completed = await supabaseAdmin.rpc("party_plan_complete", { p_code: command.code, p_lease: lease,
-      p_options: toPublicPlanOptions(ranking.options), p_outliers: ranking.outliers, p_source: "fallback" });
+      p_options: toPublicPlanOptions(ranking.options), p_outliers: ranking.outliers, p_source: useLiveRanking ? "google_places" : "fallback" });
     if (completed.error || !completed.data) throw new Error("Planning lease expired.");
   } catch {
     // A stale lease cannot reset a newer job. Failures preserve submissions for retry.

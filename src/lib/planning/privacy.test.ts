@@ -38,6 +38,7 @@ const rpc = vi.fn(); const adminRpc = vi.fn();
 vi.mock("@supabase/supabase-js", () => ({ createClient: () => ({ rpc }) }));
 vi.mock("@/integrations/supabase/client.server", () => ({ supabaseAdmin: { rpc: adminRpc } }));
 vi.mock("./forecast.server", () => ({ fetchPlanningForecast: vi.fn(async () => []) }));
+vi.mock("./places.server", () => ({ fetchPlanningVenues: vi.fn(async () => []) }));
 
 describe("Planning persistence boundary", () => {
   const lease = "33333333-3333-4333-8333-333333333333";
@@ -51,11 +52,15 @@ describe("Planning persistence boundary", () => {
     adminRpc.mockImplementation(async (fn: string) => fn === "party_plan_snapshot" ? { data: snapshot, error: null } : { data: true, error: null });
   });
 
-  it("stores ranked options without per-plan scores", async () => {
+  it.each(["fallback", "google_places"])("stores %s options without per-plan scores", async (source) => {
+    const { fetchPlanningVenues } = await import("./places.server");
+    vi.mocked(fetchPlanningVenues).mockResolvedValueOnce(source === "google_places" ? [venue] : []);
     const { executePlanning } = await import("./service.server");
     await executePlanning({ action: "lock", code: "ABC123", token: "a".repeat(64), payload: {} });
     const completion = adminRpc.mock.calls.find(([fn]) => fn === "party_plan_complete");
-    const stored = (completion?.[1] as { p_options: object[] }).p_options;
+    const result = completion?.[1] as { p_options: object[]; p_source: string };
+    expect(result.p_source).toBe(source);
+    const stored = result.p_options;
     expect(stored.length).toBeGreaterThan(0);
     expect(stored.every((option) => !("score" in option))).toBe(true);
   });
