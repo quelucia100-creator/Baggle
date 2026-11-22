@@ -8,7 +8,9 @@ import type { PlanningRequestV3 } from "./planning-v3/contract";
 import type { z } from "zod";
 import type { preferencesSchema } from "./planning/types";
 
-const server = createServerFn({ method: "POST" })
+// Export the canonical builder directly so endpoint discovery never depends
+// on the typed V2/V3 aliases below. Keep its name stable for open clients.
+export const server = createServerFn({ method: "POST" })
   .validator((input: unknown) => parsePlanningRequest(input))
   .handler(async ({ data }) => {
     setResponseHeader("Cache-Control", "no-store");
