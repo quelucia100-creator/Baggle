@@ -73,24 +73,11 @@ function PlanningPage() {
   const needsAnswers = readiness && (!readiness.selfReady || needsSetup);
   const showWizard = collecting && (edit || needsAnswers || previewV3);
   useEffect(() => {
-    if (
-      step &&
-      state.data &&
-      !state.isError &&
-      (!collecting || (!showWizard && (readiness?.hostReady || readiness?.legacyReady)))
-    )
+    // Saved collecting answers already render the shared view. Let a successful
+    // submission return to the lobby without a competing URL replacement.
+    if (step && state.data && !state.isError && !collecting)
       void navigate({ to: "/party/$code/plan", params: { code }, search: {}, replace: true });
-  }, [
-    step,
-    state.data,
-    state.isError,
-    collecting,
-    showWizard,
-    readiness?.hostReady,
-    readiness?.legacyReady,
-    navigate,
-    code,
-  ]);
+  }, [step, state.data, state.isError, collecting, navigate, code]);
   const back = useMutation({
     mutationFn: () => accessParty("team", code),
     onMutate: () => queryClient.cancelQueries({ queryKey: partyKey }),

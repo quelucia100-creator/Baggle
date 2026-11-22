@@ -302,6 +302,9 @@ describe("host-first party workflow", () => {
     });
     await screen.findByRole("heading", { name: "Your shared hangout" });
     expect(screen.queryByRole("heading", { name: "How far will you go?" })).toBeNull();
+    expect(m.navigate).not.toHaveBeenCalledWith(
+      expect.objectContaining({ to: "/party/$code/plan", search: {}, replace: true }),
+    );
     guestView.unmount();
     client.clear();
 
