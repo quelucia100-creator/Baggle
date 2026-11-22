@@ -6,7 +6,6 @@ import { PaperIcon, type PaperTone } from "@/components/PaperIcon";
 import { BagelIcon, ClockIcon, TicketIcon, UsersIcon } from "@/components/icons";
 import { Bell } from "lucide-react";
 import { notificationsQuery } from "@/lib/notifications";
-import { FriendsCard } from "@/components/FriendsCard";
 import { accountPreferencesQuery, firstMissingStep } from "@/lib/account-preferences";
 
 export const Route = createFileRoute("/_authenticated/home")({
@@ -116,7 +115,18 @@ function Home() {
 
         <div className="mt-8 grid gap-5 sm:grid-cols-2">
           {SECTIONS.map((section) => (
-            section.title === "Friends list" ? <FriendsCard key="friends" /> : <SectionCard key={section.title} section={section} />
+            section.title === "Friends list" ? (
+              <Link key="friends" to="/friends" className="block rounded-3xl transition-transform hover:-translate-y-0.5 focus:outline-none focus-visible:ring-4 focus-visible:ring-tangerine">
+                <section aria-label="Friends list" className="paper h-full rounded-3xl border-2 border-crust bg-cream p-5 shadow-pop">
+                  <div className="flex items-center gap-3">
+                    <PaperIcon tone={section.tone} back={section.back} rotate={section.rotate} className="h-12 w-12">{section.icon}</PaperIcon>
+                    <h2 className="text-xl font-extrabold">{section.title}</h2>
+                  </div>
+                  <p className="mt-3 text-sm text-muted-foreground">{section.description}</p>
+                  <p className="mt-4 inline-block rounded-full border-2 border-crust bg-chartreuse px-3 py-1 text-xs font-bold uppercase tracking-wider">Open friends →</p>
+                </section>
+              </Link>
+            ) : <SectionCard key={section.title} section={section} />
           ))}
         </div>
 

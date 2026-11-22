@@ -58,7 +58,7 @@ function Notifications() {
               <div className="flex-1">
                 <p className="font-bold">{notificationText(n)}</p>
                 <p className="text-xs text-muted-foreground">{new Date(n.created_at).toLocaleString()}</p>
-                {n.kind === "friend_request" && <Link to="/home" className="text-sm font-bold underline">Respond on your dashboard</Link>}
+                {n.kind === "friend_request" && <Link to="/friends" className="text-sm font-bold underline">Respond on your friends page</Link>}
               </div>
               <div className="flex flex-col items-end gap-1 text-xs font-bold">
                 {!n.read && <button className="underline" onClick={() => markOne.mutate(n.id)}>Mark read</button>}
