@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useHydrated, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useState } from "react";
+import { useCallback, useState, type ComponentProps } from "react";
 import { PartyHeader } from "@/components/PartyHeader";
 import { PopButton } from "@/components/Field";
 import { PlanningExperience } from "@/components/planning/PlanningExperience";
@@ -16,6 +16,7 @@ import {
 } from "@/components/planning/v3/contract";
 import { accessParty, membershipToken } from "@/lib/party";
 import { updatePartyPlanning } from "@/lib/planning.functions";
+import { planningDaysKey, planningDaysQuery } from "@/lib/planning-days";
 import type { PlanningRequest } from "@/lib/planning-v3/request";
 
 type Command = PlanningCommand | PlanningCommandV3;
@@ -256,7 +257,7 @@ function PlanningPage() {
                 >
                   {party.data.isHost ? "Switch to the new planner" : "Preview the new planner"}
                 </button>
-                <PlanWizard
+                <SliderWizard
                   key={party.data.selfId}
                   code={code}
                   party={party.data}
@@ -266,7 +267,10 @@ function PlanningPage() {
                   exit={() => toMap()}
                   finish={() => {
                     void queryClient.invalidateQueries({ queryKey: planningKey });
-                    toMap(true);
+                    // A host who just finished setting up goes to the lobby to invite the crew.
+                    if (party.data.isHost && party.data.members.length === 1)
+                      void navigate({ to: "/party/$code", params: { code }, replace: true });
+                    else toMap(true);
                   }}
                 />
               </>
@@ -310,5 +314,35 @@ function PlanningPage() {
         )}
       </main>
     </div>
+  );
+}
+
+type WizardProps = Omit<ComponentProps<typeof PlanWizard>, "days">;
+/** Loads the host's offered days (and host readiness) only while the slider wizard is open. */
+function SliderWizard(props: WizardProps) {
+  const queryClient = useQueryClient();
+  const days = useQuery(planningDaysQuery(props.code));
+  // A failed background poll keeps the wizard (and its draft) on screen.
+  if (!days.data && days.isError)
+    return (
+      <section className="mx-auto max-w-md">
+        <p role="alert" className="font-bold">
+          Couldn't check the hangout's days. Check your connection and try again.
+        </p>
+        <PopButton tone="sage" className="mt-4" onClick={() => void days.refetch()}>
+          Check again
+        </PopButton>
+      </section>
+    );
+  if (!days.data) return <p role="status">Opening your event…</p>;
+  return (
+    <PlanWizard
+      {...props}
+      days={days.data}
+      finish={() => {
+        void queryClient.invalidateQueries({ queryKey: planningDaysKey(props.code) });
+        props.finish();
+      }}
+    />
   );
 }

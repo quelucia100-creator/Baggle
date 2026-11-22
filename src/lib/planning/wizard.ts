@@ -1,7 +1,8 @@
-import { preferencesSchema, type PlanningConfig } from "./types";
+import { preferencesSchema, type DayWindows, type PlanningConfig } from "./types";
 
 // Pure helpers for the one-question-per-screen hangout wizard at /party/$code/plan?step=.
-export const planSteps = ["budget", "day", "time", "radius", "vibe"] as const;
+// The host picks the day first so the time step can show those days.
+export const planSteps = ["day", "budget", "time", "radius", "vibe"] as const;
 export type PlanStep = (typeof planSteps)[number];
 
 /** Only the host chooses the day; guests answer for whatever day the host set. */
@@ -154,33 +155,128 @@ export const TRAVEL_MIN = 5;
 export const TRAVEL_MAX = 90;
 export const TRAVEL_STEP = 5;
 
-/* ---------- Several days: one vertical 24-hour slider per day ---------- */
+/* ---------- Several days: paint the half-hours you're free on each day ---------- */
 
-/** 12:00 AM to 12:00 AM the next day, in 30-minute steps. */
-export const FULL_DAY: TimeWindow = { baseMin: 0, steps: (24 * 60) / STEP_MIN, isToday: false };
-/** Slider positions on FULL_DAY, and whether the day works for this member at all. */
-export type DayTime = { works: boolean; from: number; to: number };
-export const freeAllDay: DayTime = { works: true, from: 0, to: FULL_DAY.steps };
+/** Half-hour cells from 12:00 AM to midnight. */
+export const DAY_SLOTS = (24 * 60) / STEP_MIN;
+/** Free half-hours on one day: sorted, unique cell indexes (0 = 12:00 AM, 47 = 11:30 PM). */
+export type DayFree = readonly number[];
+export type FreeWindow = { freeFrom: string; freeTo: string };
 
-/** "12:00 AM", "7:30 PM" or "Midnight" for a position on a vertical day slider. */
-export function dayTimeLabel(index: number): string {
-  return index >= FULL_DAY.steps ? "Midnight" : timeIndexLabel(0, index, false);
+/** "12:00 AM", "7:30 PM" or "Midnight" for a cell edge (0..48). */
+export function slotLabel(index: number): string {
+  return index >= DAY_SLOTS ? "Midnight" : timeIndexLabel(0, index, false);
+}
+
+const validSlot = (index: number) => Number.isInteger(index) && index >= 0 && index < DAY_SLOTS;
+
+/** Marks cells from..to (inclusive, either order) free or not free. */
+export function paintSlots(free: DayFree, from: number, to: number, isFree: boolean): number[] {
+  const [low, high] = from <= to ? [from, to] : [to, from];
+  const next = new Set(free.filter(validSlot));
+  for (let index = Math.max(0, low); index <= Math.min(DAY_SLOTS - 1, high); index++) {
+    if (isFree) next.add(index);
+    else next.delete(index);
+  }
+  return [...next].sort((a, b) => a - b);
+}
+
+/** Continuous free stretches as [from, to) cell ranges. */
+export function freeRuns(free: DayFree): Array<{ from: number; to: number }> {
+  const runs: Array<{ from: number; to: number }> = [];
+  for (const index of [...new Set(free.filter(validSlot))].sort((a, b) => a - b)) {
+    const last = runs.at(-1);
+    if (last && last.to === index) runs[runs.length - 1] = { ...last, to: index + 1 };
+    else runs.push({ from: index, to: index + 1 });
+  }
+  return runs;
+}
+
+/** A free block on one day, as a [from, to) half-hour range. */
+export type FreeBlock = { from: number; to: number };
+
+/** Drops half-hours before `minSlot` (already past today). */
+export function clampFree(free: DayFree, minSlot = 0): number[] {
+  return free.filter((index) => validSlot(index) && index >= minSlot);
+}
+
+/** Replaces one block with another (or removes it when `next` is null). */
+export function replaceBlock(
+  free: DayFree,
+  block: FreeBlock,
+  next: FreeBlock | null,
+  minSlot = 0,
+): number[] {
+  const without = paintSlots(free, block.from, block.to - 1, false);
+  if (!next) return without;
+  const from = Math.max(minSlot, Math.min(next.from, next.to - 1));
+  const to = Math.min(DAY_SLOTS, Math.max(next.to, from + 1));
+  return paintSlots(without, from, to - 1, true);
+}
+
+/** Where a moved block lands (keeping its length), or null when it no longer fits that day. */
+export function movedStart(length: number, toStart: number, minSlot: number): number | null {
+  const start = Math.min(DAY_SLOTS - length, Math.max(minSlot, toStart));
+  return start < minSlot ? null : start;
+}
+
+/** Moves a block to a new start, on the same or another day, keeping its length. */
+export function moveBlock(
+  value: Readonly<Record<string, DayFree>>,
+  fromDay: string,
+  block: FreeBlock,
+  toDay: string,
+  toStart: number,
+  minSlotFor: (date: string) => number = () => 0,
+): Record<string, DayFree> {
+  const length = block.to - block.from;
+  const start = movedStart(length, toStart, minSlotFor(toDay));
+  // Too long for what's left of that day: leave it where it was rather than cut it short.
+  if (start === null) return value;
+  const removed = {
+    ...value,
+    [fromDay]: paintSlots(value[fromDay] ?? [], block.from, block.to - 1, false),
+  };
+  return {
+    ...removed,
+    [toDay]: clampFree(
+      paintSlots(removed[toDay] ?? [], start, start + length - 1, true),
+      minSlotFor(toDay),
+    ),
+  };
+}
+
+/** Saved windows back onto the grid. A window ending at or before its start runs to midnight. */
+export function windowsToSlots(windows: readonly FreeWindow[]): number[] {
+  return windows.reduce<number[]>((free, window) => {
+    const from = hhmmToTimeIndex(0, window.freeFrom, DAY_SLOTS);
+    const to = hhmmToTimeIndex(0, window.freeTo, DAY_SLOTS);
+    if (from === null || to === null) return free;
+    const end = to <= from ? DAY_SLOTS : to;
+    return end > from ? paintSlots(free, from, end - 1, true) : free;
+  }, []);
 }
 
 /**
- * The backend currently stores one window per member, for the event day only, so the
- * event day's slider is what gets saved. Null when the member unticked that day.
+ * The windows to save: for each offered day, every free stretch long enough for the hangout.
+ * A day with no such stretch doesn't work for this member and is left out.
  */
-export function eventDayWindow(
-  dayTimes: Readonly<Record<string, DayTime>>,
-  eventDate: string,
-): { freeFrom: string; freeTo: string } | null {
-  const time = dayTimes[eventDate] ?? freeAllDay;
-  if (!time.works) return null;
-  return {
-    freeFrom: timeIndexToHHMM(0, Math.min(time.from, FULL_DAY.steps - 1)),
-    freeTo: timeIndexToHHMM(0, time.to),
-  };
+export function dayWindowsFor(
+  dayFree: Readonly<Record<string, DayFree>>,
+  days: readonly string[],
+  minSteps = 1,
+): DayWindows {
+  return Object.fromEntries(
+    days.flatMap((date) => {
+      const windows = freeRuns(dayFree[date] ?? [])
+        .filter((run) => run.to - run.from >= minSteps)
+        .map((run): FreeWindow => ({
+          freeFrom: timeIndexToHHMM(0, run.from),
+          freeTo: timeIndexToHHMM(0, run.to),
+        }));
+      return windows.length ? [[date, windows]] : [];
+    }),
+  );
 }
 
 /* ---------- Draft ---------- */
@@ -195,8 +291,8 @@ export type PlanDraft = {
   freeTo: string | null;
   travelMin: number | null;
   vibe: Vibe | null;
-  /** Several days: the member's window for each day, keyed by date. */
-  dayTimes: Record<string, DayTime>;
+  /** Several days: the half-hours the member is free on each day, keyed by date. */
+  dayFree: Record<string, DayFree>;
 };
 export const emptyPlanDraft: PlanDraft = {
   spend: null,
@@ -206,7 +302,7 @@ export const emptyPlanDraft: PlanDraft = {
   freeTo: null,
   travelMin: null,
   vibe: null,
-  dayTimes: {},
+  dayFree: {},
 };
 
 export function isPlanStepComplete(step: PlanStep, draft: PlanDraft): boolean {
