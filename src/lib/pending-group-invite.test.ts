@@ -8,6 +8,17 @@ const group = "11111111-1111-4111-8111-111111111111";
 beforeEach(() => { sessionStorage.clear(); rpc.mockReset(); });
 
 describe("chosen group invitation recovery", () => {
+  it("recovers a rejected transport without dropping the chosen group or duplicating a confirmed send", async () => {
+    rememberGroupInvite("ABC123", group);
+    rpc.mockRejectedValueOnce(new Error("Network unavailable"));
+    expect(await sendPendingGroupInvite("ABC123")).toBe(false);
+    expect(hasPendingGroupInvite("ABC123")).toBe(true);
+    rpc.mockResolvedValue({ data: { ok: true }, error: null });
+    expect(await sendPendingGroupInvite("ABC123")).toBe(true);
+    expect(await sendPendingGroupInvite("ABC123")).toBe(false);
+    expect(rpc).toHaveBeenCalledTimes(2);
+  });
+
   it("sends only a remembered group and clears it only after confirmation", async () => {
     rememberGroupInvite("ABC123", group);
     rpc.mockResolvedValue({ data: { ok: true }, error: null });

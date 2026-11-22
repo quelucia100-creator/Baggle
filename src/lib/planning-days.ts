@@ -39,6 +39,14 @@ export class PlanningDaysUnavailable extends Error {
 export const isPlanningDaysUnavailable = (error: unknown): error is PlanningDaysUnavailable =>
   error instanceof PlanningDaysUnavailable;
 
+/** Only an explicitly missing rollout can enable legacy invites; failed reads never establish readiness. */
+export function planningDaysReadiness(data: PlanningDays | undefined, error: unknown):
+  "loading" | "ready" | "waiting" | "unavailable" | "error" {
+  if (isPlanningDaysUnavailable(error)) return "unavailable";
+  if (error) return "error";
+  return data ? data.hostReady ? "ready" : "waiting" : "loading";
+}
+
 export async function runPlanningDays(code: string, command: DaysCommand): Promise<PlanningDays> {
   const { action, ...payload } = command;
   const rpc = supabase.rpc.bind(supabase) as unknown as OptionalDaysRpc;

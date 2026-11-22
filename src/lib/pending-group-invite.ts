@@ -20,11 +20,16 @@ export function hasPendingGroupInvite(code: string): boolean {
 export async function sendPendingGroupInvite(code: string): Promise<boolean> {
   const groupId = readStored("session", key(code));
   if (!groupId || !GROUP_ID.test(groupId)) return false;
-  const { data, error } = await supabase.rpc("invite_group_to_journey", {
-    p_group: groupId,
-    p_code: code,
-  });
-  if (error || !(data as { ok?: boolean } | null)?.ok) return false;
-  writeStored("session", key(code), null);
-  return true;
+  try {
+    const { data, error } = await supabase.rpc("invite_group_to_journey", {
+      p_group: groupId,
+      p_code: code,
+    });
+    if (error || !(data as { ok?: boolean } | null)?.ok) return false;
+    writeStored("session", key(code), null);
+    return true;
+  } catch {
+    // Preserve the choice and release the caller's sending guard after a transport failure.
+    return false;
+  }
 }
