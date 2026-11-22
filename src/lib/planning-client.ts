@@ -4,6 +4,16 @@ import { updatePartyPlanning } from "./planning.functions";
 import type { PlanningCommand } from "@/components/planning/model";
 import type { PlanningState } from "./planning/types";
 
+type LegacyRequest = (PlanningCommand | { action: "read" }) & {
+  code: string;
+  token: string;
+  schemaVersion: 2;
+};
+// The server function also accepts V3; the wizard always talks to the original (V2) planner.
+const legacyPlanning = updatePartyPlanning as (options: {
+  data: LegacyRequest;
+}) => Promise<PlanningState>;
+
 export const planningKey = (code: string) => ["party-planning", code] as const;
 
 // The capability token is browser-only input to the RPC; it never goes into keys or URLs.
@@ -11,7 +21,9 @@ export function planningQuery(code: string) {
   return queryOptions({
     queryKey: planningKey(code),
     queryFn: (): Promise<PlanningState> =>
-      updatePartyPlanning({ data: { action: "read", code, token: membershipToken() } }),
+      legacyPlanning({
+        data: { action: "read", code, token: membershipToken(), schemaVersion: 2 },
+      }),
     refetchInterval: 3000,
     retry: false,
     // selfPreferences are private: drop them from memory once no screen uses them.
@@ -20,7 +32,7 @@ export function planningQuery(code: string) {
 }
 
 export function runPlanning(code: string, command: PlanningCommand): Promise<PlanningState> {
-  return updatePartyPlanning({ data: { ...command, code, token: membershipToken() } });
+  return legacyPlanning({ data: { ...command, code, token: membershipToken(), schemaVersion: 2 } });
 }
 
 /** Browser storage is optional (private mode, quotas). Never let it break the flow. */
