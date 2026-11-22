@@ -105,7 +105,7 @@ beforeEach(() => {
   mocks.planning.mockResolvedValue(state);
   mocks.days
     .mockReset()
-    .mockResolvedValue({ data: { dates: [], selfWindows: null, hostReady: true }, error: null });
+    .mockResolvedValue({ data: { dates: [], selfWindows: null, hostReady: false, revision: 1 }, error: null });
 });
 afterEach(() => {
   cleanup();
@@ -117,6 +117,7 @@ describe("Planning screen polling and recovery", () => {
     mocks.days.mockResolvedValue({ data: null, error: {
       code: "PGRST202", message: "Could not find the function public.party_plan_days",
     } });
+    mocks.search = { step: "budget", edit: true };
     open();
     const slider = await screen.findByRole("slider", { name: "Budget per person" });
     fireEvent.focus(slider);
@@ -164,6 +165,7 @@ describe("Planning screen polling and recovery", () => {
     await screen.findByRole("heading", { name: "When's the hangout?" });
     expect(mocks.planning).toHaveBeenCalledWith({
       data: { action: "read", code: "ABC123", token: "a".repeat(64), schemaVersion: 3 },
+      signal: expect.any(AbortSignal),
     });
     expect(
       client
@@ -180,7 +182,8 @@ describe("Planning screen polling and recovery", () => {
     mocks.planning.mockResolvedValue({ ...state, status: "no_plan", noPlanReason: "no_match" });
     mocks.search = { step: "budget" };
     open();
-    await screen.findByRole("heading", { name: "Planning is locked" });
+    await screen.findByRole("button", { name: "Reopen planning" });
+    expect(mocks.navigate).toHaveBeenCalledWith(expect.objectContaining({ search: {}, replace: true }));
     cleanup();
     mocks.search = {};
     open();
@@ -188,9 +191,10 @@ describe("Planning screen polling and recovery", () => {
   });
   it("keeps private answers on screen when saving fails", async () => {
     sessionStorage.setItem(
-      "baggle-plan-draft-ABC123",
+      `baggle-plan-draft-ABC123-${id}`,
       JSON.stringify({
         spend: 50,
+        revision: 1,
         day: "today",
         freeFrom: "18:00",
         freeTo: "22:00",
@@ -200,13 +204,15 @@ describe("Planning screen polling and recovery", () => {
       }),
     );
     mocks.search = { step: "vibe" };
-    mocks.planning.mockImplementation(({ data }: { data: { action: string } }) =>
-      data.action === "save" ? Promise.reject(new Error("network failed")) : Promise.resolve(state),
+    mocks.days.mockImplementation((_name, args: { p_action: string }) =>
+      args.p_action === "configure"
+        ? Promise.resolve({ data: null, error: { message: "network failed" } })
+        : Promise.resolve({ data: { dates: [], selfWindows: null, hostReady: false, revision: 1 }, error: null }),
     );
     open();
     fireEvent.click(await screen.findByRole("button", { name: "Save my answers" }));
     await waitFor(() =>
-      expect(mocks.planning.mock.calls.some(([input]) => input.data.action === "save")).toBe(true),
+      expect(mocks.days.mock.calls.some(([, input]) => input.p_action === "configure")).toBe(true),
     );
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Save my answers" })).toBeEnabled(),

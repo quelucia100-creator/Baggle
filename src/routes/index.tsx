@@ -40,7 +40,6 @@ function Welcome() {
     const entry = readGuestEntry();
     if (entry) {
       setName(entry.name);
-      setCode(entry.code);
       setRecentEntry(entry);
     }
   }, []);
@@ -51,7 +50,11 @@ function Welcome() {
       const party = await accessParty(created ? "create" : "join", normalizePartyCode(code), name.trim());
       setRecentEntry(readGuestEntry());
       setActive(true);
-      await navigate({ to: "/party/$code", params: { code: party.code } });
+      if (created) {
+        await navigate({ to: "/party/$code/plan", params: { code: party.code }, search: { step: "day" } });
+      } else {
+        await navigate({ to: "/party/$code", params: { code: party.code } });
+      }
     } catch (error) { toast.error(error instanceof Error ? error.message : "Could not open party."); }
     finally { setActive(false); setBusy(false); }
   };
@@ -87,7 +90,7 @@ function Welcome() {
             void go(false);
           }}
         >
-          {recentEntry && <Link to="/party/$code" params={{ code: recentEntry.code }} className="paper block rounded-lg border-2 border-crust bg-sage px-4 py-3 text-center font-bold shadow-pop focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-crust">Return to party {recentEntry.code}</Link>}
+          {recentEntry && <Link to="/party/$code" params={{ code: recentEntry.code }} className="paper block rounded-lg border-2 border-crust bg-sage px-4 py-3 text-center font-bold shadow-pop focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-crust">Return to last party</Link>}
           <Field label="Display name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Sesame Sam" required maxLength={30} />
           <Field label="Party code" value={code} onChange={(e) => setCode(normalizePartyCode(e.target.value))} placeholder="ABC123" className="tracking-[0.3em]" />
           <PopButton type="submit" disabled={busy || !name.trim() || code.length !== 6}>{busy ? "One sec…" : "Join party"}</PopButton>

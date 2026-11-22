@@ -7,6 +7,7 @@ import { BagelIcon, ClockIcon, TicketIcon, UsersIcon } from "@/components/icons"
 import { Bell, Settings } from "lucide-react";
 import { notificationsQuery } from "@/lib/notifications";
 import { accountPreferencesQuery, firstMissingStep } from "@/lib/account-preferences";
+
 import { JoinRoom } from "@/components/JoinRoom";
 
 export const Route = createFileRoute("/_authenticated/home")({

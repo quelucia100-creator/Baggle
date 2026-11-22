@@ -1,17 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CalendarDays, Clock, Navigation, Sparkles, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import type { PartyState } from "@/lib/party";
 import type { PlanningState } from "@/lib/planning/types";
 import { montrealNowMinutes, montrealToday } from "@/lib/planning/tz";
-import {
-  draftStorageKey,
-  readStored,
-  runPlanning,
-  vibeStorageKey,
-  writeStored,
-} from "@/lib/planning-client";
+import { draftStorageKey, readStored, writeStored } from "@/lib/planning-client";
 import { runPlanningDays, type PlanningDays } from "@/lib/planning-days";
 import {
   budgetLevelToSpend,
@@ -35,6 +29,7 @@ import {
   windowsToSlots,
   clampFree,
   STEP_MIN,
+  vibeCategory,
   vibeOptions,
   type DayFree,
   type PlanDay,
@@ -92,26 +87,32 @@ function savedDayFree(days: PlanningDays): Record<string, DayFree> {
 }
 
 function initialDraft(
-  code: string,
+  draftKey: string,
   state: PlanningState,
   isHost: boolean,
   today: string,
   days: PlanningDays,
+  revision: number,
 ): PlanDraft {
-  const storedVibe = readStored("local", vibeStorageKey(code));
-  const vibe = isVibe(storedVibe) ? storedVibe : null;
+  const vibe =
+    isHost && state.selfPreferences
+      ? (vibeOptions.find((option) => option.category === state.config.category)?.value ?? null)
+      : null;
   let raw: unknown = null;
   try {
-    raw = JSON.parse(readStored("session", draftStorageKey(code)) ?? "null");
+    raw = JSON.parse(readStored("session", draftKey) ?? "null");
   } catch {
     raw = null;
   }
-  const stored = storedDraftSchema.safeParse(raw);
-  if (stored.success)
+  const stored = storedDraftSchema.extend({ revision: z.number() }).safeParse(raw);
+  if (stored.success && stored.data.revision === revision)
     return { ...stored.data, vibe: isVibe(stored.data.vibe) ? stored.data.vibe : vibe };
   // A host who already offered days keeps them; "today" must be chosen deliberately.
   const offered = days.dates.filter((date) => date >= today);
-  const configuredDay = offered[0] ?? dateToPlanDay(state.config.date, today);
+  const configuredDay =
+    offered.length === 1
+      ? dateToPlanDay(offered[0]!, today)
+      : (offered[0] ?? dateToPlanDay(state.config.date, today));
   const saved = state.selfPreferences;
   const day = isHost && (saved || configuredDay !== "today") ? configuredDay : null;
   const pickedDays = day && day !== "today" ? (offered.length ? offered : [day]) : [];
@@ -139,6 +140,7 @@ type Props = {
   goToStep: (step: Step, replace?: boolean) => void;
   exit: () => void;
   finish: () => void;
+  refresh?: () => Promise<unknown>;
 };
 
 export function PlanWizard(props: Props) {
@@ -156,23 +158,39 @@ function WaitingForHost({ exit }: { exit: () => void }) {
         as they're done. This page updates by itself.
       </p>
       <PopButton tone="sage" className="mt-6" onClick={exit}>
-        Back to map
+        Back to party
       </PopButton>
     </section>
   );
 }
 
-function PlanWizardSteps({ code, party, state, days, step, goToStep, exit, finish }: Props) {
+function PlanWizardSteps({
+  code,
+  party,
+  state,
+  days,
+  step,
+  goToStep,
+  exit,
+  finish,
+  refresh,
+}: Props) {
   const [today] = useState(montrealToday);
   const [nowMin] = useState(montrealNowMinutes);
+  const draftKey = draftStorageKey(code, party.selfId);
+  const revision = days.revision ?? state.revision;
   const [draft, setDraft] = useState<PlanDraft>(() =>
-    initialDraft(code, state, party.isHost, today, days),
+    initialDraft(draftKey, state, party.isHost, today, days, revision),
   );
   const [isSaving, setIsSaving] = useState(false);
+  const saving = useRef(false);
+  const draftRevision = useRef(revision);
+  const latestRevision = useRef(revision);
+  latestRevision.current = revision;
   const steps = planStepsFor(party.isHost);
   const index = Math.max(0, steps.indexOf(step));
-  // Guests answer for the host's offered days (only those still ahead).
-  const offeredDays = days.dates.filter((date) => date >= today);
+  // Previous single-date parties may have no candidate array.
+  const offeredDays = days.dates.length ? days.dates : [state.config.date];
   const activeDay: PlanDay = party.isHost
     ? (draft.day ?? "today")
     : (offeredDays[0] ?? dateToPlanDay(state.config.date, today));
@@ -182,15 +200,9 @@ function PlanWizardSteps({ code, party, state, days, step, goToStep, exit, finis
   const todayMin = Math.ceil(nowMin / STEP_MIN);
   const minSlotFor = (date: string) => (date === today ? todayMin : 0);
 
-  // Deep links to a later step (or one this role doesn't have) land on the first unanswered one.
   useEffect(() => {
-    const first = firstIncompletePlanStep(draft, steps);
-    if (!steps.includes(step)) goToStep(first ?? steps[0] ?? "budget", true);
-    else if (first && steps.indexOf(first) < index) goToStep(first, true);
-  }, [draft, index, step, steps, goToStep]);
-  useEffect(() => {
-    writeStored("session", draftStorageKey(code), JSON.stringify(draft));
-  }, [code, draft]);
+    writeStored("session", draftKey, JSON.stringify({ ...draft, revision: draftRevision.current }));
+  }, [draftKey, draft]);
 
   const travelMin = draft.travelMin ?? DEFAULT_TRAVEL_MIN;
   // Every offered day gets a calendar column; a today-only hangout is one column for today.
@@ -201,21 +213,17 @@ function PlanWizardSteps({ code, party, state, days, step, goToStep, exit, finis
       : draft.pickedDays.length
         ? draft.pickedDays
         : [eventDate]
-    : offeredDays.length
-      ? offeredDays
-      : [eventDate];
+    : offeredDays;
   const dayFree = { ...draft.dayFree, [today]: clampFree(draft.dayFree[today] ?? [], todayMin) };
   // Only free blocks long enough for the hangout count.
   const dayWindows = dayWindowsFor(dayFree, candidateDays, gap);
   // The single saved window is the first free stretch (the solver uses every per-day stretch).
   const firstWindow = candidateDays.map((date) => dayWindows[date]?.[0]).find(Boolean) ?? null;
-  // Per-day windows are stored only once the host has offered days (always true for the host).
-  const savesDayWindows = party.isHost || offeredDays.length > 0;
-  const chosenDates = draft.day === null ? [] : draft.day === "today" ? [today] : draft.pickedDays;
   const othersReady = state.members.filter(
     (member) => member.submitted && member.id !== party.selfId,
   ).length;
-  const resetsOthers = party.isHost && othersReady > 0 && chosenDates.join() !== days.dates.join();
+  const resetsOthers =
+    party.isHost && othersReady > 0 && candidateDays.join() !== days.dates.join();
   const spend = draft.spend ?? DEFAULT_SPEND;
   const self = party.members.find((member) => member.id === party.selfId);
   const origin = self?.location ? { lat: self.location.lat, lng: self.location.lng } : null;
@@ -227,6 +235,16 @@ function PlanWizardSteps({ code, party, state, days, step, goToStep, exit, finis
         ? { ...current, pickedDays }
         : { ...current, day, pickedDays, freeFrom: null, freeTo: null },
     );
+  // Deep links to a later step (or one this role doesn't have) land on the first unanswered one.
+  useEffect(() => {
+    const first = firstIncompletePlanStep(
+      { ...draft, freeFrom: firstWindow?.freeFrom ?? null, freeTo: firstWindow?.freeTo ?? null },
+      steps,
+    );
+    if (!steps.includes(step)) goToStep(first ?? steps[0] ?? "budget", true);
+    else if (first && steps.indexOf(first) < index) goToStep(first, true);
+  }, [draft, firstWindow?.freeFrom, firstWindow?.freeTo, index, step, steps, goToStep]);
+
   // Untouched sliders still count as an answer: commit what's on screen.
   const committed: PlanDraft =
     step === "budget"
@@ -238,34 +256,43 @@ function PlanWizardSteps({ code, party, state, days, step, goToStep, exit, finis
           : draft;
 
   const save = async (final: PlanDraft) => {
+    if (saving.current) return;
+    saving.current = true;
     setIsSaving(true);
     try {
-      // Check before changing anything on the server.
-      if (savesDayWindows && !firstWindow)
-        throw new Error("Pick at least one day that works for you.");
-      // Host: offer the days together with their own windows, in one transaction (changing
-      // the days resets everyone else's answers). Others save their windows before their
-      // answers, so being "ready" always includes them.
-      if (party.isHost)
-        await runPlanningDays(code, {
-          action: "configure",
-          dates: chosenDates,
-          ...(savesDayWindows && chosenDates.length ? { windows: dayWindows } : {}),
-        });
-      else if (savesDayWindows)
-        await runPlanningDays(code, { action: "save", windows: dayWindows });
-      const answers = savesDayWindows && firstWindow ? { ...final, ...firstWindow } : final;
-      await runPlanning(code, { action: "save", preferences: draftToPreferences(answers, origin) });
-      writeStored("session", draftStorageKey(code), null);
+      if (!firstWindow) throw new Error("Pick at least one day that works for you.");
+      if (draftRevision.current !== latestRevision.current)
+        throw new Error("The hangout changed. Review the date and availability and try again.");
+      const answers = {
+        expectedRevision: draftRevision.current,
+        windows: dayWindows,
+        preferences: draftToPreferences({ ...final, ...firstWindow }, origin),
+      };
+      const saved = await runPlanningDays(
+        code,
+        party.isHost
+          ? {
+              action: "configure",
+              ...answers,
+              dates: candidateDays,
+              category: final.vibe ? vibeCategory(final.vibe) : state.config.category,
+            }
+          : { action: "save", ...answers },
+      );
+      if (!saved.hostReady) throw new Error("Your answers couldn't be confirmed. Try again.");
+      writeStored("session", draftKey, null);
       toast.success("You're ready! Your answers are saved privately.");
       finish();
     } catch (error) {
+      await refresh?.();
+      draftRevision.current = latestRevision.current;
       toast.error(
         error instanceof Error
           ? error.message
           : "Couldn't save your answers. They're kept here; try again.",
       );
     } finally {
+      saving.current = false;
       setIsSaving(false);
     }
   };
@@ -316,9 +343,9 @@ function PlanWizardSteps({ code, party, state, days, step, goToStep, exit, finis
       title={meta.title}
       hint={meta.hint}
       isLast={index === steps.length - 1}
-      canNext={isPlanStepComplete(step, committed)}
+      canNext={isPlanStepComplete(step, committed) && (step !== "vibe" || !!firstWindow)}
       isBusy={isSaving}
-      backLabel={index === 0 ? "Back to map" : "Back"}
+      backLabel={index === 0 ? "Back to party" : "Back"}
       onBack={back}
       onNext={next}
     >
@@ -408,7 +435,6 @@ function PlanWizardSteps({ code, party, state, days, step, goToStep, exit, finis
               label={option.label}
               selected={draft.vibe === option.value}
               onSelect={() => {
-                writeStored("local", vibeStorageKey(code), option.value);
                 setDraft((current) => ({ ...current, vibe: option.value }));
               }}
             />

@@ -8,20 +8,21 @@ import bagel from "@/assets/bagel-single.png.asset.json";
 import { Field, PopButton } from "@/components/Field";
 import { PaperIcon } from "@/components/PaperIcon";
 import { accessParty, canRemoveMember, MAX_PARTY_MEMBERS } from "@/lib/party";
-import { PlanningLink } from "@/components/planning/PlanningLink";
+import { PartyPlanningActions } from "@/components/planning/PartyPlanningActions";
+import { usePartyWorkflow, workflowReadiness } from "@/components/planning/usePartyWorkflow";
+import { supabase } from "@/integrations/supabase/client";
 import { PartyInviteQR } from "@/components/PartyInviteQR";
-import { planningDaysReadiness, planningDaysQuery } from "@/lib/planning-days";
 import { hasPendingGroupInvite, sendPendingGroupInvite } from "@/lib/pending-group-invite";
 
 export const Route = createFileRoute("/party/$code")({
-  head: ({ params }) => ({
+  head: () => ({
     meta: [
-      { title: `Party ${params.code} — Baggle` },
+      { title: `Party — Baggle` },
       {
         name: "description",
         content: "Your Baggle party: share your code and get your friends together.",
       },
-      { property: "og:title", content: `Join party ${params.code} on Baggle` },
+      { property: "og:title", content: "Join your party on Baggle" },
       { property: "og:description", content: "Join your friends and make a plan." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -50,25 +51,35 @@ function Party() {
   const party = query.isError ? undefined : query.data;
   const error = query.error instanceof Error ? query.error.message : "";
   const joinable = error.includes("Join this party");
-  const days = useQuery({ ...planningDaysQuery(code), enabled: hydrated && !!party });
-  const readiness = planningDaysReadiness(days.data, days.error);
-  // Legacy invites remain usable only when the optional function is explicitly missing.
-  const hostReady = readiness === "ready" || readiness === "unavailable";
+  const workflow = usePartyWorkflow(code, hydrated && !!party);
+  const readiness = party && workflowReadiness(party, workflow);
+  const hostReady = readiness?.hostReady === true;
+  const canOpenMap = hostReady || readiness?.legacyReady === true || party?.started === true;
+  const setupPending = !workflow.state.data || (
+    workflow.state.data.status === "collecting" &&
+    (workflow.days.data?.hostReady === false || (party?.isHost && !readiness?.selfReady))
+  );
+  const [signedIn, setSignedIn] = useState<boolean>();
+  useEffect(() => {
+    void supabase.auth.getSession().then(({ data }) => setSignedIn(!!data.session));
+  }, []);
   const invitingGroup = useRef(false);
   useEffect(() => {
     if (!party?.isHost || !hostReady || invitingGroup.current || !hasPendingGroupInvite(code))
       return;
     invitingGroup.current = true;
-    void sendPendingGroupInvite(code).then((sent) => {
-      invitingGroup.current = false;
-      if (sent) toast.success("Your group has been invited.");
-      else toast.error("Couldn't invite your group yet. Share the party code instead.");
-    });
+    void sendPendingGroupInvite(code)
+      .catch(() => false)
+      .then((sent) => {
+        invitingGroup.current = false;
+        if (sent) toast.success("Your group has been invited.");
+        else toast.error("Couldn't invite your group yet. Share the party code instead.");
+      });
   }, [party?.isHost, hostReady, code]);
   useEffect(() => {
-    if (party?.started && party.view === "map")
+    if (canOpenMap && party?.started && party.view === "map")
       void navigate({ to: "/party/$code/map", params: { code }, replace: true });
-  }, [party?.started, party?.view, navigate, code]);
+  }, [canOpenMap, party?.started, party?.view, navigate, code]);
 
   const copy = async (kind: "code" | "link") => {
     try {
@@ -82,9 +93,34 @@ function Party() {
     }
   };
 
+  const mapControl = party && canOpenMap && (party.started || party.isHost) ? (
+      <PopButton
+        tone="sage"
+        className="mt-6 flex items-center justify-center gap-3 !bg-offwhite !shadow-none"
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          try {
+            await queryClient.cancelQueries({ queryKey });
+            queryClient.setQueryData(
+              queryKey,
+              await accessParty(party.started ? "map" : "start", code),
+            );
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Could not open journey.");
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        {party.started ? "Return to map" : "Open shared map"}
+        <ArrowRight className="h-5 w-5" />
+      </PopButton>
+  ) : null;
+
   return (
     <div className="paper-sheet min-h-screen bg-offwhite">
-      <PartyHeader code={code} party={party} />
+      <PartyHeader code={code} party={party} showCode={hostReady} />
       <main className="mx-auto max-w-5xl px-5 py-10 sm:px-10 sm:py-14">
         <div className="mb-10 flex items-center justify-between gap-4">
           <div>
@@ -97,18 +133,9 @@ function Party() {
         </div>
         {party ? (
           <div className="grid gap-10 md:grid-cols-[1fr_1.1fr] md:gap-14">
-            {readiness === "loading" ? (
-              <p role="status">Checking the hangout…</p>
-            ) : readiness === "error" ? (
-              <section aria-label="Hangout connection">
-                <p role="alert">Couldn't check the hangout. Your party and saved answers are unchanged.</p>
-                <PopButton tone="sage" disabled={days.isFetching} className="mt-4" onClick={() => void days.refetch()}>
-                  {days.isFetching ? "Checking…" : "Check again"}
-                </PopButton>
-              </section>
-            ) : !hostReady ? (
+            {!hostReady ? (
               <section aria-label="Set up the hangout">
-                <div className="paper rounded-3xl border-2 border-crust bg-apricot px-5 py-8 text-center shadow-pop-lg">
+                {setupPending && <div className="paper rounded-3xl border-2 border-crust bg-apricot px-5 py-8 text-center shadow-pop-lg">
                   <p className="text-xs font-bold uppercase">First things first</p>
                   <p className="mt-3 font-display text-2xl font-black">
                     {party.isHost ? "Set up the hangout" : "The host is setting up"}
@@ -118,18 +145,9 @@ function Party() {
                       ? "Pick the day (today or a few days) and answer your questions. Then you can invite the crew."
                       : "You can answer once the host has finished setting up."}
                   </p>
-                </div>
-                {party.isHost && (
-                  <Link
-                    to="/party/$code/plan"
-                    params={{ code }}
-                    search={{ step: "day" }}
-                    className="paper mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-lg border-2 border-crust bg-tangerine font-display font-extrabold text-crust shadow-pop pop-press"
-                  >
-                    Set up the hangout
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                )}
+                </div>}
+                <PartyPlanningActions party={party} workflow={workflow} />
+                {mapControl}
               </section>
             ) : (
               <section aria-label="Party code">
@@ -163,32 +181,10 @@ function Party() {
                     : "Send your code to friends and bring the crew together."}
                 </p>
                 <section aria-label="Event" className="mt-6">
-                  <PlanningLink code={code}>Make a plan</PlanningLink>
+                  <PartyPlanningActions party={party} workflow={workflow} busy={busy} />
                 </section>
                 <PartyInviteQR code={code} />
-                {party.started || party.isHost ? (
-                  <PopButton
-                    tone="sage"
-                    className="mt-6 flex items-center justify-center gap-3 !bg-offwhite !shadow-none"
-                    disabled={busy}
-                    onClick={async () => {
-                      setBusy(true);
-                      try {
-                        queryClient.setQueryData(
-                          queryKey,
-                          await accessParty(party.started ? "map" : "start", code),
-                        );
-                      } catch (err) {
-                        toast.error(err instanceof Error ? err.message : "Could not open journey.");
-                      } finally {
-                        setBusy(false);
-                      }
-                    }}
-                  >
-                    {party.started ? "Return to map" : "Open shared map"}
-                    <ArrowRight className="h-5 w-5" />
-                  </PopButton>
-                ) : null}
+                {mapControl}
               </section>
             )}
             <section aria-label="Party members">
@@ -243,7 +239,17 @@ function Party() {
             <h2 className="text-xl font-extrabold">
               {joinable ? `Join party ${code}` : "Can't open this party"}
             </h2>
-            {joinable ? (
+            {joinable && signedIn ? (
+              <Link
+                to="/journey/join/$code"
+                params={{ code }}
+                className="mt-6 inline-block font-bold underline underline-offset-4"
+              >
+                Join with your account
+              </Link>
+            ) : joinable && signedIn === undefined ? (
+              <p role="status">Checking your session?</p>
+            ) : joinable ? (
               <form
                 className="mt-6 space-y-4"
                 onSubmit={async (e) => {

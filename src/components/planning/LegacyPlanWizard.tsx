@@ -37,6 +37,7 @@ import {
   TRAVEL_MIN,
   TRAVEL_STEP,
   eventDayWindow,
+  vibeCategory,
   vibeOptions,
   type DayTime,
   type PlanDay,
@@ -83,6 +84,7 @@ const storedDraftSchema = z.object({
 
 function initialDraft(
   code: string,
+  memberId: string,
   state: PlanningState,
   isHost: boolean,
   today: string,
@@ -91,7 +93,7 @@ function initialDraft(
   const vibe = isVibe(storedVibe) ? storedVibe : null;
   let raw: unknown = null;
   try {
-    raw = JSON.parse(readStored("session", draftStorageKey(code)) ?? "null");
+    raw = JSON.parse(readStored("session", draftStorageKey(code, memberId)) ?? "null");
   } catch {
     raw = null;
   }
@@ -127,10 +129,11 @@ type Props = {
 };
 
 export function LegacyPlanWizard({ code, party, state, step, goToStep, exit, finish }: Props) {
+  const memberId = party.selfId;
   const [today] = useState(montrealToday);
   const [nowMin] = useState(montrealNowMinutes);
   const [draft, setDraft] = useState<PlanDraft>(() =>
-    initialDraft(code, state, party.isHost, today),
+    initialDraft(code, memberId, state, party.isHost, today),
   );
   const [isSaving, setIsSaving] = useState(false);
   const steps = planStepsFor(party.isHost);
@@ -149,8 +152,8 @@ export function LegacyPlanWizard({ code, party, state, step, goToStep, exit, fin
     else if (first && steps.indexOf(first) < index) goToStep(first, true);
   }, [draft, index, step, steps, goToStep]);
   useEffect(() => {
-    writeStored("session", draftStorageKey(code), JSON.stringify(draft));
-  }, [code, draft]);
+    writeStored("session", draftStorageKey(code, memberId), JSON.stringify(draft));
+  }, [code, memberId, draft]);
 
   const savedFrom =
     draft.freeFrom === null ? null : hhmmToTimeIndex(slot.baseMin, draft.freeFrom, slot.steps);
@@ -210,10 +213,13 @@ export function LegacyPlanWizard({ code, party, state, step, goToStep, exit, fin
     setIsSaving(true);
     try {
       const date = planDayToDate(final.day ?? "today", today);
-      if (party.isHost && date !== state.config.date)
-        await runPlanning(code, { action: "configure", config: { ...state.config, date } });
+      if (party.isHost) {
+        const category = final.vibe ? vibeCategory(final.vibe) : state.config.category;
+        if (date !== state.config.date || category !== state.config.category)
+          await runPlanning(code, { action: "configure", config: { ...state.config, date, category } });
+      }
       await runPlanning(code, { action: "save", preferences: draftToPreferences(final, origin) });
-      writeStored("session", draftStorageKey(code), null);
+      writeStored("session", draftStorageKey(code, memberId), null);
       toast.success("You're ready! Your answers are saved privately.");
       finish();
     } catch (error) {
@@ -278,7 +284,7 @@ export function LegacyPlanWizard({ code, party, state, step, goToStep, exit, fin
       isLast={index === steps.length - 1}
       canNext={isPlanStepComplete(step, committed)}
       isBusy={isSaving}
-      backLabel={index === 0 ? "Back to map" : "Back"}
+      backLabel={index === 0 ? "Back to party" : "Back"}
       onBack={back}
       onNext={next}
     >

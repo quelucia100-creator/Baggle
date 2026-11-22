@@ -14,7 +14,7 @@ vi.mock("@tanstack/react-router", () => ({
   useNavigate: vi.fn(),
   Link: vi.fn(),
 }));
-import { planningRequest } from "@/routes/party.$code_.plan";
+import { planningRequest } from "../usePartyWorkflow";
 import { parsePlanningRequest, preparePlanningCommand } from "@/lib/planning-v3/request";
 import { hostPayload, emptyHostDraft } from "./host-model";
 import { memberPayload, emptyMemberDraft } from "./member-model";

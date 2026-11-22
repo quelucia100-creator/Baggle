@@ -2,12 +2,12 @@ import { preferencesSchema, type DayWindows, type PlanningConfig } from "./types
 
 // Pure helpers for the one-question-per-screen hangout wizard at /party/$code/plan?step=.
 // The host picks the day first so the time step can show those days.
-export const planSteps = ["day", "budget", "time", "radius", "vibe"] as const;
+export const planSteps = ["day", "time", "budget", "radius", "vibe"] as const;
 export type PlanStep = (typeof planSteps)[number];
 
 /** Only the host chooses the day; guests answer for whatever day the host set. */
 export function planStepsFor(isHost: boolean): readonly PlanStep[] {
-  return isHost ? planSteps : planSteps.filter((step) => step !== "day");
+  return isHost ? planSteps : ["budget", "time", "radius", "vibe"];
 }
 
 /* ---------- Budget: a dollar slider stored as the backend's 0-4 price level ---------- */

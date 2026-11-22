@@ -61,7 +61,7 @@ function Notifications() {
                 {n.kind === "friend_request" && <Link to="/friends" className="text-sm font-bold underline">Respond on your friends page</Link>}
                 {n.kind === "group_invite" && <Link to="/groups" className="text-sm font-bold underline">Respond on your groups page</Link>}
                 {n.kind === "group_poke" && <Link to="/groups" onClick={() => !n.read && markOne.mutate(n.id)} className="text-sm font-bold underline">See shared openings</Link>}
-                {n.kind === "journey_invite" && n.detail && <Link to="/journey/join/$code" params={{ code: n.detail }} onClick={() => !n.read && markOne.mutate(n.id)} className="text-sm font-bold underline">Join journey</Link>}
+                {n.kind === "journey_invite" && n.detail && <Link to="/journey/join/$code" params={{ code: n.detail }} search={n.read ? {} : { notification: n.id }} className="text-sm font-bold underline">Join journey</Link>}
               </div>
               <div className="flex flex-col items-end gap-1 text-xs font-bold">
                 {!n.read && <button className="underline" onClick={() => markOne.mutate(n.id)}>Mark read</button>}
