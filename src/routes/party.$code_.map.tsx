@@ -1,7 +1,7 @@
 import { createFileRoute, useHydrated, useNavigate, ClientOnly } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { MapPin, LocateFixed, RefreshCw, CloudSun, Navigation, X, Vote, Shuffle } from "lucide-react";
 import { toast } from "sonner";
 import { PartyHeader } from "@/components/PartyHeader";
@@ -34,9 +34,9 @@ function MapPage() {
   const [choosing, setChoosing] = useState(false);
   const [picked, setPicked] = useState<{ lat: number; lng: number } | null>(null);
   const [hangoutName, setHangoutName] = useState("");
-  const [weatherRequested, setWeatherRequested] = useState(false);
   const weatherFn = useServerFn(getPartyWeather);
-  const weather = useQuery({ queryKey: ["party-weather", code], queryFn: () => weatherFn({ data: { code, token: membershipToken() } }), enabled: false, retry: false, staleTime: 600000 });
+  const hasLocation = !!(party?.hangout || party?.members.some((member) => member.location));
+  const weather = useQuery({ queryKey: ["party-weather", code], queryFn: () => weatherFn({ data: { code, token: membershipToken() } }), enabled: hydrated && hasLocation, retry: false, staleTime: 600000 });
   useEffect(() => {
     if (party && (!party.started || party.view === "team")) void navigate({ to: "/party/$code", params: { code }, replace: true });
   }, [party?.started, party?.view, navigate, code]);
@@ -61,7 +61,13 @@ function MapPage() {
     }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
   };
   const self = party?.members.find((member) => member.id === party.selfId);
-  const hasLocation = party?.hangout || party?.members.some((member) => member.location);
+  const autoLocated = useRef(false);
+  useEffect(() => {
+    if (!party || autoLocated.current) return;
+    autoLocated.current = true;
+    if (!self?.location) refreshLocation();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [party]);
 
   return <div className="paper-sheet min-h-screen bg-offwhite">
     <PartyHeader code={code} map busy={busy} onTeam={() => void mutate("team")} />
@@ -73,7 +79,7 @@ function MapPage() {
           {party.isHost && <section aria-label="Event choices" className="border-b-2 border-crust/15 pb-6"><h2 className="text-lg font-extrabold">Event</h2><div className="mt-4 grid grid-cols-2 gap-3"><PopButton tone="sage" disabled title="Event choices pending" className="flex items-center justify-center gap-2 text-sm"><Vote className="h-4 w-4" />Prompt vote</PopButton><PopButton tone="apricot" disabled title="Event choices pending" className="flex items-center justify-center gap-2 text-sm"><Shuffle className="h-4 w-4" />Reroll</PopButton></div></section>}
           <section className="border-b-2 border-crust/15 pb-6"><h2 className="flex items-center gap-2 text-lg font-extrabold"><LocateFixed className="h-5 w-5" />Your location</h2><p className="mt-2 text-sm text-muted-foreground">Shared only with this party, for 30 minutes after each refresh.</p><PopButton tone="sage" disabled={busy} onClick={refreshLocation} className="mt-4 flex items-center justify-center gap-2 text-sm"><RefreshCw className="h-4 w-4" />{busy ? "One sec…" : self?.location ? "Refresh my location" : "Share my location"}</PopButton>{self?.location && <PopButton tone="apricot" disabled={busy} onClick={() => void mutate("clear_location")} className="mt-3 text-sm">Stop sharing</PopButton>}{locationError && <p role="alert" className="mt-3 text-sm">{locationError}</p>}</section>
           <section className="border-b-2 border-crust/15 py-6"><h2 className="flex items-center gap-2 text-lg font-extrabold"><MapPin className="h-5 w-5" />The hangout</h2><p className="mt-2 break-words font-bold">{party.hangout?.name ?? "Not decided yet"}</p>{party.isHost && <><PopButton tone="chartreuse" className="mt-4 text-sm" onClick={() => { setChoosing(true); setPicked(null); }}>{party.hangout ? "Change hangout" : "Choose hangout"}</PopButton>{party.hangout && <PopButton tone="apricot" disabled={busy} className="mt-3 text-sm" onClick={() => void mutate("clear_hangout")}>Clear hangout</PopButton>}</>}{picked && party.isHost && <form className="mt-4 space-y-3" onSubmit={async (event) => { event.preventDefault(); if (await mutate("hangout", hangoutName, picked)) { setPicked(null); setHangoutName(""); } }}><Field label="Hangout name" value={hangoutName} maxLength={80} required onChange={(event) => setHangoutName(event.target.value)} /><PopButton disabled={busy || !hangoutName.trim()} className="text-sm">Confirm hangout</PopButton></form>}</section>
-          <section className="border-b-2 border-crust/15 py-6"><h2 className="flex items-center gap-2 text-lg font-extrabold"><CloudSun className="h-5 w-5" />Weather</h2>{weather.data ? <div className="mt-3"><p className="text-3xl font-extrabold">{Math.round(weather.data.temperature)}°C</p><p>{weather.data.description}</p>{weather.data.rain !== null && <p className="mt-1 text-sm">{weather.data.rain}% chance of rain</p>}<p className="mt-2 text-xs text-muted-foreground">Google Maps · {party.hangout ? "At the hangout" : "Near the crew"}</p></div> : <p className="mt-2 text-sm text-muted-foreground">{hasLocation ? "Current conditions near your party." : "Weather is available once a location is shared."}</p>}<PopButton tone="apricot" disabled={!hasLocation || weather.isFetching} className="mt-4 flex items-center justify-center gap-2 text-sm" onClick={() => { setWeatherRequested(true); void weather.refetch(); }}><RefreshCw className="h-4 w-4" />{weather.isFetching ? "Checking…" : weatherRequested ? "Refresh weather" : "Show weather"}</PopButton>{weather.error instanceof Error && <p role="alert" className="mt-3 break-words text-sm">{weather.error.message}</p>}</section>
+          <section className="border-b-2 border-crust/15 py-6"><h2 className="flex items-center gap-2 text-lg font-extrabold"><CloudSun className="h-5 w-5" />Weather</h2>{weather.data ? <div className="mt-3"><p className="text-3xl font-extrabold">{Math.round(weather.data.temperature)}°C</p><p>{weather.data.description}</p>{weather.data.rain !== null && <p className="mt-1 text-sm">{weather.data.rain}% chance of rain</p>}<p className="mt-2 text-xs text-muted-foreground">Google Maps · {party.hangout ? "At the hangout" : "Near the crew"}</p></div> : <p className="mt-2 text-sm text-muted-foreground">{hasLocation ? "Current conditions near your party." : "Weather is available once a location is shared."}</p>}<PopButton tone="apricot" disabled={!hasLocation || weather.isFetching} className="mt-4 flex items-center justify-center gap-2 text-sm" onClick={() => void weather.refetch()}><RefreshCw className="h-4 w-4" />{weather.isFetching ? "Checking…" : "Refresh weather"}</PopButton>{weather.error instanceof Error && <p role="alert" className="mt-3 break-words text-sm">{weather.error.message}</p>}</section>
           <section className="pt-6"><h2 className="text-lg font-extrabold">The crew</h2><ul className="mt-3 space-y-4">{party.members.map((member) => <li key={member.id} className="flex items-center gap-3"><PaperIcon tone={member.host ? "chartreuse" : "sage"} className="h-9 w-9"><span className="font-extrabold">{member.name.slice(0, 1).toUpperCase()}</span></PaperIcon><div className="min-w-0"><p className="break-words text-sm font-bold">{member.name}{member.id === party.selfId ? " (you)" : ""}</p><p className="text-xs text-muted-foreground">{member.location ? "Exact location shared" : "Location not shared"}</p></div></li>)}</ul></section>
         </aside>
       </main>
