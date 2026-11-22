@@ -1,10 +1,11 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import logo from "@/assets/baggle-logo.png.asset.json";
+import bagelPlain from "@/assets/bagel-single.png.asset.json";
+import bagelCream from "@/assets/bagel-cream.png.asset.json";
 import { AuthShell } from "@/components/BagelScene";
 import { Field, PopButton } from "@/components/Field";
 import { PaperIcon } from "@/components/PaperIcon";
-import { BagelIcon, TicketIcon } from "@/components/icons";
 import { normalizePartyCode } from "@/lib/password";
 import { accessParty } from "@/lib/party";
 import { toast } from "sonner";
@@ -50,14 +51,14 @@ function Welcome() {
       {!guest ? (
         <div className="mt-8 space-y-4">
           <Link to="/" search={{ guest: true }} className="paper flex w-full items-center gap-4 rounded-3xl border-2 border-crust bg-sage p-5 text-left shadow-pop pop-press">
-            <PaperIcon tone="apricot" back="chartreuse" className="h-14 w-14"><TicketIcon className="h-7 w-7" /></PaperIcon>
+            <PaperIcon tone="apricot" back="chartreuse" className="h-14 w-14"><img src={bagelPlain.url} alt="" className="h-12 w-12 object-contain drop-shadow-[2px_3px_2px_rgba(60,30,0,0.35)]" /></PaperIcon>
             <span>
               <span className="block font-display text-xl font-extrabold">Jump in as a guest</span>
               <span className="mt-1 block text-sm">Enter a party code or start a group. No account needed.</span>
             </span>
           </Link>
           <Link to="/auth" className="paper flex w-full items-center gap-4 rounded-3xl border-2 border-crust bg-vista p-5 text-left shadow-pop pop-press">
-            <PaperIcon tone="chartreuse" back="apricot" rotate={5} className="h-14 w-14"><BagelIcon className="h-7 w-7" /></PaperIcon>
+            <PaperIcon tone="chartreuse" back="apricot" rotate={5} className="h-14 w-14"><img src={bagelCream.url} alt="" className="h-12 w-12 object-contain drop-shadow-[2px_3px_2px_rgba(60,30,0,0.35)]" /></PaperIcon>
             <span>
               <span className="block font-display text-xl font-extrabold">Log in or sign up</span>
               <span className="mt-1 block text-sm">Save your crew, interests and availability.</span>
