@@ -1,9 +1,11 @@
 import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PopButton } from "@/components/Field";
 import { PaperIcon, type PaperTone } from "@/components/PaperIcon";
 import { BagelIcon, ClockIcon, TicketIcon, UsersIcon } from "@/components/icons";
+import { Bell } from "lucide-react";
+import { notificationsQuery } from "@/lib/notifications";
 import { FriendsCard } from "@/components/FriendsCard";
 import { accountPreferencesQuery, firstMissingStep } from "@/lib/account-preferences";
 
@@ -93,6 +95,8 @@ function Home() {
   const name = data.preferences?.username;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const notes = useQuery(notificationsQuery());
+  const unread = notes.data?.filter((n) => !n.read).length ?? 0;
   return (
     <main className="paper min-h-dvh bg-offwhite px-5 py-8 text-crust sm:px-8">
       <div className="mx-auto w-full max-w-3xl">
@@ -104,6 +108,10 @@ function Home() {
             <h1 className="text-3xl font-extrabold">Hey {name || "there"}</h1>
             <p className="text-sm text-muted-foreground">Your Baggle dashboard</p>
           </div>
+          <Link to="/notifications" aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"} className="relative ml-auto">
+            <PaperIcon tone="tangerine" back="cream" rotate={-5} className="h-12 w-12"><Bell className="h-6 w-6" /></PaperIcon>
+            {unread > 0 && <span className="absolute -right-1 -top-1 rounded-full border-2 border-crust bg-chartreuse px-1.5 text-xs font-extrabold">{unread}</span>}
+          </Link>
         </div>
 
         <div className="mt-8 grid gap-5 sm:grid-cols-2">

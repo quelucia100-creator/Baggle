@@ -100,6 +100,41 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          actor_username: string | null
+          created_at: string
+          id: string
+          kind: string
+          read: boolean
+          user_id: string
+        }
+        Insert: {
+          actor_username?: string | null
+          created_at?: string
+          id?: string
+          kind: string
+          read?: boolean
+          user_id: string
+        }
+        Update: {
+          actor_username?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          read?: boolean
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       parties: {
         Row: {
           code: string
