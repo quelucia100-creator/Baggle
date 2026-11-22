@@ -12,7 +12,9 @@ export function haversineKm(a: Point, b: Point) {
     Math.cos(radians(a.lat)) * Math.cos(radians(b.lat)) * Math.sin(dlng / 2) ** 2;
   return 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(Math.max(0, 1 - h)));
 }
-function memberWindow(member: SolverMember, date: string) {
+type Window = Pick<SolverMember, "freeFrom" | "freeTo">;
+type SnapshotMember = Snapshot["members"][number];
+function memberWindow(member: Window, date: string) {
   try {
     return {
       start: wallTime(date, member.freeFrom),
@@ -78,6 +80,63 @@ export function weatherForSlot(venue: Venue, start: number, end: number, forecas
   };
 }
 
+/** The host's candidate days, or the single event day. */
+function candidateDates(config: Snapshot["config"]): string[] {
+  return config.dates?.length ? [...new Set(config.dates)].sort() : [config.date];
+}
+type Interval = { start: number; end: number };
+/**
+ * A member's free stretches on one candidate day. Per-day answers win; a member without
+ * them (single-day answer) is only available on the event day.
+ */
+function memberWindowsOn(member: SnapshotMember, date: string, eventDate: string): Interval[] {
+  const windows = member.dayWindows
+    ? (member.dayWindows[date] ?? [])
+    : date === eventDate
+      ? [member]
+      : [];
+  return windows.flatMap((window) => memberWindow(window, date) ?? []);
+}
+/** Merges overlapping or touching stretches so a slot can span them. */
+function normalize(intervals: Interval[]): Interval[] {
+  const sorted = [...intervals].sort((a, b) => a.start - b.start);
+  return sorted.reduce<Interval[]>((merged, next) => {
+    const last = merged.at(-1);
+    if (last && next.start <= last.end)
+      return [...merged.slice(0, -1), { start: last.start, end: Math.max(last.end, next.end) }];
+    return [...merged, next];
+  }, []);
+}
+function intersect(a: Interval[], b: Interval[]): Interval[] {
+  return a.flatMap((x) =>
+    b.flatMap((y) => {
+      const start = Math.max(x.start, y.start);
+      const end = Math.min(x.end, y.end);
+      return end > start ? [{ start, end }] : [];
+    }),
+  );
+}
+/** The stretches on one day when everyone is free (empty when someone can't make it). */
+function sharedWindows(members: SnapshotMember[], date: string, eventDate: string): Interval[] {
+  return (
+    members.reduce<Interval[] | null>((shared, member) => {
+      const own = normalize(memberWindowsOn(member, date, eventDate));
+      return shared === null ? own : intersect(shared, own);
+    }, null) ?? []
+  );
+}
+const SLOT_MS = 30 * MINUTE_MS;
+function slotStarts(window: { start: number; end: number }, duration: number): number[] {
+  const starts: number[] = [];
+  for (
+    let start = Math.ceil(window.start / SLOT_MS) * SLOT_MS;
+    start + duration <= window.end;
+    start += SLOT_MS
+  )
+    starts.push(start);
+  return starts;
+}
+
 export function solvePlans(
   snapshot: Snapshot,
   venues: Venue[],
@@ -86,15 +145,10 @@ export function solvePlans(
   const { config, members } = snapshot;
   const duration = config.durationMin * MINUTE_MS;
   if (members.length < 2) return { options: [] };
-  let sharedStart = -Infinity;
-  let sharedEnd = Infinity;
-  for (const member of members) {
-    const window = memberWindow(member, config.date);
-    if (!window) return { options: [] };
-    sharedStart = Math.max(sharedStart, window.start);
-    sharedEnd = Math.min(sharedEnd, window.end);
-  }
-  if (sharedEnd - sharedStart < duration) return { options: [] };
+  const windows = candidateDates(config)
+    .flatMap((date) => sharedWindows(members, date, config.date))
+    .filter((window) => window.end - window.start >= duration);
+  if (!windows.length) return { options: [] };
 
   const cheapestLimit = Math.min(...members.map((member) => member.budget));
   const feasibleVenues = venues.filter((venue) => {
@@ -113,11 +167,7 @@ export function solvePlans(
     );
   });
   const ranked: Ranked[] = [];
-  for (
-    let start = Math.ceil(sharedStart / (30 * MINUTE_MS)) * 30 * MINUTE_MS;
-    start + duration <= sharedEnd;
-    start += 30 * MINUTE_MS
-  ) {
+  for (const start of windows.flatMap((window) => slotStarts(window, duration))) {
     const end = start + duration;
     const month = localDay(start).month;
     for (const venue of feasibleVenues) {

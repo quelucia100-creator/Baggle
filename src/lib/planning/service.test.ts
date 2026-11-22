@@ -147,6 +147,26 @@ describe("Planning venue selection", () => {
     expectPublicOptions();
   });
 
+  it("honours the host's candidate days and each member's per-day windows", async () => {
+    fetchMock.mockResolvedValue(Response.json({ places: [place] }));
+    const [first, second] = members as [(typeof members)[number], (typeof members)[number]];
+    adminRpc
+      .mockReset()
+      .mockResolvedValueOnce({
+        data: {
+          config: { ...config, dates: ["2026-11-21", "2026-11-22"] },
+          members: [
+            { ...first, dayWindows: { "2026-11-21": [{ freeFrom: "18:00", freeTo: "20:00" }] } },
+            { ...second, dayWindows: { "2026-11-22": [{ freeFrom: "18:00", freeTo: "20:00" }] } },
+          ],
+        },
+      })
+      .mockResolvedValueOnce({ data: true });
+    await executePlanning(command);
+    // Same window, but never on the same day: nothing works for both.
+    expect(storedOptions()).toEqual([]);
+  });
+
   it("skips the providers when another request already holds the lease", async () => {
     partyRpc.mockReset().mockResolvedValue({ data: { ...state, acquired: false, lease: null } });
     const result = await executePlanning(command);

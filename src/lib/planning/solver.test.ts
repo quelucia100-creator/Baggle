@@ -57,9 +57,11 @@ describe("Planning feasibility and ranking", () => {
     expect(solvePlans(paid, [{ ...venue, priceTier: 2 }]).options[0]?.venue.priceTier).toBe(2);
   });
   it("enforces every travel limit using the configured area when no origin is shared", () => {
+    const [firstMember, secondMember] = snapshot.members;
+    if (!firstMember || !secondMember) throw new Error("Two fixture members required");
     const short = {
       ...snapshot,
-      members: [snapshot.members[0]!, { ...snapshot.members[1]!, maxTravelMin: 5 }],
+      members: [firstMember, { ...secondMember, maxTravelMin: 5 }],
     };
     const farther = { ...venue, placeId: "farther", location: { ...area, lat: area.lat + 0.01 } };
     expect(solvePlans(short, [farther]).options).toEqual([]);
@@ -197,5 +199,151 @@ describe("Planning feasibility and ranking", () => {
       })),
     };
     expect(solvePlans(DST, [venue]).options).toEqual([]);
+  });
+});
+
+describe("Planning across several host-picked days", () => {
+  const [first, second] = snapshot.members as [
+    Snapshot["members"][number],
+    Snapshot["members"][number],
+  ];
+  const multi = (members: Snapshot["members"]): Snapshot => ({
+    config: { ...snapshot.config, dates: ["2026-11-22", "2026-11-23"] },
+    members,
+  });
+  const openAllWeek: Venue = {
+    ...venue,
+    hours: Object.fromEntries(
+      [0, 1, 2, 3, 4, 5, 6].map((day) => [String(day), [{ open: "00:00", close: "24:00" }]]),
+    ),
+  };
+  const dayOf = (iso: string) => localDay(Date.parse(iso)).date;
+
+  it("plans on the only day that works for everyone", () => {
+    const options = solvePlans(
+      multi([
+        {
+          ...first,
+          dayWindows: {
+            "2026-11-22": [{ freeFrom: "18:00", freeTo: "22:00" }],
+            "2026-11-23": [{ freeFrom: "12:00", freeTo: "16:00" }],
+          },
+        },
+        { ...second, dayWindows: { "2026-11-23": [{ freeFrom: "12:00", freeTo: "16:00" }] } },
+      ]),
+      [openAllWeek],
+    ).options;
+    expect(options.length).toBeGreaterThan(0);
+    expect(new Set(options.map((option) => dayOf(option.startAt)))).toEqual(
+      new Set(["2026-11-23"]),
+    );
+  });
+
+  it("offers every day that works, earliest first", () => {
+    const both = {
+      "2026-11-22": [{ freeFrom: "18:00", freeTo: "22:00" }],
+      "2026-11-23": [{ freeFrom: "18:00", freeTo: "22:00" }],
+    };
+    const options = solvePlans(
+      multi([
+        { ...first, dayWindows: both },
+        { ...second, dayWindows: both },
+      ]),
+      [openAllWeek],
+    ).options;
+    expect(new Set(options.map((option) => dayOf(option.startAt)))).toEqual(
+      new Set(["2026-11-22", "2026-11-23"]),
+    );
+    expect(dayOf(options[0]?.startAt ?? "")).toBe("2026-11-22");
+  });
+
+  it("plans only inside the free stretches each member painted around a busy midday", () => {
+    const options = solvePlans(
+      multi([
+        {
+          ...first,
+          dayWindows: {
+            "2026-11-22": [
+              { freeFrom: "09:00", freeTo: "11:00" },
+              { freeFrom: "15:00", freeTo: "20:00" },
+            ],
+          },
+        },
+        { ...second, dayWindows: { "2026-11-22": [{ freeFrom: "08:00", freeTo: "22:00" }] } },
+      ]),
+      [openAllWeek],
+    ).options;
+    expect(options.length).toBeGreaterThan(0);
+    const clock = (iso: string) => {
+      const at = new Date(Date.parse(iso));
+      const parts = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/Montreal",
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23",
+      }).format(at);
+      return parts;
+    };
+    for (const option of options) {
+      const start = clock(option.startAt);
+      const end = clock(option.endAt);
+      const morning = start >= "09:00" && end <= "11:00";
+      const evening = start >= "15:00" && end <= "20:00";
+      expect(morning || evening).toBe(true);
+    }
+    expect(options.some((option) => clock(option.startAt) === "09:00")).toBe(true);
+    expect(options.some((option) => clock(option.startAt) === "15:00")).toBe(true);
+  });
+
+  it("joins touching free stretches into one", () => {
+    const options = solvePlans(
+      multi([
+        {
+          ...first,
+          dayWindows: {
+            "2026-11-22": [
+              { freeFrom: "18:00", freeTo: "18:30" },
+              { freeFrom: "18:30", freeTo: "20:00" },
+            ],
+          },
+        },
+        { ...second, dayWindows: { "2026-11-22": [{ freeFrom: "18:00", freeTo: "20:00" }] } },
+      ]),
+      [openAllWeek],
+    ).options;
+    expect(options.length).toBeGreaterThan(0);
+  });
+
+  it("returns nothing when no picked day overlaps for everyone", () => {
+    expect(
+      solvePlans(
+        multi([
+          { ...first, dayWindows: { "2026-11-22": [{ freeFrom: "18:00", freeTo: "22:00" }] } },
+          { ...second, dayWindows: { "2026-11-23": [{ freeFrom: "18:00", freeTo: "22:00" }] } },
+        ]),
+        [openAllWeek],
+      ).options,
+    ).toEqual([]);
+  });
+
+  it("uses a member's single window on the event day when they have no per-day answers", () => {
+    const options = solvePlans(
+      multi([
+        first,
+        { ...second, dayWindows: { "2026-11-23": [{ freeFrom: "18:00", freeTo: "22:00" }] } },
+      ]),
+      [openAllWeek],
+    ).options;
+    expect(options).toEqual([]);
+    const sameDay = solvePlans(
+      multi([
+        first,
+        { ...second, dayWindows: { "2026-11-22": [{ freeFrom: "19:00", freeTo: "22:00" }] } },
+      ]),
+      [openAllWeek],
+    ).options;
+    expect(new Set(sameDay.map((option) => dayOf(option.startAt)))).toEqual(
+      new Set(["2026-11-22"]),
+    );
   });
 });

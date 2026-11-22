@@ -1,6 +1,6 @@
-import { createFileRoute, useNavigate, useHydrated } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useHydrated } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Copy, Link2, Trash2, Crown, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { PartyHeader } from "@/components/PartyHeader";
@@ -10,6 +10,8 @@ import { PaperIcon } from "@/components/PaperIcon";
 import { accessParty, canRemoveMember, MAX_PARTY_MEMBERS } from "@/lib/party";
 import { PlanningLink } from "@/components/planning/PlanningLink";
 import { PartyInviteQR } from "@/components/PartyInviteQR";
+import { isPlanningDaysUnavailable, planningDaysQuery } from "@/lib/planning-days";
+import { hasPendingGroupInvite, sendPendingGroupInvite } from "@/lib/pending-group-invite";
 
 export const Route = createFileRoute("/party/$code")({
   head: ({ params }) => ({
@@ -48,6 +50,24 @@ function Party() {
   const party = query.isError ? undefined : query.data;
   const error = query.error instanceof Error ? query.error.message : "";
   const joinable = error.includes("Join this party");
+  const days = useQuery({ ...planningDaysQuery(code), enabled: hydrated && !!party });
+  // Invites unlock once the host has answered everything. If readiness can't be checked,
+  // the database still refuses early joins, so the invite stays visible.
+  const hostReady = days.data?.hostReady ?? days.isError;
+  const readinessKnown = !!days.data || days.isError;
+  // Only a confirmed-ready host sends the remembered group invite; a failure can retry.
+  const confirmedReady = days.data?.hostReady === true || isPlanningDaysUnavailable(days.error);
+  const invitingGroup = useRef(false);
+  useEffect(() => {
+    if (!party?.isHost || !confirmedReady || invitingGroup.current || !hasPendingGroupInvite(code))
+      return;
+    invitingGroup.current = true;
+    void sendPendingGroupInvite(code).then((sent) => {
+      invitingGroup.current = false;
+      if (sent) toast.success("Your group has been invited.");
+      else toast.error("Couldn't invite your group yet. Share the party code instead.");
+    });
+  }, [party?.isHost, confirmedReady, code]);
   useEffect(() => {
     if (party?.started && party.view === "map")
       void navigate({ to: "/party/$code/map", params: { code }, replace: true });
@@ -80,64 +100,93 @@ function Party() {
         </div>
         {party ? (
           <div className="grid gap-10 md:grid-cols-[1fr_1.1fr] md:gap-14">
-            <section aria-label="Party code">
-              <div className="paper rounded-3xl border-2 border-crust bg-chartreuse px-5 py-8 text-center shadow-pop-lg">
-                <p className="text-xs font-bold uppercase">Party code</p>
-                <p className="mt-3 break-all font-display text-4xl font-black sm:text-5xl">
-                  {party.code}
-                </p>
-              </div>
-              <div className="mt-6 grid grid-cols-2 gap-3">
-                <PopButton
-                  tone="sage"
-                  onClick={() => void copy("code")}
-                  className="flex items-center justify-center gap-2 text-sm"
-                >
-                  <Copy className="h-4 w-4 shrink-0" />
-                  {copied === "code" ? "Copied!" : "Copy code"}
-                </PopButton>
-                <PopButton
-                  tone="apricot"
-                  onClick={() => void copy("link")}
-                  className="flex items-center justify-center gap-2 text-sm"
-                >
-                  <Link2 className="h-4 w-4 shrink-0" />
-                  {copied === "link" ? "Copied!" : "Copy link"}
-                </PopButton>
-              </div>
-              <p className="mt-5 text-sm text-muted-foreground">
-                {party.members.length === MAX_PARTY_MEMBERS
-                  ? "The whole crew is here — your party is full."
-                  : "Send your code to friends and bring the crew together."}
-              </p>
-              <section aria-label="Event" className="mt-6">
-                <PlanningLink code={code}>Make a plan</PlanningLink>
+            {!readinessKnown ? (
+              <p role="status">Checking the hangout…</p>
+            ) : !hostReady ? (
+              <section aria-label="Set up the hangout">
+                <div className="paper rounded-3xl border-2 border-crust bg-apricot px-5 py-8 text-center shadow-pop-lg">
+                  <p className="text-xs font-bold uppercase">First things first</p>
+                  <p className="mt-3 font-display text-2xl font-black">
+                    {party.isHost ? "Set up the hangout" : "The host is setting up"}
+                  </p>
+                  <p className="mt-3 text-sm">
+                    {party.isHost
+                      ? "Pick the day (today or a few days) and answer your questions. Then you can invite the crew."
+                      : "You can answer once the host has finished setting up."}
+                  </p>
+                </div>
+                {party.isHost && (
+                  <Link
+                    to="/party/$code/plan"
+                    params={{ code }}
+                    search={{ step: "day" }}
+                    className="paper mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-lg border-2 border-crust bg-tangerine font-display font-extrabold text-crust shadow-pop pop-press"
+                  >
+                    Set up the hangout
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                )}
               </section>
-              <PartyInviteQR code={code} />
-              {party.started || party.isHost ? (
-                <PopButton
-                  tone="sage"
-                  className="mt-6 flex items-center justify-center gap-3 !bg-offwhite !shadow-none"
-                  disabled={busy}
-                  onClick={async () => {
-                    setBusy(true);
-                    try {
-                      queryClient.setQueryData(
-                        queryKey,
-                        await accessParty(party.started ? "map" : "start", code),
-                      );
-                    } catch (err) {
-                      toast.error(err instanceof Error ? err.message : "Could not open journey.");
-                    } finally {
-                      setBusy(false);
-                    }
-                  }}
-                >
-                  {party.started ? "Return to map" : "Open shared map"}
-                  <ArrowRight className="h-5 w-5" />
-                </PopButton>
-              ) : null}
-            </section>
+            ) : (
+              <section aria-label="Party code">
+                <div className="paper rounded-3xl border-2 border-crust bg-chartreuse px-5 py-8 text-center shadow-pop-lg">
+                  <p className="text-xs font-bold uppercase">Party code</p>
+                  <p className="mt-3 break-all font-display text-4xl font-black sm:text-5xl">
+                    {party.code}
+                  </p>
+                </div>
+                <div className="mt-6 grid grid-cols-2 gap-3">
+                  <PopButton
+                    tone="sage"
+                    onClick={() => void copy("code")}
+                    className="flex items-center justify-center gap-2 text-sm"
+                  >
+                    <Copy className="h-4 w-4 shrink-0" />
+                    {copied === "code" ? "Copied!" : "Copy code"}
+                  </PopButton>
+                  <PopButton
+                    tone="apricot"
+                    onClick={() => void copy("link")}
+                    className="flex items-center justify-center gap-2 text-sm"
+                  >
+                    <Link2 className="h-4 w-4 shrink-0" />
+                    {copied === "link" ? "Copied!" : "Copy link"}
+                  </PopButton>
+                </div>
+                <p className="mt-5 text-sm text-muted-foreground">
+                  {party.members.length === MAX_PARTY_MEMBERS
+                    ? "The whole crew is here — your party is full."
+                    : "Send your code to friends and bring the crew together."}
+                </p>
+                <section aria-label="Event" className="mt-6">
+                  <PlanningLink code={code}>Make a plan</PlanningLink>
+                </section>
+                <PartyInviteQR code={code} />
+                {party.started || party.isHost ? (
+                  <PopButton
+                    tone="sage"
+                    className="mt-6 flex items-center justify-center gap-3 !bg-offwhite !shadow-none"
+                    disabled={busy}
+                    onClick={async () => {
+                      setBusy(true);
+                      try {
+                        queryClient.setQueryData(
+                          queryKey,
+                          await accessParty(party.started ? "map" : "start", code),
+                        );
+                      } catch (err) {
+                        toast.error(err instanceof Error ? err.message : "Could not open journey.");
+                      } finally {
+                        setBusy(false);
+                      }
+                    }}
+                  >
+                    {party.started ? "Return to map" : "Open shared map"}
+                    <ArrowRight className="h-5 w-5" />
+                  </PopButton>
+                ) : null}
+              </section>
+            )}
             <section aria-label="Party members">
               <div className="mb-4 flex items-center justify-between gap-4">
                 <h2 className="text-xl font-extrabold">Who's in?</h2>

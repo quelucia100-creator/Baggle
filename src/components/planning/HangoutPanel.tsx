@@ -15,6 +15,7 @@ import {
   runPlanning,
   vibeStorageKey,
 } from "@/lib/planning-client";
+import { isPlanningDaysUnavailable, planningDaysQuery } from "@/lib/planning-days";
 import { formatPlanTime, planningError, type PlanningCommand } from "./model";
 
 const MAX_HANGOUT_NAME = 80;
@@ -34,6 +35,12 @@ export function HangoutPanel({ code, party, isEnabled, isBusy, pinHangout, clear
   const planning = useQuery({ ...planningQuery(code), enabled: isEnabled });
   const [isWorking, setIsWorking] = useState(false);
   const state = planning.data;
+  const days = useQuery({
+    ...planningDaysQuery(code),
+    enabled: isEnabled && state?.status === "collecting",
+  });
+  // Until the host has finished their own answers, nobody else can join or answer.
+  const hostReady = days.data?.hostReady ?? isPlanningDaysUnavailable(days.error);
   const ready = state?.members.filter((member) => member.submitted).length ?? 0;
   const total = state?.members.length ?? party.members.length;
   const selfReady = !!state?.members.find((member) => member.id === party.selfId)?.submitted;
@@ -136,35 +143,52 @@ export function HangoutPanel({ code, party, isEnabled, isBusy, pinHangout, clear
 
       {state?.status === "collecting" && (
         <>
-          <Link
-            to="/party/$code/plan"
-            params={{ code }}
-            search={{ step: "budget" }}
-            className={`paper mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-lg border-2 border-crust font-display font-extrabold text-crust shadow-pop pop-press ${selfReady ? "bg-sage" : "bg-tangerine"} ${disabled ? "pointer-events-none opacity-50" : ""}`}
-          >
-            {selfReady ? (
-              <>
-                Edit my answers
-                <Check className="h-4 w-4" />
-              </>
-            ) : (
-              <>
-                Plan the hangout
-                <ArrowRight className="h-4 w-4" />
-              </>
-            )}
-          </Link>
+          {party.isHost || hostReady ? (
+            <Link
+              to="/party/$code/plan"
+              params={{ code }}
+              search={{ step: party.isHost ? "day" : "budget" }}
+              className={`paper mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-lg border-2 border-crust font-display font-extrabold text-crust shadow-pop pop-press ${selfReady ? "bg-sage" : "bg-tangerine"} ${disabled ? "pointer-events-none opacity-50" : ""}`}
+            >
+              {selfReady ? (
+                <>
+                  Edit my answers
+                  <Check className="h-4 w-4" />
+                </>
+              ) : (
+                <>
+                  {party.isHost ? "Set up the hangout" : "Plan the hangout"}
+                  <ArrowRight className="h-4 w-4" />
+                </>
+              )}
+            </Link>
+          ) : (
+            <p
+              role="status"
+              className="paper mt-4 rounded-lg border-2 border-dashed border-crust bg-cream p-3 text-sm font-bold"
+            >
+              Waiting for the host to set up the hangout…
+            </p>
+          )}
           <p role="status" className="mt-2 text-sm text-muted-foreground">
             {ready} of {total} {total === 1 ? "friend" : "friends"} ready
           </p>
-          <button
-            type="button"
-            onClick={() => void copyInvite()}
-            className="mt-1 inline-flex items-center gap-1 text-sm font-bold underline underline-offset-4"
-          >
-            <Link2 className="h-4 w-4" />
-            Copy invite link
-          </button>
+          {hostReady ? (
+            <button
+              type="button"
+              onClick={() => void copyInvite()}
+              className="mt-1 inline-flex items-center gap-1 text-sm font-bold underline underline-offset-4"
+            >
+              <Link2 className="h-4 w-4" />
+              Copy invite link
+            </button>
+          ) : (
+            party.isHost && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Finish setting up the hangout to invite friends.
+              </p>
+            )
+          )}
           {party.isHost && (
             <>
               <PopButton

@@ -9,10 +9,18 @@ const mocks = vi.hoisted(() => ({
   party: vi.fn(),
   navigate: vi.fn(),
   search: {} as Record<string, unknown>,
+  days: vi.fn(),
 }));
+// Offered days and host readiness come from the party_plan_days RPC.
+vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: mocks.days } }));
 vi.mock("@tanstack/react-start", () => ({ useServerFn: () => mocks.planning }));
 // The route and the wizard both reach the same capability-verified RPC.
 vi.mock("@/lib/planning.functions", () => ({ updatePartyPlanning: mocks.planning }));
+vi.mock("@/lib/planning/tz", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/planning/tz")>()),
+  montrealNowMinutes: () => 18 * 60,
+  montrealToday: () => "2026-11-22",
+}));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/lib/party", () => ({ accessParty: mocks.party, membershipToken: () => "a".repeat(64) }));
 vi.mock("@/components/PartyHeader", () => ({ PartyHeader: () => null }));
@@ -95,6 +103,9 @@ beforeEach(() => {
     ],
   });
   mocks.planning.mockResolvedValue(state);
+  mocks.days
+    .mockReset()
+    .mockResolvedValue({ data: { dates: [], selfWindows: null, hostReady: true }, error: null });
 });
 afterEach(() => {
   cleanup();
@@ -102,13 +113,47 @@ afterEach(() => {
 });
 
 describe("Planning screen polling and recovery", () => {
+  it("keeps the working single-day wizard when the days update is not installed", async () => {
+    mocks.days.mockResolvedValue({ data: null, error: {
+      code: "PGRST202", message: "Could not find the function public.party_plan_days",
+    } });
+    open();
+    const slider = await screen.findByRole("slider", { name: "Budget per person" });
+    fireEvent.focus(slider);
+    fireEvent.keyDown(slider, { key: "End" });
+    expect(slider).toHaveAttribute("aria-valuenow", "100");
+    expect(mocks.navigate).not.toHaveBeenCalled();
+    expect(mocks.planning.mock.calls.every(([input]) => input.data.action === "read")).toBe(true);
+  });
+  it("does not fall back on a rejected membership check", async () => {
+    mocks.days.mockResolvedValue({ data: null, error: { code: "42501", message: "Invalid membership" } });
+    open();
+    await screen.findByRole("alert");
+    expect(screen.queryByRole("slider")).toBeNull();
+    expect(mocks.planning.mock.calls.every(([input]) => input.data.action === "read")).toBe(true);
+  });
+  it("clears both private planning caches when leaving the multi-day screen", async () => {
+    const view = open();
+    await screen.findByRole("heading", { name: "When's the hangout?" });
+    view.unmount();
+    await waitFor(() => {
+      expect(client.getQueryData(["party-planning", "ABC123"])).toBeUndefined();
+      expect(client.getQueryData(["party-planning-days", "ABC123"])).toBeUndefined();
+    });
+  });
   it("checks guest party access before reading planning", async () => {
     mocks.party.mockRejectedValue(new Error("Join this party"));
     open();
     await screen.findByText("Let's find your crew.");
     expect(mocks.planning).not.toHaveBeenCalled();
   });
-  it("opens the slider wizard while collecting, even without a step in the URL", async () => {
+  it("opens the slider wizard on the host's day question without a step in the URL", async () => {
+    open();
+    await screen.findByRole("heading", { name: "When's the hangout?" });
+    expect(screen.getByRole("radio", { name: /Today/ })).toBeInTheDocument();
+  });
+  it("opens the budget slider when the URL asks for it", async () => {
+    mocks.search = { step: "budget" };
     open();
     await screen.findByRole("heading", { name: "What's your budget?" });
     expect(screen.getByRole("slider", { name: "Budget per person" })).toBeInTheDocument();
@@ -116,7 +161,7 @@ describe("Planning screen polling and recovery", () => {
   });
   it("uses the existing capability only as RPC input, not in cache keys", async () => {
     open();
-    await screen.findByRole("heading", { name: "What's your budget?" });
+    await screen.findByRole("heading", { name: "When's the hangout?" });
     expect(mocks.planning).toHaveBeenCalledWith({
       data: { action: "read", code: "ABC123", token: "a".repeat(64), schemaVersion: 3 },
     });
@@ -128,6 +173,7 @@ describe("Planning screen polling and recovery", () => {
     ).toEqual([
       ["party", "ABC123"],
       ["party-planning", "ABC123"],
+      ["party-planning-days", "ABC123"],
     ]);
   });
   it("shows the shared results page once planning has finished collecting", async () => {
@@ -150,6 +196,7 @@ describe("Planning screen polling and recovery", () => {
         freeTo: "22:00",
         travelMin: 35,
         vibe: "eats",
+        dayFree: { "2026-11-22": [36, 37, 38, 39, 40, 41, 42, 43] },
       }),
     );
     mocks.search = { step: "vibe" };
@@ -169,7 +216,7 @@ describe("Planning screen polling and recovery", () => {
   });
   it("discards private preference cache after leaving the screen", async () => {
     const view = open();
-    await screen.findByRole("heading", { name: "What's your budget?" });
+    await screen.findByRole("heading", { name: "When's the hangout?" });
     view.unmount();
     await waitFor(() => expect(client.getQueryData(["party-planning", "ABC123"])).toBeUndefined());
   });
@@ -189,6 +236,7 @@ describe("Planning screen polling and recovery", () => {
     ).toHaveLength(1);
   });
   it("preserves slider edits when a background read fails", async () => {
+    mocks.search = { step: "budget" };
     open();
     const slider = await screen.findByRole("slider", { name: "Budget per person" });
     fireEvent.focus(slider);

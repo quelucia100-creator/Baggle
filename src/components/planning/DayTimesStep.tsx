@@ -1,5 +1,5 @@
 import { dayParts } from "@/lib/planning/tz";
-import { FULL_DAY, dayTimeLabel, freeAllDay, type DayTime } from "@/lib/planning/wizard";
+import { FULL_DAY, dayTimeLabel, freeAllDay, type DayTime } from "@/lib/planning/legacy-wizard";
 import { RangeSlider } from "./RangeSlider";
 
 type Props = {
