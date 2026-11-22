@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { preferencesSchema } from "./types";
 import {
+  FULL_DAY,
+  dayTimeLabel,
+  eventDayWindow,
   budgetLevelToSpend,
   dateToPlanDay,
   draftToPreferences,
@@ -8,7 +11,6 @@ import {
   firstIncompletePlanStep,
   hhmmToTimeIndex,
   isPlanStepComplete,
-  kmToTravelMin,
   maxStartIndex,
   minGapSteps,
   planDayToDate,
@@ -22,7 +24,6 @@ import {
   timeWindow,
   TIME_STEPS,
   togglePickedDay,
-  travelMinToKm,
   vibeCategory,
   vibeOptions,
   type PlanDraft,
@@ -34,7 +35,8 @@ const complete: PlanDraft = {
   pickedDays: [],
   freeFrom: "19:00",
   freeTo: "23:00",
-  km: 5,
+  travelMin: 25,
+  dayTimes: {},
   vibe: "chill",
 };
 
@@ -71,21 +73,20 @@ describe("time slider helpers", () => {
 });
 
 describe("travel radius", () => {
-  it("converts km with the solver's 4 min/km plus 5 minute base", () => {
-    expect(kmToTravelMin(1)).toBe(9);
-    expect(kmToTravelMin(5)).toBe(25);
-    expect(kmToTravelMin(20)).toBe(85);
+  it("saves the event day's vertical window, or nothing when that day doesn't work", () => {
+    expect(eventDayWindow({}, "2026-11-28")).toEqual({ freeFrom: "00:00", freeTo: "00:00" });
+    expect(
+      eventDayWindow({ "2026-11-28": { works: true, from: 18, to: 44 } }, "2026-11-28"),
+    ).toEqual({ freeFrom: "09:00", freeTo: "22:00" });
+    expect(
+      eventDayWindow({ "2026-11-28": { works: false, from: 0, to: 48 } }, "2026-11-28"),
+    ).toBeNull();
   });
 
-  it("clamps to the schema's 5..90 minute range", () => {
-    expect(kmToTravelMin(0)).toBe(5);
-    expect(kmToTravelMin(50)).toBe(90);
-  });
-
-  it("round-trips km through minutes", () => {
-    for (let km = 1; km <= 20; km++) expect(travelMinToKm(kmToTravelMin(km))).toBe(km);
-    expect(travelMinToKm(90)).toBe(20);
-    expect(travelMinToKm(5)).toBe(1);
+  it("labels vertical day positions from 12 AM to midnight", () => {
+    expect(dayTimeLabel(0)).toBe("12:00 AM");
+    expect(dayTimeLabel(19)).toBe("9:30 AM");
+    expect(dayTimeLabel(FULL_DAY.steps)).toBe("Midnight");
   });
 });
 
@@ -181,7 +182,7 @@ describe("step completion", () => {
     expect(firstIncompletePlanStep(emptyPlanDraft)).toBe("budget");
     expect(firstIncompletePlanStep({ ...emptyPlanDraft, spend: 0 })).toBe("day");
     expect(firstIncompletePlanStep({ ...emptyPlanDraft, spend: 0 }, guest)).toBe("time");
-    expect(firstIncompletePlanStep({ ...complete, km: null })).toBe("radius");
+    expect(firstIncompletePlanStep({ ...complete, travelMin: null })).toBe("radius");
     expect(firstIncompletePlanStep({ ...complete, vibe: null })).toBe("vibe");
     expect(firstIncompletePlanStep(complete)).toBeNull();
   });

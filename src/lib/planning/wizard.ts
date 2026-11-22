@@ -148,18 +148,39 @@ export function timeMarks(window: TimeWindow): string[] {
   );
 }
 
-/* ---------- Travel ---------- */
+/* ---------- Travel: minutes, stored as the backend's maxTravelMin ---------- */
 
-export const MIN_KM = 1;
-export const MAX_KM = 20;
-const MIN_PER_KM = 4;
-const BASE_TRAVEL_MIN = 5;
+export const TRAVEL_MIN = 5;
+export const TRAVEL_MAX = 90;
+export const TRAVEL_STEP = 5;
 
-export function kmToTravelMin(km: number): number {
-  return clamp(Math.round(km * MIN_PER_KM + BASE_TRAVEL_MIN), 5, 90);
+/* ---------- Several days: one vertical 24-hour slider per day ---------- */
+
+/** 12:00 AM to 12:00 AM the next day, in 30-minute steps. */
+export const FULL_DAY: TimeWindow = { baseMin: 0, steps: (24 * 60) / STEP_MIN, isToday: false };
+/** Slider positions on FULL_DAY, and whether the day works for this member at all. */
+export type DayTime = { works: boolean; from: number; to: number };
+export const freeAllDay: DayTime = { works: true, from: 0, to: FULL_DAY.steps };
+
+/** "12:00 AM", "7:30 PM" or "Midnight" for a position on a vertical day slider. */
+export function dayTimeLabel(index: number): string {
+  return index >= FULL_DAY.steps ? "Midnight" : timeIndexLabel(0, index, false);
 }
-export function travelMinToKm(minutes: number): number {
-  return clamp(Math.round((minutes - BASE_TRAVEL_MIN) / MIN_PER_KM), MIN_KM, MAX_KM);
+
+/**
+ * The backend currently stores one window per member, for the event day only, so the
+ * event day's slider is what gets saved. Null when the member unticked that day.
+ */
+export function eventDayWindow(
+  dayTimes: Readonly<Record<string, DayTime>>,
+  eventDate: string,
+): { freeFrom: string; freeTo: string } | null {
+  const time = dayTimes[eventDate] ?? freeAllDay;
+  if (!time.works) return null;
+  return {
+    freeFrom: timeIndexToHHMM(0, Math.min(time.from, FULL_DAY.steps - 1)),
+    freeTo: timeIndexToHHMM(0, time.to),
+  };
 }
 
 /* ---------- Draft ---------- */
@@ -172,8 +193,10 @@ export type PlanDraft = {
   pickedDays: string[];
   freeFrom: string | null;
   freeTo: string | null;
-  km: number | null;
+  travelMin: number | null;
   vibe: Vibe | null;
+  /** Several days: the member's window for each day, keyed by date. */
+  dayTimes: Record<string, DayTime>;
 };
 export const emptyPlanDraft: PlanDraft = {
   spend: null,
@@ -181,8 +204,9 @@ export const emptyPlanDraft: PlanDraft = {
   pickedDays: [],
   freeFrom: null,
   freeTo: null,
-  km: null,
+  travelMin: null,
   vibe: null,
+  dayTimes: {},
 };
 
 export function isPlanStepComplete(step: PlanStep, draft: PlanDraft): boolean {
@@ -194,7 +218,7 @@ export function isPlanStepComplete(step: PlanStep, draft: PlanDraft): boolean {
     case "time":
       return draft.freeFrom !== null && draft.freeTo !== null;
     case "radius":
-      return draft.km !== null;
+      return draft.travelMin !== null;
     case "vibe":
       return draft.vibe !== null;
   }
@@ -215,7 +239,7 @@ export function draftToPreferences(draft: PlanDraft, origin: { lat: number; lng:
     budget: draft.spend === null ? null : spendToBudgetLevel(draft.spend),
     freeFrom: draft.freeFrom,
     freeTo: draft.freeTo,
-    maxTravelMin: draft.km === null ? null : kmToTravelMin(draft.km),
+    maxTravelMin: draft.travelMin,
     originLat: origin ? roundOrigin(origin.lat) : null,
     originLng: origin ? roundOrigin(origin.lng) : null,
   });

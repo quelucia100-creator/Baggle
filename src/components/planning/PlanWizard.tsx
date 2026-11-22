@@ -21,10 +21,7 @@ import {
   hhmmToTimeIndex,
   isPlanStepComplete,
   isVibe,
-  kmToTravelMin,
-  MAX_KM,
   maxStartIndex,
-  MIN_KM,
   minGapSteps,
   planDayToDate,
   planStepsFor,
@@ -36,17 +33,22 @@ import {
   timeIndexToHHMM,
   timeMarks,
   timeWindow,
-  travelMinToKm,
+  TRAVEL_MAX,
+  TRAVEL_MIN,
+  TRAVEL_STEP,
+  eventDayWindow,
   vibeOptions,
+  type DayTime,
   type PlanDay,
   type PlanDraft,
   type PlanStep as Step,
 } from "@/lib/planning/wizard";
 import { DayStep, type DayChoice } from "./DayStep";
+import { DayTimesStep } from "./DayTimesStep";
 import { ChoiceCard, PlanStep } from "./PlanStep";
 import { RangeSlider } from "./RangeSlider";
 
-const DEFAULT_KM = 5;
+const DEFAULT_TRAVEL_MIN = 30;
 const DEFAULT_SPEND = 25;
 const spendMarks = ["$0", "$25", "$50", "$75", `$${SPEND_MAX}+`];
 const hhmm = z
@@ -65,7 +67,17 @@ const storedDraftSchema = z.object({
     .default([]),
   freeFrom: hhmm,
   freeTo: hhmm,
-  km: z.number().int().min(MIN_KM).max(MAX_KM).nullable(),
+  travelMin: z.number().int().min(TRAVEL_MIN).max(TRAVEL_MAX).nullable(),
+  dayTimes: z
+    .record(
+      z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      z.object({
+        works: z.boolean(),
+        from: z.number().int().min(0).max(48),
+        to: z.number().int().min(0).max(48),
+      }),
+    )
+    .default({}),
   vibe: z.string().nullable(),
 });
 
@@ -98,7 +110,8 @@ function initialDraft(
     pickedDays,
     freeFrom: saved.freeFrom,
     freeTo: saved.freeTo,
-    km: travelMinToKm(saved.maxTravelMin),
+    travelMin: saved.maxTravelMin,
+    dayTimes: {},
     vibe,
   };
 }
@@ -145,11 +158,20 @@ export function PlanWizard({ code, party, state, step, goToStep, exit, finish }:
     draft.freeTo === null ? null : hhmmToTimeIndex(slot.baseMin, draft.freeTo, slot.steps);
   const fromIdx = Math.min(savedFrom ?? 0, startCap);
   const toIdx = Math.min(slot.steps, Math.max(savedTo ?? slot.steps, fromIdx + gap));
-  const km = draft.km ?? DEFAULT_KM;
+  const travelMin = draft.travelMin ?? DEFAULT_TRAVEL_MIN;
+  // Another day (not today): every day the host picked, each with its own vertical slider.
+  const eventDate = activeDay === "today" ? null : activeDay;
+  const candidateDays =
+    eventDate === null
+      ? []
+      : party.isHost && draft.pickedDays.length
+        ? draft.pickedDays
+        : [eventDate];
+  const eventWindow = eventDate === null ? null : eventDayWindow(draft.dayTimes, eventDate);
   const spend = draft.spend ?? DEFAULT_SPEND;
   const self = party.members.find((member) => member.id === party.selfId);
   const origin = self?.location ? { lat: self.location.lat, lng: self.location.lng } : null;
-  const dayName = activeDay === "today" ? null : dayParts(activeDay).long;
+  const dayName = eventDate === null ? null : dayParts(eventDate).long;
 
   const setTime = ([from = 0, to = slot.steps]: number[]) =>
     setDraft((current) => ({
@@ -169,13 +191,19 @@ export function PlanWizard({ code, party, state, step, goToStep, exit, finish }:
     step === "budget"
       ? { ...draft, spend }
       : step === "time"
-        ? {
-            ...draft,
-            freeFrom: timeIndexToHHMM(slot.baseMin, fromIdx),
-            freeTo: timeIndexToHHMM(slot.baseMin, toIdx),
-          }
+        ? eventDate === null
+          ? {
+              ...draft,
+              freeFrom: timeIndexToHHMM(slot.baseMin, fromIdx),
+              freeTo: timeIndexToHHMM(slot.baseMin, toIdx),
+            }
+          : {
+              ...draft,
+              freeFrom: eventWindow?.freeFrom ?? null,
+              freeTo: eventWindow?.freeTo ?? null,
+            }
         : step === "radius"
-          ? { ...draft, km }
+          ? { ...draft, travelMin }
           : draft;
 
   const save = async (final: PlanDraft) => {
@@ -224,7 +252,10 @@ export function PlanWizard({ code, party, state, step, goToStep, exit, finish }:
     time: {
       icon: Clock,
       title: "When are you free?",
-      hint: `Drag the left end for when you're free from and the right end for when you're free until. Montreal time${dayName ? ` on ${dayName}` : ""}.`,
+      hint:
+        eventDate === null
+          ? "Drag the left end for when you're free from and the right end for when you're free until. Montreal time."
+          : "Pick the days that work for you and when you're free on each.",
     },
     radius: {
       icon: Navigation,
@@ -276,9 +307,29 @@ export function PlanWizard({ code, party, state, step, goToStep, exit, finish }:
       {step === "day" && (
         <DayStep day={draft.day} pickedDays={draft.pickedDays} today={today} onChange={setDay} />
       )}
-      {step === "time" && (
+      {step === "time" && eventDate !== null && (
+        <div className="space-y-3">
+          <DayTimesStep
+            days={candidateDays}
+            value={draft.dayTimes}
+            gap={gap}
+            onChange={(dayTimes: Record<string, DayTime>) =>
+              setDraft((current) => ({ ...current, dayTimes }))
+            }
+          />
+          {!eventWindow && dayName && (
+            <p role="status" className="text-xs font-bold">
+              For now plans are made for {dayName}, so keep it ticked. Voting between days is coming
+              soon.
+            </p>
+          )}
+          <p className="text-xs text-muted-foreground">
+            The hangout is {state.config.durationMin} minutes, so each window is at least that long.
+          </p>
+        </div>
+      )}
+      {step === "time" && eventDate === null && (
         <div className="space-y-4">
-          {dayName && <p className="font-extrabold">{dayName}</p>}
           <RangeSlider
             value={[fromIdx, toIdx]}
             onValueChange={setTime}
@@ -301,20 +352,22 @@ export function PlanWizard({ code, party, state, step, goToStep, exit, finish }:
       )}
       {step === "radius" && (
         <div className="space-y-4">
-          <RangeSlider
-            value={[km]}
-            onValueChange={([value = DEFAULT_KM]) =>
-              setDraft((current) => ({ ...current, km: value }))
-            }
-            min={MIN_KM}
-            max={MAX_KM}
-            thumbLabels={["Travel radius in kilometres"]}
-            valueText={(_, value) => `${value} km`}
-            marks={[`${MIN_KM} km`, `${MAX_KM / 2} km`, `${MAX_KM} km`]}
-          />
-          <p className="text-lg font-bold" aria-live="polite">
-            Up to {km} km (~{kmToTravelMin(km)} min)
+          <p className="text-4xl font-extrabold" aria-live="polite">
+            Up to {travelMin} min
+            <span className="ml-2 text-base font-bold text-muted-foreground">one way</span>
           </p>
+          <RangeSlider
+            value={[travelMin]}
+            onValueChange={([value = DEFAULT_TRAVEL_MIN]) =>
+              setDraft((current) => ({ ...current, travelMin: value }))
+            }
+            min={TRAVEL_MIN}
+            max={TRAVEL_MAX}
+            step={TRAVEL_STEP}
+            thumbLabels={["Longest trip in minutes"]}
+            valueText={(_, value) => `${value} minutes one way`}
+            marks={[`${TRAVEL_MIN} min`, "30 min", "60 min", `${TRAVEL_MAX} min`]}
+          />
           <p className="text-xs text-muted-foreground">
             {origin
               ? "Measured from your shared location, rounded to about 1 km."

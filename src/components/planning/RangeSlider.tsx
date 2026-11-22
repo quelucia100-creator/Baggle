@@ -15,8 +15,10 @@ interface RangeSliderProps {
   /** Spoken value per thumb, e.g. "7:30 PM". */
   valueText?: (index: number, value: number) => string;
   disabled?: boolean;
-  /** Evenly spaced labels shown under the track, first at min and last at max. */
+  /** Evenly spaced labels along the track, first at min and last at max. */
   marks?: readonly string[];
+  /** Vertical sliders run top (min) to bottom (max). */
+  orientation?: "horizontal" | "vertical";
 }
 
 /** Paper-styled Radix slider that renders one thumb per value (one or two). */
@@ -31,9 +33,11 @@ export function RangeSlider({
   valueText,
   disabled = false,
   marks,
+  orientation = "horizontal",
 }: RangeSliderProps) {
+  const vertical = orientation === "vertical";
   return (
-    <div className="w-full">
+    <div className={vertical ? "flex h-64 gap-2" : "w-full"}>
       <SliderPrimitive.Root
         value={value}
         onValueChange={onValueChange}
@@ -42,10 +46,14 @@ export function RangeSlider({
         step={step}
         minStepsBetweenThumbs={minStepsBetweenThumbs}
         disabled={disabled}
-        className="relative flex h-10 w-full touch-none select-none items-center"
+        orientation={orientation}
+        inverted={vertical}
+        className={`relative flex touch-none select-none items-center ${vertical ? "h-full w-10 flex-col" : "h-10 w-full"}`}
       >
-        <SliderPrimitive.Track className="relative h-3 w-full grow overflow-hidden rounded-full border-2 border-crust bg-cream">
-          <SliderPrimitive.Range className="absolute h-full bg-sage" />
+        <SliderPrimitive.Track
+          className={`relative grow overflow-hidden rounded-full border-2 border-crust bg-cream ${vertical ? "h-full w-3" : "h-3 w-full"}`}
+        >
+          <SliderPrimitive.Range className={`absolute bg-sage ${vertical ? "w-full" : "h-full"}`} />
         </SliderPrimitive.Track>
         {value.map((thumb, index) => (
           <SliderPrimitive.Thumb
@@ -59,10 +67,13 @@ export function RangeSlider({
       {marks && (
         <div
           aria-hidden="true"
-          className="mt-1 flex justify-between text-xs font-bold text-muted-foreground"
+          className={`flex justify-between text-xs font-bold text-muted-foreground ${vertical ? "h-full flex-col" : "mt-1"}`}
         >
           {marks.map((mark, i) => (
-            <span key={i} className="min-w-0 first:text-left last:text-right">
+            <span
+              key={i}
+              className={vertical ? "leading-none" : "min-w-0 first:text-left last:text-right"}
+            >
               {mark}
             </span>
           ))}

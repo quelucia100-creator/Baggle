@@ -148,7 +148,7 @@ describe("Planning screen polling and recovery", () => {
         day: "today",
         freeFrom: "18:00",
         freeTo: "22:00",
-        km: 7,
+        travelMin: 35,
         vibe: "eats",
       }),
     );

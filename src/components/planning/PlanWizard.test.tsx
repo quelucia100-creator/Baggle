@@ -73,8 +73,9 @@ const draft = (values: Record<string, unknown>) =>
       pickedDays: [],
       freeFrom: null,
       freeTo: null,
-      km: null,
+      travelMin: null,
       vibe: null,
+      dayTimes: {},
       ...values,
     }),
   );
@@ -127,7 +128,7 @@ describe("Plan the hangout wizard", () => {
   });
 
   it("needs a vibe card picked before saving", () => {
-    draft({ spend: 15, freeFrom: "18:00", freeTo: "22:00", km: 5 });
+    draft({ spend: 15, freeFrom: "18:00", freeTo: "22:00", travelMin: 25 });
     open("vibe");
     expect(screen.getByRole("button", { name: "Save my answers" })).toBeDisabled();
     fireEvent.click(screen.getByRole("radio", { name: "Getting eats" }));
@@ -135,7 +136,7 @@ describe("Plan the hangout wizard", () => {
   });
 
   it("offers six vibes including surprise", () => {
-    draft({ spend: 15, freeFrom: "18:00", freeTo: "22:00", km: 5 });
+    draft({ spend: 15, freeFrom: "18:00", freeTo: "22:00", travelMin: 25 });
     open("vibe");
     expect(screen.getAllByRole("radio")).toHaveLength(6);
     for (const name of ["Sporty", "Competitive", "Chill", "Getting eats", "Creative", "Surprise"])
@@ -195,18 +196,52 @@ describe("Plan the hangout wizard", () => {
     expect(until).toHaveAttribute("aria-valuetext", "5:30 AM (tomorrow)");
   });
 
-  it("gives guests an 8 AM to 2 AM slider when the host picked another day", () => {
+  it("gives guests a vertical 24-hour slider when the host picked another day", () => {
     draft({ spend: 15 });
     open("time", { state: { ...state, config: { ...state.config, date: "2026-11-28" } } });
-    expect(screen.getByText("Saturday, November 28")).toBeInTheDocument();
-    expect(screen.getByRole("slider", { name: "Free from" })).toHaveAttribute(
-      "aria-valuetext",
-      "8:00 AM",
-    );
-    expect(screen.getByRole("slider", { name: "Free until" })).toHaveAttribute(
-      "aria-valuetext",
-      "2:00 AM (next day)",
-    );
+    const from = screen.getByRole("slider", { name: "Free from on Saturday, November 28" });
+    expect(from).toHaveAttribute("aria-orientation", "vertical");
+    expect(from).toHaveAttribute("aria-valuetext", "12:00 AM");
+    expect(
+      screen.getByRole("slider", { name: "Free until on Saturday, November 28" }),
+    ).toHaveAttribute("aria-valuetext", "Midnight");
+  });
+
+  it("shows one vertical slider per picked day on one screen and saves the event day", async () => {
+    draft({ spend: 50, day: "2026-11-25", pickedDays: ["2026-11-25", "2026-11-28"] });
+    const { goToStep, rerender, finish } = open("time", { party: host });
+    expect(screen.getAllByRole("slider")).toHaveLength(4);
+    // Saturday doesn't work for me; its slider is disabled.
+    fireEvent.click(screen.getByRole("button", { name: "Saturday, November 28 works for me" }));
+    expect(
+      screen.getByRole("button", { name: "Saturday, November 28 works for me" }),
+    ).toHaveAttribute("aria-pressed", "false");
+    const from = screen.getByRole("slider", { name: "Free from on Wednesday, November 25" });
+    fireEvent.focus(from);
+    fireEvent.keyDown(from, { key: "PageUp" }); // +10 steps = 5:00 AM
+    expect(from).toHaveAttribute("aria-valuetext", "5:00 AM");
+    const until = screen.getByRole("slider", { name: "Free until on Wednesday, November 25" });
+    fireEvent.focus(until);
+    fireEvent.keyDown(until, { key: "PageDown" }); // -10 steps = 7:00 PM
+    next();
+    expect(goToStep).toHaveBeenCalledWith("radius");
+    rerender("radius");
+    next();
+    rerender("vibe");
+    fireEvent.click(screen.getByRole("radio", { name: "Chill" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save my answers" }));
+    await waitFor(() => expect(finish).toHaveBeenCalled());
+    expect(mocks.runPlanning.mock.calls.at(-1)?.[1]).toMatchObject({
+      preferences: { freeFrom: "05:00", freeTo: "19:00", maxTravelMin: 30 },
+    });
+  });
+
+  it("asks to keep the event day ticked while voting between days isn't built yet", () => {
+    draft({ spend: 50, day: "2026-11-25", pickedDays: ["2026-11-25", "2026-11-28"] });
+    open("time", { party: host });
+    fireEvent.click(screen.getByRole("button", { name: "Wednesday, November 25 works for me" }));
+    expect(screen.getByRole("status")).toHaveTextContent(/plans are made for Wednesday/);
+    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
   });
 
   it("keeps answers across steps and saves rounded preferences on the last step", async () => {
@@ -218,7 +253,7 @@ describe("Plan the hangout wizard", () => {
     rerender("time");
     next();
     rerender("radius");
-    expect(screen.getByText("Up to 5 km (~25 min)")).toBeInTheDocument();
+    expect(screen.getByText("Up to 30 min")).toBeInTheDocument();
     next();
     rerender("vibe");
     expect(
@@ -235,7 +270,7 @@ describe("Plan the hangout wizard", () => {
         budget: 0,
         freeFrom: "18:00",
         freeTo: "06:00",
-        maxTravelMin: 25,
+        maxTravelMin: 30,
         originLat: 45.51,
         originLng: -73.57,
       },
@@ -281,7 +316,7 @@ describe("Plan the hangout wizard", () => {
   });
 
   it("sets the host's picked day on the party before saving their answers", async () => {
-    draft({ spend: 50, day: "2026-11-28", freeFrom: "10:00", freeTo: "14:00", km: 7 });
+    draft({ spend: 50, day: "2026-11-28", freeFrom: "10:00", freeTo: "14:00", travelMin: 35 });
     const { finish } = open("vibe", { party: host });
     fireEvent.click(screen.getByRole("radio", { name: "Sporty" }));
     fireEvent.click(screen.getByRole("button", { name: "Save my answers" }));
@@ -295,20 +330,20 @@ describe("Plan the hangout wizard", () => {
       config: { ...state.config, date: "2026-11-28" },
     });
     expect(mocks.runPlanning.mock.calls[1]?.[1]).toMatchObject({
-      preferences: { budget: 3, freeFrom: "10:00", freeTo: "14:00", maxTravelMin: 33 },
+      preferences: { budget: 3, freeFrom: "10:00", freeTo: "14:00", maxTravelMin: 35 },
     });
   });
 
   it("keeps the draft when saving fails", async () => {
     mocks.runPlanning.mockRejectedValue(new Error("network down"));
-    draft({ spend: 50, freeFrom: "18:00", freeTo: "22:00", km: 7, vibe: "eats" });
+    draft({ spend: 50, freeFrom: "18:00", freeTo: "22:00", travelMin: 35, vibe: "eats" });
     const { finish } = open("vibe");
     fireEvent.click(screen.getByRole("button", { name: "Save my answers" }));
     await waitFor(() => expect(mocks.runPlanning).toHaveBeenCalled());
     expect(finish).not.toHaveBeenCalled();
     expect(JSON.parse(sessionStorage.getItem("baggle-plan-draft-ABC123") ?? "{}")).toMatchObject({
       spend: 50,
-      km: 7,
+      travelMin: 35,
     });
   });
 
@@ -326,6 +361,10 @@ describe("Plan the hangout wizard", () => {
         },
       },
     });
-    expect(screen.getByText("Up to 10 km (~45 min)")).toBeInTheDocument();
+    expect(screen.getByText("Up to 45 min")).toBeInTheDocument();
+    expect(screen.getByRole("slider", { name: "Longest trip in minutes" })).toHaveAttribute(
+      "aria-valuetext",
+      "45 minutes one way",
+    );
   });
 });
