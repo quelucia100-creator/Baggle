@@ -284,7 +284,11 @@ function V3Facts({ plan }: { plan: PublicPlanV3 }) {
         )}
       </li>
       {venue.accessibilityVerified && <li>Accessibility details come from the venue source.</li>}
-      <li>Travel times were checked with a routing provider for everyone who was ready.</li>
+      <li>
+        {plan.warnings.includes("route_estimates")
+          ? "Travel was checked with a routing provider, but some times are estimates."
+          : "Travel times were checked with a routing provider for everyone who was ready."}
+      </li>
     </>
   );
 }
@@ -329,8 +333,10 @@ export function ResultV3({
     v3?.durationMinutes ?? Math.round((Date.parse(plan.endAt) - Date.parse(plan.startAt)) / 60_000);
   const address = v3?.venue.address ?? null;
   // Cost and booking unknowns are already stated in the facts list.
+  // Cost, booking and route-estimate caveats are already stated in the facts list.
   const warnings = (v3?.warnings ?? []).filter(
-    (warning) => warning !== "cost_unknown" && warning !== "booking_unknown",
+    (warning) =>
+      warning !== "cost_unknown" && warning !== "booking_unknown" && warning !== "route_estimates",
   );
   const sourceLabel = v3
     ? v3.venue.source === "google_places"

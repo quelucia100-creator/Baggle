@@ -172,6 +172,11 @@ export function CalendarAvailability({
       [active]: [...(current[active] ?? []), day].slice(-30),
     }));
     update({ days: { ...draft.days, [active]: next } });
+    // Confirming a day (Confirm or "I'm free all day") moves on to the next unreviewed day.
+    if (next.confirmed && !day.confirmed) {
+      const nextUnconfirmed = dates.find((date) => date !== active && !draft.days[date]?.confirmed);
+      if (nextUnconfirmed) setActive(nextUnconfirmed);
+    }
   };
   const undo = () => {
     const stack = history[active] ?? [];
@@ -257,13 +262,7 @@ export function CalendarAvailability({
         ) : (
           <button
             type="button"
-            onClick={() => {
-              setDay({ ...day, confirmed: true });
-              const nextUnconfirmed = dates.find(
-                (date) => date !== active && !draft.days[date]?.confirmed,
-              );
-              if (nextUnconfirmed) setActive(nextUnconfirmed);
-            }}
+            onClick={() => setDay({ ...day, confirmed: true })}
             className="paper flex min-h-12 w-full items-center justify-center gap-2 rounded-lg border-2 border-crust bg-tangerine font-display font-extrabold shadow-pop pop-press"
           >
             <Check aria-hidden="true" className="h-4 w-4" />
