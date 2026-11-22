@@ -47,21 +47,20 @@ function AuthPage() {
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
     let transitioning = false;
-    const rainThenGoHome = () => {
+    const goHome = () => {
       if (transitioning) return;
       transitioning = true;
       setActive(true);
-      const delay = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 1100;
       timer = setTimeout(() => {
         timer = undefined;
         void navigate({ to: "/home", replace: true }).catch(() => {
           toast.error("Could not open your dashboard. Please try again.");
           transitioning = false;
         }).finally(() => setActive(false));
-      }, delay);
+      }, 0);
     };
-    supabase.auth.getUser().then(({ data }) => { if (data.user) rainThenGoHome(); });
-    const { data } = supabase.auth.onAuthStateChange((e) => { if (e === "SIGNED_IN") rainThenGoHome(); });
+    supabase.auth.getUser().then(({ data }) => { if (data.user) goHome(); });
+    const { data } = supabase.auth.onAuthStateChange((e) => { if (e === "SIGNED_IN") goHome(); });
     return () => {
       if (timer) { clearTimeout(timer); setActive(false); }
       data.subscription.unsubscribe();

@@ -40,9 +40,6 @@ function Welcome() {
     try {
       const party = await accessParty(created ? "create" : "join", normalizePartyCode(code), name.trim());
       setActive(true);
-      if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-        await new Promise((resolve) => setTimeout(resolve, 1100));
-      }
       await navigate({ to: "/party/$code", params: { code: party.code } });
     } catch (error) { toast.error(error instanceof Error ? error.message : "Could not open party."); }
     finally { setActive(false); setBusy(false); }

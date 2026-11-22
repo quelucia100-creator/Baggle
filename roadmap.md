@@ -30,5 +30,4 @@
 - [x] Repair event-generation connector access and the live planning read failure without changing guest permissions; existing party opens, 285 unit tests pass (9 skipped), live Google provider calls remain unverified.
 - [x] Sweep both planners, entry points, retries, provider adapters and live planning functions for the same failure; existing party reloads, 287 unit tests pass (9 skipped), live Google responses remain unverified.
 - [x] Private accounts: group adds by non-friends need acceptance (friend requests no longer blocked)
-- [x] Make falling bagels the exclusive full-screen loading transition until guest/auth navigation finishes.
-- [ ] Play the requested falling-bagel SFX — blocked awaiting the missing sound file from the user.
+- [x] Replace falling bagels with one rotating-bagel loading screen for guest/auth and route loading, with lighter background blur; falling-bagel SFX cancelled.
