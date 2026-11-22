@@ -16,7 +16,9 @@
 - [x] Add additive capability-verified private planning preferences and shared submission status.
 - [x] Implement tested Montreal-time fairness ranking and atomic lock/reroll/final/reopen operations.
 - [x] Verify real-database privacy, permissions, concurrency, and existing party regressions — 49 tests pass; real guest browser RPC submission/lock/reroll/final/reload pass.
-- Planning screens and live Places/expanded verified catalogue remain separate workstreams; existing blank event buttons stay unchanged.
+- [x] Build guest-accessible planning screens, party/map entry links, private forms, shared results and recovery.
+- [x] Verify focused frontend mocks, existing unit tests and two-member browser planning flow without database integration suites: 135 tests pass, real voting/reroll/final/reload and no-match/reopen pass, desktop/mobile layouts checked.
+- Live Places policy, weather exclusions and expanded verified catalogue remain deferred backend workstreams.
 - [x] Add mandatory private account preferences, separate steps, and preference editing.
 - [x] Verify validation, owner-only policies, unique username index, signed-in setup redirect, skipped-step rejection, reload, and mobile/desktop layout; 30 regression tests pass.
 - [ ] Verify saving all seven pages and editing saved answers end-to-end — blocked because temporary test-account creation was declined; existing account answers were not modified.

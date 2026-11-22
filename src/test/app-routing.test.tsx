@@ -14,4 +14,10 @@ describe("App routing", () => {
 
     expect(matches.at(-1)?.routeId).not.toBe(rootRouteId);
   });
+  it("matches the independent guest planning page without an account gate", () => {
+    const router = createRouter({ routeTree, context: { queryClient: new QueryClient() } });
+    const matches = router.matchRoutes("/party/ABC123/plan");
+    expect(matches.at(-1)?.routeId).toBe("/party/$code_/plan");
+    expect(matches.some((match) => match.routeId.includes("_authenticated"))).toBe(false);
+  });
 });

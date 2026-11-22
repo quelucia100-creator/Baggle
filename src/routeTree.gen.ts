@@ -18,6 +18,7 @@ import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticat
 import { Route as PartyCodeRouteImport } from './routes/party.$code'
 import { Route as AuthenticatedPreferencesStepRouteImport } from './routes/_authenticated/preferences.$step'
 import { Route as PartyCodeMapRouteImport } from './routes/party.$code_.map'
+import { Route as PartyCodePlanRouteImport } from './routes/party.$code_.plan'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -64,6 +65,11 @@ const PartyCodeMapRoute = PartyCodeMapRouteImport.update({
   path: '/party/$code/map',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PartyCodePlanRoute = PartyCodePlanRouteImport.update({
+  id: '/party/$code_/plan',
+  path: '/party/$code/plan',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -74,6 +80,7 @@ export interface FileRoutesByFullPath {
   '/party/$code': typeof PartyCodeRoute
   '/preferences/$step': typeof AuthenticatedPreferencesStepRoute
   '/party/$code/map': typeof PartyCodeMapRoute
+  '/party/$code/plan': typeof PartyCodePlanRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -84,6 +91,7 @@ export interface FileRoutesByTo {
   '/party/$code': typeof PartyCodeRoute
   '/preferences/$step': typeof AuthenticatedPreferencesStepRoute
   '/party/$code/map': typeof PartyCodeMapRoute
+  '/party/$code/plan': typeof PartyCodePlanRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -96,6 +104,7 @@ export interface FileRoutesById {
   '/party/$code': typeof PartyCodeRoute
   '/_authenticated/preferences/$step': typeof AuthenticatedPreferencesStepRoute
   '/party/$code_/map': typeof PartyCodeMapRoute
+  '/party/$code_/plan': typeof PartyCodePlanRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -108,6 +117,7 @@ export interface FileRouteTypes {
     | '/party/$code'
     | '/preferences/$step'
     | '/party/$code/map'
+    | '/party/$code/plan'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -118,6 +128,7 @@ export interface FileRouteTypes {
     | '/party/$code'
     | '/preferences/$step'
     | '/party/$code/map'
+    | '/party/$code/plan'
   id:
     | '__root__'
     | '/'
@@ -129,6 +140,7 @@ export interface FileRouteTypes {
     | '/party/$code'
     | '/_authenticated/preferences/$step'
     | '/party/$code_/map'
+    | '/party/$code_/plan'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -138,6 +150,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   PartyCodeRoute: typeof PartyCodeRoute
   PartyCodeMapRoute: typeof PartyCodeMapRoute
+  PartyCodePlanRoute: typeof PartyCodePlanRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -205,6 +218,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PartyCodeMapRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/party/$code_/plan': {
+      id: '/party/$code_/plan'
+      path: '/party/$code/plan'
+      fullPath: '/party/$code/plan'
+      preLoaderRoute: typeof PartyCodePlanRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -230,6 +250,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   PartyCodeRoute: PartyCodeRoute,
   PartyCodeMapRoute: PartyCodeMapRoute,
+  PartyCodePlanRoute: PartyCodePlanRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

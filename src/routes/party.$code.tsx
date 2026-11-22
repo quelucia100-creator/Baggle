@@ -1,13 +1,14 @@
 import { createFileRoute, useNavigate, useHydrated } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { Copy, Link2, Trash2, Crown, ArrowRight, Search, Hourglass } from "lucide-react";
+import { Copy, Link2, Trash2, Crown, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { PartyHeader } from "@/components/PartyHeader";
 import bagel from "@/assets/bagel-single.png.asset.json";
 import { Field, PopButton } from "@/components/Field";
 import { PaperIcon } from "@/components/PaperIcon";
 import { accessParty, canRemoveMember, MAX_PARTY_MEMBERS } from "@/lib/party";
+import { PlanningLink } from "@/components/planning/PlanningLink";
 
 export const Route = createFileRoute("/party/$code")({
   head: ({ params }) => ({ meta: [
@@ -68,7 +69,7 @@ function Party() {
               </div>
               <p className="mt-5 text-sm text-muted-foreground">{party.members.length === MAX_PARTY_MEMBERS ? "The whole crew is here — your party is full." : "Send your code to friends and bring the crew together."}</p>
               {party.started || party.isHost ? <PopButton className="mt-6 flex items-center justify-center gap-3" disabled={busy} onClick={async () => { setBusy(true); try { queryClient.setQueryData(queryKey, await accessParty(party.started ? "map" : "start", code)); } catch (err) { toast.error(err instanceof Error ? err.message : "Could not open journey."); } finally { setBusy(false); } }}>{party.started ? "Return to map" : "Start the journey"}<ArrowRight className="h-5 w-5" /></PopButton> : <p className="mt-6 font-bold">Waiting for the host to start the journey.</p>}
-              <section aria-label="Event" className="mt-8 border-t-2 border-crust/15 pt-6"><h2 className="text-lg font-extrabold">Event</h2>{party.isHost ? <PopButton tone="sage" disabled title="Event finding coming soon" className="mt-4 flex items-center justify-center gap-2 text-sm"><Search className="h-4 w-4" />Find event</PopButton> : <p className="mt-4 flex items-center gap-2 text-sm font-bold text-muted-foreground"><Hourglass className="h-4 w-4" />Waiting for the host to find an event.</p>}</section>
+              <section aria-label="Event" className="mt-8 border-t-2 border-crust/15 pt-6"><h2 className="text-lg font-extrabold">Event</h2><PlanningLink code={code}>{party.isHost ? "Find event" : "Set my preferences / View event"}</PlanningLink></section>
             </section>
             <section aria-label="Party members">
               <div className="mb-4 flex items-center justify-between gap-4"><h2 className="text-xl font-extrabold">Who's in?</h2><span className="font-bold">{party.members.length} / {MAX_PARTY_MEMBERS}</span></div>
