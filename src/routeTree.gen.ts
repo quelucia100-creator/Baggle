@@ -14,7 +14,9 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthenticatedHomeRouteImport } from './routes/_authenticated/home'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as PartyCodeRouteImport } from './routes/party.$code'
+import { Route as AuthenticatedPreferencesStepRouteImport } from './routes/_authenticated/preferences.$step'
 import { Route as PartyCodeMapRouteImport } from './routes/party.$code_.map'
 
 const IndexRoute = IndexRouteImport.update({
@@ -41,11 +43,22 @@ const AuthenticatedHomeRoute = AuthenticatedHomeRouteImport.update({
   path: '/home',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const PartyCodeRoute = PartyCodeRouteImport.update({
   id: '/party/$code',
   path: '/party/$code',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedPreferencesStepRoute =
+  AuthenticatedPreferencesStepRouteImport.update({
+    id: '/preferences/$step',
+    path: '/preferences/$step',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const PartyCodeMapRoute = PartyCodeMapRouteImport.update({
   id: '/party/$code_/map',
   path: '/party/$code/map',
@@ -57,7 +70,9 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/home': typeof AuthenticatedHomeRoute
+  '/settings': typeof AuthenticatedSettingsRoute
   '/party/$code': typeof PartyCodeRoute
+  '/preferences/$step': typeof AuthenticatedPreferencesStepRoute
   '/party/$code/map': typeof PartyCodeMapRoute
 }
 export interface FileRoutesByTo {
@@ -65,7 +80,9 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/home': typeof AuthenticatedHomeRoute
+  '/settings': typeof AuthenticatedSettingsRoute
   '/party/$code': typeof PartyCodeRoute
+  '/preferences/$step': typeof AuthenticatedPreferencesStepRoute
   '/party/$code/map': typeof PartyCodeMapRoute
 }
 export interface FileRoutesById {
@@ -75,7 +92,9 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/home': typeof AuthenticatedHomeRoute
+  '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/party/$code': typeof PartyCodeRoute
+  '/_authenticated/preferences/$step': typeof AuthenticatedPreferencesStepRoute
   '/party/$code_/map': typeof PartyCodeMapRoute
 }
 export interface FileRouteTypes {
@@ -85,7 +104,9 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/home'
+    | '/settings'
     | '/party/$code'
+    | '/preferences/$step'
     | '/party/$code/map'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -93,7 +114,9 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/home'
+    | '/settings'
     | '/party/$code'
+    | '/preferences/$step'
     | '/party/$code/map'
   id:
     | '__root__'
@@ -102,7 +125,9 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/_authenticated/home'
+    | '/_authenticated/settings'
     | '/party/$code'
+    | '/_authenticated/preferences/$step'
     | '/party/$code_/map'
   fileRoutesById: FileRoutesById
 }
@@ -152,12 +177,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedHomeRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/party/$code': {
       id: '/party/$code'
       path: '/party/$code'
       fullPath: '/party/$code'
       preLoaderRoute: typeof PartyCodeRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/preferences/$step': {
+      id: '/_authenticated/preferences/$step'
+      path: '/preferences/$step'
+      fullPath: '/preferences/$step'
+      preLoaderRoute: typeof AuthenticatedPreferencesStepRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/party/$code_/map': {
       id: '/party/$code_/map'
@@ -171,10 +210,14 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedHomeRoute: typeof AuthenticatedHomeRoute
+  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedPreferencesStepRoute: typeof AuthenticatedPreferencesStepRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedHomeRoute: AuthenticatedHomeRoute,
+  AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedPreferencesStepRoute: AuthenticatedPreferencesStepRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

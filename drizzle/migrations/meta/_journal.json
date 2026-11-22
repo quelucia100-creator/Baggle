@@ -50,6 +50,20 @@
       "when": 1795311807508,
       "tag": "0006_harden_private_planning_grants",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795316810727,
+      "tag": "0007_private_account_preferences",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1795316922885,
+      "tag": "0008_account_food_preferences",
+      "breakpoints": true
     }
   ]
 }
