@@ -159,6 +159,7 @@ export type Database = {
           area_lat: number
           area_lng: number
           category: string
+          config_v3: Json | null
           duration_min: number
           event_date: string
           group_rerolls_used: number
@@ -171,6 +172,7 @@ export type Database = {
           party_id: string
           plan_index: number
           revision: number
+          schema_version: number
           status: string
           venue_source: string | null
         }
@@ -179,6 +181,7 @@ export type Database = {
           area_lat?: number
           area_lng?: number
           category?: string
+          config_v3?: Json | null
           duration_min?: number
           event_date?: string
           group_rerolls_used?: number
@@ -191,6 +194,7 @@ export type Database = {
           party_id: string
           plan_index?: number
           revision?: number
+          schema_version?: number
           status?: string
           venue_source?: string | null
         }
@@ -199,6 +203,7 @@ export type Database = {
           area_lat?: number
           area_lng?: number
           category?: string
+          config_v3?: Json | null
           duration_min?: number
           event_date?: string
           group_rerolls_used?: number
@@ -211,6 +216,7 @@ export type Database = {
           party_id?: string
           plan_index?: number
           revision?: number
+          schema_version?: number
           status?: string
           venue_source?: string | null
         }
@@ -261,6 +267,48 @@ export type Database = {
             columns: ["member_id"]
             isOneToOne: true
             referencedRelation: "party_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      party_preferences_v3: {
+        Row: {
+          member_id: string
+          party_id: string
+          precise_expires_at: string | null
+          preferences: Json
+          submitted: boolean
+          updated_at: string
+        }
+        Insert: {
+          member_id: string
+          party_id: string
+          precise_expires_at?: string | null
+          preferences: Json
+          submitted?: boolean
+          updated_at?: string
+        }
+        Update: {
+          member_id?: string
+          party_id?: string
+          precise_expires_at?: string | null
+          preferences?: Json
+          submitted?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "party_preferences_v3_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: true
+            referencedRelation: "party_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "party_preferences_v3_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: false
+            referencedRelation: "parties"
             referencedColumns: ["id"]
           },
         ]
@@ -365,6 +413,7 @@ export type Database = {
         }
         Returns: Json
       }
+      party_plan_cleanup: { Args: never; Returns: number }
       party_plan_complete: {
         Args: {
           p_code: string
@@ -377,10 +426,40 @@ export type Database = {
         Returns: boolean
       }
       party_plan_public_option: { Args: { o: Json }; Returns: Json }
+      party_plan_public_option_v3: { Args: { c: Json; o: Json }; Returns: Json }
       party_plan_snapshot: {
         Args: { p_code: string; p_lease: string }
         Returns: Json
       }
+      party_v3_bool: { Args: { v: Json }; Returns: boolean }
+      party_v3_config: { Args: { p: Json }; Returns: Json }
+      party_v3_date: { Args: { v: Json }; Returns: string }
+      party_v3_enum: { Args: { allowed: string[]; v: Json }; Returns: string }
+      party_v3_enum_set: {
+        Args: { allowed: string[]; maxn: number; minn: number; v: Json }
+        Returns: Json
+      }
+      party_v3_expire: { Args: { p_party: string }; Returns: undefined }
+      party_v3_https: { Args: { v: Json }; Returns: string }
+      party_v3_int: {
+        Args: { hi: number; lo: number; step: number; v: Json }
+        Returns: number
+      }
+      party_v3_iso: { Args: { t: string }; Returns: string }
+      party_v3_keys: { Args: { k: string[]; o: Json }; Returns: boolean }
+      party_v3_num: {
+        Args: { hi: number; lo: number; v: Json }
+        Returns: number
+      }
+      party_v3_point: { Args: { v: Json }; Returns: Json }
+      party_v3_prefs: {
+        Args: { c: Json; p: Json; p_strict: boolean }
+        Returns: Json
+      }
+      party_v3_self_doc: { Args: { c: Json; p: Json }; Returns: Json }
+      party_v3_str: { Args: { maxlen: number; v: Json }; Returns: string }
+      party_v3_tags: { Args: { maxn: number; v: Json }; Returns: Json }
+      party_v3_ts: { Args: { v: Json }; Returns: string }
     }
     Enums: {
       [_ in never]: never
