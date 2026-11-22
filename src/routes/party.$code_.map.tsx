@@ -1,16 +1,17 @@
 import { createFileRoute, useHydrated, useNavigate, ClientOnly } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useState, useCallback, useRef } from "react";
-import { MapPin, LocateFixed, RefreshCw, CloudSun, Navigation, X } from "lucide-react";
+import { useEffect, useState, useRef } from "react";
+import { LocateFixed, RefreshCw, CloudSun, Navigation } from "lucide-react";
 import { toast } from "sonner";
 import { PartyHeader } from "@/components/PartyHeader";
 import { JourneyMap } from "@/components/JourneyMap";
-import { Field, PopButton } from "@/components/Field";
+import { PopButton } from "@/components/Field";
 import { PaperIcon } from "@/components/PaperIcon";
 import { accessParty, membershipToken, type PartyAction } from "@/lib/party";
 import { getPartyWeather } from "@/lib/weather.functions";
 import { PlanningLink } from "@/components/planning/PlanningLink";
+import { HangoutPanel } from "@/components/planning/HangoutPanel";
 
 export const Route = createFileRoute("/party/$code_/map")({
   head: ({ params }) => ({ meta: [
@@ -22,6 +23,8 @@ export const Route = createFileRoute("/party/$code_/map")({
   ] }), component: MapPage,
 });
 
+const ignorePick = () => {};
+
 function MapPage() {
   const { code } = Route.useParams();
   const hydrated = useHydrated();
@@ -32,16 +35,13 @@ function MapPage() {
   const party = query.isError ? undefined : query.data;
   const [busy, setBusy] = useState(false);
   const [locationError, setLocationError] = useState("");
-  const [choosing, setChoosing] = useState(false);
-  const [picked, setPicked] = useState<{ lat: number; lng: number } | null>(null);
-  const [hangoutName, setHangoutName] = useState("");
   const weatherFn = useServerFn(getPartyWeather);
   const hasLocation = !!(party?.hangout || party?.members.some((member) => member.location));
   const weather = useQuery({ queryKey: ["party-weather", code], queryFn: () => weatherFn({ data: { code, token: membershipToken() } }), enabled: hydrated && hasLocation, retry: false, staleTime: 600000 });
   useEffect(() => {
     if (party && (!party.started || party.view === "team")) void navigate({ to: "/party/$code", params: { code }, replace: true });
   }, [party?.started, party?.view, navigate, code]);
-  const pick = useCallback((point: { lat: number; lng: number }) => { setPicked(point); setChoosing(false); }, []);
+  // Hangouts now come from the planning wizard, so the map no longer accepts hand-dropped pins.
   const mutate = async (action: PartyAction, name = "", coords?: { lat: number; lng: number }) => {
     setBusy(true);
     try {
@@ -75,11 +75,11 @@ function MapPage() {
     {!party ? <main className="mx-auto max-w-4xl px-6 py-12"><h1 className="text-2xl font-extrabold">Your journey</h1><p className="mt-4" role="status">{query.error instanceof Error ? query.error.message : "Opening your map…"}</p></main> : <>
       <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-crust/20 px-5 py-5 sm:px-10"><div><h1 className="text-2xl font-extrabold">Where are we heading?</h1><p className="mt-1 text-sm text-muted-foreground">{party.members.length} friends · Exact shared locations</p></div><span className="flex items-center gap-2 text-sm font-bold"><Navigation className="h-4 w-4" />Journey started</span></div>
       <main className="grid min-h-[calc(100dvh-190px)] lg:grid-cols-[1fr_340px]">
-        <section aria-label="Journey map" className="relative h-[55dvh] min-h-96 lg:h-auto lg:min-h-[calc(100dvh-190px)]"><ClientOnly fallback={<div className="flex h-full items-center justify-center bg-sage/20">Opening map…</div>}><JourneyMap party={party} choosing={choosing} onPick={pick} /></ClientOnly>{choosing && <div role="status" className="paper absolute left-4 top-4 flex max-w-[calc(100%-2rem)] items-center gap-3 rounded-lg border-2 border-crust bg-chartreuse px-4 py-3 font-bold shadow-pop">Choose a hangout location<PopButton aria-label="Cancel choosing hangout" title="Cancel" onClick={() => setChoosing(false)} className="!h-8 !w-8 flex shrink-0 items-center justify-center"><X className="h-4 w-4" /></PopButton></div>}</section>
+        <section aria-label="Journey map" className="relative h-[55dvh] min-h-96 lg:h-auto lg:min-h-[calc(100dvh-190px)]"><ClientOnly fallback={<div className="flex h-full items-center justify-center bg-sage/20">Opening map…</div>}><JourneyMap party={party} choosing={false} onPick={ignorePick} /></ClientOnly></section>
         <aside className="paper-sheet border-t-2 border-crust bg-offwhite px-5 py-6 lg:border-l-2 lg:border-t-0">
           <section aria-label="Event choices" className="border-b-2 border-crust/15 pb-6"><h2 className="text-lg font-extrabold">Event</h2><PlanningLink code={code}>{party.isHost ? "Plan an event" : "View event"}</PlanningLink></section>
           <section className="border-b-2 border-crust/15 pb-6"><h2 className="flex items-center gap-2 text-lg font-extrabold"><LocateFixed className="h-5 w-5" />Your location</h2><p className="mt-2 text-sm text-muted-foreground">Shared only with this party, for 30 minutes after each refresh.</p><PopButton tone="sage" disabled={busy} onClick={refreshLocation} className="mt-4 flex items-center justify-center gap-2 text-sm"><RefreshCw className="h-4 w-4" />{busy ? "One sec…" : self?.location ? "Refresh my location" : "Share my location"}</PopButton>{self?.location && <PopButton tone="apricot" disabled={busy} onClick={() => void mutate("clear_location")} className="mt-3 text-sm">Stop sharing</PopButton>}{locationError && <p role="alert" className="mt-3 text-sm">{locationError}</p>}</section>
-          <section className="border-b-2 border-crust/15 py-6"><h2 className="flex items-center gap-2 text-lg font-extrabold"><MapPin className="h-5 w-5" />The hangout</h2><p className="mt-2 break-words font-bold">{party.hangout?.name ?? "Not decided yet"}</p>{party.isHost && <><PopButton tone="chartreuse" className="mt-4 text-sm" onClick={() => { setChoosing(true); setPicked(null); }}>{party.hangout ? "Change hangout" : "Choose hangout"}</PopButton>{party.hangout && <PopButton tone="apricot" disabled={busy} className="mt-3 text-sm" onClick={() => void mutate("clear_hangout")}>Clear hangout</PopButton>}</>}{picked && party.isHost && <form className="mt-4 space-y-3" onSubmit={async (event) => { event.preventDefault(); if (await mutate("hangout", hangoutName, picked)) { setPicked(null); setHangoutName(""); } }}><Field label="Hangout name" value={hangoutName} maxLength={80} required onChange={(event) => setHangoutName(event.target.value)} /><PopButton disabled={busy || !hangoutName.trim()} className="text-sm">Confirm hangout</PopButton></form>}</section>
+          <HangoutPanel code={code} party={party} isEnabled={hydrated} isBusy={busy} pinHangout={(name, coords) => mutate("hangout", name, coords)} clearHangout={() => void mutate("clear_hangout")} />
           <section className="border-b-2 border-crust/15 py-6"><h2 className="flex items-center gap-2 text-lg font-extrabold"><CloudSun className="h-5 w-5" />Weather</h2>{weather.data ? <div className="mt-3"><p className="text-3xl font-extrabold">{Math.round(weather.data.temperature)}°C</p><p>{weather.data.description}</p>{weather.data.rain !== null && <p className="mt-1 text-sm">{weather.data.rain}% chance of rain</p>}<p className="mt-2 text-xs text-muted-foreground">Google Maps · {party.hangout ? "At the hangout" : "Near the crew"}</p></div> : <p className="mt-2 text-sm text-muted-foreground">{hasLocation ? "Current conditions near your party." : "Weather is available once a location is shared."}</p>}<PopButton tone="apricot" disabled={!hasLocation || weather.isFetching} className="mt-4 flex items-center justify-center gap-2 text-sm" onClick={() => void weather.refetch()}><RefreshCw className="h-4 w-4" />{weather.isFetching ? "Checking…" : "Refresh weather"}</PopButton>{weather.error instanceof Error && <p role="alert" className="mt-3 break-words text-sm">{weather.error.message}</p>}</section>
           <section className="pt-6"><h2 className="text-lg font-extrabold">The crew</h2><ul className="mt-3 space-y-4">{party.members.map((member) => <li key={member.id} className="flex items-center gap-3"><PaperIcon tone={member.host ? "chartreuse" : "sage"} className="h-9 w-9"><span className="font-extrabold">{member.name.slice(0, 1).toUpperCase()}</span></PaperIcon><div className="min-w-0"><p className="break-words text-sm font-bold">{member.name}{member.id === party.selfId ? " (you)" : ""}</p><p className="text-xs text-muted-foreground">{member.location ? "Exact location shared" : "Location not shared"}</p></div></li>)}</ul></section>
         </aside>

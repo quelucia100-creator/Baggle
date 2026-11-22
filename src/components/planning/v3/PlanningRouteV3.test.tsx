@@ -14,7 +14,11 @@ vi.mock("@/components/PartyInviteQR", () => ({
   PartyInviteQR: ({ code }: { code: string }) => <p>Invite {code}</p>,
 }));
 vi.mock("@tanstack/react-router", () => ({
-  createFileRoute: () => (options: unknown) => ({ options, useParams: () => ({ code: "ABC123" }) }),
+  createFileRoute: () => (options: unknown) => ({
+    options,
+    useParams: () => ({ code: "ABC123" }),
+    useSearch: () => ({}),
+  }),
   useHydrated: () => true,
   useNavigate: () => mocks.navigate,
   Link: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,

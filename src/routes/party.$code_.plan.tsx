@@ -1,10 +1,12 @@
 import { createFileRoute, Link, useHydrated, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { PartyHeader } from "@/components/PartyHeader";
 import { PopButton } from "@/components/Field";
 import { PlanningExperience } from "@/components/planning/PlanningExperience";
+import { PlanWizard } from "@/components/planning/PlanWizard";
+import { planSteps, type PlanStep } from "@/lib/planning/wizard";
 import { planningError, type PlanningCommand } from "@/components/planning/model";
 import { PlanningV3Experience } from "@/components/planning/v3/PlanningV3Experience";
 import {
@@ -53,11 +55,18 @@ export const Route = createFileRoute("/party/$code_/plan")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
+  // ?step= opens the one-question-per-screen wizard; without it this is the shared results page.
+  // Each step is a history entry, so browser Back returns to the previous question.
+  validateSearch: (search: Record<string, unknown>): { step?: PlanStep } => {
+    const step = planSteps.find((value) => value === search["step"]);
+    return step ? { step } : {};
+  },
   component: PlanningPage,
 });
 
 function PlanningPage() {
   const { code } = Route.useParams();
+  const { step } = Route.useSearch();
   const hydrated = useHydrated();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -126,6 +135,15 @@ function PlanningPage() {
     onError: () => setError("Couldn't return to your team. Check your connection and try again."),
   });
   const busy = mutation.isPending || back.isPending;
+  const goToStep = useCallback(
+    (next: PlanStep, replace = false) =>
+      void navigate({ to: "/party/$code/plan", params: { code }, search: { step: next }, replace }),
+    [navigate, code],
+  );
+  const toMap = useCallback(
+    (replace = false) => void navigate({ to: "/party/$code/map", params: { code }, replace }),
+    [navigate, code],
+  );
   // Resolves true only after the server confirms the change.
   const submit = async (command: Command) => {
     if (busy || state.isError) return false;
@@ -227,6 +245,49 @@ function PlanningPage() {
                   backendSupportsV3(state.data) ? undefined : () => setPreviewV3(false)
                 }
               />
+            ) : state.data.status === "collecting" ? (
+              // While answers are open, every entry point (including "Plan an event") uses the
+              // slider wizard; a bare /plan starts at the first step.
+              <>
+                <button
+                  type="button"
+                  onClick={() => setPreviewV3(true)}
+                  className="mx-auto mb-4 block text-sm font-bold underline underline-offset-4"
+                >
+                  {party.data.isHost ? "Switch to the new planner" : "Preview the new planner"}
+                </button>
+                <PlanWizard
+                  key={party.data.selfId}
+                  code={code}
+                  party={party.data}
+                  state={state.data}
+                  step={step ?? planSteps[0]}
+                  goToStep={goToStep}
+                  exit={() => toMap()}
+                  finish={() => {
+                    void queryClient.invalidateQueries({ queryKey: planningKey });
+                    toMap(true);
+                  }}
+                />
+              </>
+            ) : step ? (
+              <section className="paper mx-auto max-w-md rounded-2xl border-2 border-crust bg-offwhite p-6 shadow-pop">
+                <h1 className="text-2xl font-extrabold">Planning is locked</h1>
+                <p className="mt-3 text-sm">
+                  The host is already finding or has found the hangout, so answers can't change
+                  right now.
+                </p>
+                <PopButton tone="sage" className="mt-6" onClick={() => toMap()}>
+                  Back to map
+                </PopButton>
+                <Link
+                  to="/party/$code/plan"
+                  params={{ code }}
+                  className="mt-4 block text-center font-bold underline underline-offset-4"
+                >
+                  See the plan
+                </Link>
+              </section>
             ) : (
               <>
                 <button
@@ -234,9 +295,7 @@ function PlanningPage() {
                   onClick={() => setPreviewV3(true)}
                   className="mb-4 text-sm font-bold underline underline-offset-4"
                 >
-                  {party.data.isHost && state.data.status === "collecting"
-                    ? "Switch to the new planner"
-                    : "Preview the new planner"}
+                  Preview the new planner
                 </button>
                 <PlanningExperience
                   key={party.data.selfId}
