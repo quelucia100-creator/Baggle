@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as AuthenticatedAvailabilityRouteImport } from './routes/_authenticated/availability'
 import { Route as AuthenticatedFriendsRouteImport } from './routes/_authenticated/friends'
 import { Route as AuthenticatedGroupsRouteImport } from './routes/_authenticated/groups'
 import { Route as AuthenticatedHomeRouteImport } from './routes/_authenticated/home'
@@ -44,6 +45,12 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
   path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedAvailabilityRoute =
+  AuthenticatedAvailabilityRouteImport.update({
+    id: '/availability',
+    path: '/availability',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedFriendsRoute = AuthenticatedFriendsRouteImport.update({
   id: '/friends',
   path: '/friends',
@@ -107,6 +114,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/availability': typeof AuthenticatedAvailabilityRoute
   '/friends': typeof AuthenticatedFriendsRoute
   '/groups': typeof AuthenticatedGroupsRoute
   '/home': typeof AuthenticatedHomeRoute
@@ -123,6 +131,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/availability': typeof AuthenticatedAvailabilityRoute
   '/friends': typeof AuthenticatedFriendsRoute
   '/groups': typeof AuthenticatedGroupsRoute
   '/home': typeof AuthenticatedHomeRoute
@@ -141,6 +150,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/_authenticated/availability': typeof AuthenticatedAvailabilityRoute
   '/_authenticated/friends': typeof AuthenticatedFriendsRoute
   '/_authenticated/groups': typeof AuthenticatedGroupsRoute
   '/_authenticated/home': typeof AuthenticatedHomeRoute
@@ -159,6 +169,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/reset-password'
+    | '/availability'
     | '/friends'
     | '/groups'
     | '/home'
@@ -175,6 +186,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/reset-password'
+    | '/availability'
     | '/friends'
     | '/groups'
     | '/home'
@@ -192,6 +204,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/reset-password'
+    | '/_authenticated/availability'
     | '/_authenticated/friends'
     | '/_authenticated/groups'
     | '/_authenticated/home'
@@ -244,6 +257,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/availability': {
+      id: '/_authenticated/availability'
+      path: '/availability'
+      fullPath: '/availability'
+      preLoaderRoute: typeof AuthenticatedAvailabilityRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/friends': {
       id: '/_authenticated/friends'
@@ -326,6 +346,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAvailabilityRoute: typeof AuthenticatedAvailabilityRoute
   AuthenticatedFriendsRoute: typeof AuthenticatedFriendsRoute
   AuthenticatedGroupsRoute: typeof AuthenticatedGroupsRoute
   AuthenticatedHomeRoute: typeof AuthenticatedHomeRoute
@@ -337,6 +358,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAvailabilityRoute: AuthenticatedAvailabilityRoute,
   AuthenticatedFriendsRoute: AuthenticatedFriendsRoute,
   AuthenticatedGroupsRoute: AuthenticatedGroupsRoute,
   AuthenticatedHomeRoute: AuthenticatedHomeRoute,

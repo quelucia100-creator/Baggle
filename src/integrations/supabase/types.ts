@@ -14,6 +14,38 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_availability: {
+        Row: {
+          available_date: string
+          busy_slots: number[]
+          confirmed: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          available_date: string
+          busy_slots?: number[]
+          confirmed?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          available_date?: string
+          busy_slots?: number[]
+          confirmed?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_availability_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       account_preferences: {
         Row: {
           accessibility: string[] | null
