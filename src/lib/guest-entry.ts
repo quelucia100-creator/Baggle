@@ -28,3 +28,7 @@ export function rememberGuestEntry(entry: GuestEntry): void {
     // Unavailable storage must never prevent an otherwise valid party entry.
   }
 }
+
+export function clearGuestEntry(code: string): void {
+  try { if (readGuestEntry()?.code === code) sessionStorage.removeItem(key); } catch { /* Navigation convenience only. */ }
+}

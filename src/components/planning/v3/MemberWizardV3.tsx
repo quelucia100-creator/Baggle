@@ -41,6 +41,9 @@ import {
   ToggleTile,
 } from "./primitives";
 import { daySlots, formatDate, formatInstant, slotsToIntervals } from "./time";
+import { useAccountAvailability } from "../useAccountAvailability";
+import { recurringV3 } from "@/lib/party-availability";
+import { Button } from "@/components/ui/button";
 
 const TITLES: Record<MemberStep, { title: string; description: string }> = {
   vibe: {
@@ -108,6 +111,20 @@ export function MemberWizardV3({
   const [step, setStep] = useState(initialStep);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const weekly = useAccountAvailability();
+  const appliedAvailability = useRef("");
+  const [reuseAvailability, setReuseAvailability] = useState(false);
+  const availabilityKey = `${context.availabilityMode}:${context.candidateDates.join()}`;
+  useEffect(() => {
+    if (!weekly || appliedAvailability.current === availabilityKey) return;
+    appliedAvailability.current = availabilityKey;
+    const patch = recurringV3(weekly, context);
+    if (!patch || hasSaved) return;
+    const merged = { ...draft, ...patch, ...(accountNeeds ? { dietary: accountNeeds.dietary, accessibility: accountNeeds.accessibility } : {}) };
+    if (validateMemberStep(merged, "availability", context)) return;
+    onDraft(merged);
+    setReuseAvailability(true);
+  }, [weekly, availabilityKey, context, draft, onDraft, accountNeeds, hasSaved]);
   const heading = useRef<HTMLHeadingElement>(null);
   const key: MemberStep = MEMBER_STEPS[step] ?? "review";
   useEffect(() => {
@@ -131,7 +148,7 @@ export function MemberWizardV3({
       return;
     }
     if (key !== "review") {
-      setStep(step + 1);
+      setStep(step + (reuseAvailability && MEMBER_STEPS[step + 1] === "availability" ? 2 : 1));
       return;
     }
     if (!canSave) return;
@@ -144,7 +161,7 @@ export function MemberWizardV3({
   };
   const back = () => {
     setError("");
-    if (step) setStep(step - 1);
+    if (step) setStep(step - (reuseAvailability && MEMBER_STEPS[step - 1] === "availability" ? 2 : 1));
     else onCancel();
   };
   const actionLabel =
@@ -186,6 +203,7 @@ export function MemberWizardV3({
         </div>
       </div>
       <div key={step} className="wizard-enter py-7">
+        {reuseAvailability && <div className="mb-4 text-sm"><p className="font-bold">Using your confirmed dashboard availability.</p><Button variant="link" onClick={() => { setReuseAvailability(false); setStep(MEMBER_STEPS.indexOf("availability")); }}>Edit times for this party</Button></div>}
         <h2 ref={heading} tabIndex={-1} className="mb-2 text-3xl font-extrabold outline-none">
           {TITLES[key].title}
         </h2>
@@ -215,6 +233,7 @@ export function MemberWizardV3({
               context={context}
               goTo={(index) => {
                 setError("");
+                if (MEMBER_STEPS[index] === "availability") setReuseAvailability(false);
                 setStep(index);
               }}
             />

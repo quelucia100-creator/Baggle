@@ -41,6 +41,9 @@ import { AvailabilityCalendar } from "./AvailabilityCalendar";
 import { ChoiceCard, PlanStep } from "./PlanStep";
 import { PopButton } from "@/components/Field";
 import { RangeSlider } from "./RangeSlider";
+import { useAccountAvailability } from "./useAccountAvailability";
+import { recurringFreeSlots } from "@/lib/party-availability";
+import { Button } from "@/components/ui/button";
 
 const DEFAULT_TRAVEL_MIN = 30;
 const DEFAULT_SPEND = 25;
@@ -187,7 +190,10 @@ function PlanWizardSteps({
   const draftRevision = useRef(revision);
   const latestRevision = useRef(revision);
   latestRevision.current = revision;
-  const steps = planStepsFor(party.isHost);
+  const weekly = useAccountAvailability();
+  const [reuseAvailability, setReuseAvailability] = useState(false);
+  const appliedAvailability = useRef("");
+  const steps = planStepsFor(party.isHost).filter((entry) => !reuseAvailability || entry !== "time");
   const index = Math.max(0, steps.indexOf(step));
   // Previous single-date parties may have no candidate array.
   const offeredDays = days.dates.length ? days.dates : [state.config.date];
@@ -217,6 +223,19 @@ function PlanWizardSteps({
   const dayFree = { ...draft.dayFree, [today]: clampFree(draft.dayFree[today] ?? [], todayMin) };
   // Only free blocks long enough for the hangout count.
   const dayWindows = dayWindowsFor(dayFree, candidateDays, gap);
+  const availabilityKey = candidateDays.join();
+  useEffect(() => {
+    if (!weekly || appliedAvailability.current === availabilityKey || state.selfPreferences) return;
+    appliedAvailability.current = availabilityKey;
+    const projected = candidateDays.map((date) => [date, recurringFreeSlots(weekly, date)] as const);
+    if (projected.some(([, free]) => free === null)) { setReuseAvailability(false); return; }
+    const imported = Object.fromEntries(projected.map(([date, free]) => [date, clampFree(free ?? [], minSlotFor(date))]));
+    const windows = dayWindowsFor(imported, candidateDays, gap);
+    const first = candidateDays.map((date) => windows[date]?.[0]).find(Boolean);
+    if (!first) { setReuseAvailability(false); return; }
+    setDraft((current) => ({ ...current, dayFree: imported, ...first }));
+    setReuseAvailability(true);
+  }, [weekly, availabilityKey, state.selfPreferences]);
   // The single saved window is the first free stretch (the solver uses every per-day stretch).
   const firstWindow = candidateDays.map((date) => dayWindows[date]?.[0]).find(Boolean) ?? null;
   const othersReady = state.members.filter(
@@ -349,6 +368,7 @@ function PlanWizardSteps({
       onBack={back}
       onNext={next}
     >
+      {reuseAvailability && <div className="mb-4 text-sm"><p className="font-bold">Using your confirmed dashboard availability.</p><Button variant="link" onClick={() => { setReuseAvailability(false); goToStep("time"); }}>Edit times for this party</Button></div>}
       {step === "budget" && (
         <div className="space-y-4">
           <p className="text-4xl font-extrabold" aria-live="polite">

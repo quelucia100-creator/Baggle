@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CalendarDays, Clock, Navigation, Sparkles, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -48,6 +48,9 @@ import { LegacyDayStep as DayStep, type DayChoice } from "./LegacyDayStep";
 import { DayTimesStep } from "./DayTimesStep";
 import { ChoiceCard, PlanStep } from "./PlanStep";
 import { RangeSlider } from "./RangeSlider";
+import { useAccountAvailability } from "./useAccountAvailability";
+import { recurringLegacyWindow } from "@/lib/party-availability";
+import { Button } from "@/components/ui/button";
 
 const DEFAULT_TRAVEL_MIN = 30;
 const DEFAULT_SPEND = 25;
@@ -136,7 +139,10 @@ export function LegacyPlanWizard({ code, party, state, step, goToStep, exit, fin
     initialDraft(code, memberId, state, party.isHost, today),
   );
   const [isSaving, setIsSaving] = useState(false);
-  const steps = planStepsFor(party.isHost);
+  const weekly = useAccountAvailability();
+  const [reuseAvailability, setReuseAvailability] = useState(false);
+  const appliedAvailability = useRef("");
+  const steps = planStepsFor(party.isHost).filter((entry) => !reuseAvailability || entry !== "time");
   const index = Math.max(0, steps.indexOf(step));
   const activeDay: PlanDay = party.isHost
     ? (draft.day ?? "today")
@@ -144,6 +150,15 @@ export function LegacyPlanWizard({ code, party, state, step, goToStep, exit, fin
   const slot = timeWindow(activeDay, nowMin);
   const gap = minGapSteps(state.config.durationMin);
   const startCap = maxStartIndex(slot.baseMin, gap, slot.steps);
+  const scheduleDate = activeDay === "today" ? today : activeDay;
+  useEffect(() => {
+    if (!weekly || appliedAvailability.current === scheduleDate || state.selfPreferences) return;
+    appliedAvailability.current = scheduleDate;
+    const window = recurringLegacyWindow(weekly, scheduleDate, state.config.durationMin, scheduleDate === today ? Math.ceil(nowMin / 30) : 0);
+    if (!window) { setReuseAvailability(false); return; }
+    setDraft((current) => ({ ...current, ...window }));
+    setReuseAvailability(true);
+  }, [weekly, scheduleDate, state.selfPreferences, nowMin, today, state.config.durationMin]);
 
   // Deep links to a later step (or one this role doesn't have) land on the first unanswered one.
   useEffect(() => {
@@ -288,6 +303,7 @@ export function LegacyPlanWizard({ code, party, state, step, goToStep, exit, fin
       onBack={back}
       onNext={next}
     >
+      {reuseAvailability && <div className="mb-4 text-sm"><p className="font-bold">Using your confirmed dashboard availability.</p><Button variant="link" onClick={() => { setReuseAvailability(false); goToStep("time"); }}>Edit times for this party</Button></div>}
       {step === "budget" && (
         <div className="space-y-4">
           <p className="text-4xl font-extrabold" aria-live="polite">

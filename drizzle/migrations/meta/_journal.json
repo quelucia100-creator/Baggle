@@ -218,6 +218,13 @@
       "when": 1795357035388,
       "tag": "0030_host_first_planning",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1795363108755,
+      "tag": "0031_party_leaving_disbanding_and_account_friends",
+      "breakpoints": true
     }
   ]
 }

@@ -55,3 +55,4 @@ use the editor.
 - Plan maps use only capability-visible device locations and the selected public venue, never private planning origins; optional route requests reverify membership and the plan, cap concurrency and cache briefly to bound provider usage.
 - Export and register the canonical planning server-function builder directly alongside typed aliases; keeping its stable name makes endpoint discovery independent of alias analysis and preserves open-client function IDs.
 - Invitation entry polls only after confirmed membership and never follows stored map-view flags; the retired map URL redirects to plan results to keep old links usable without navigation loops.
+- Party social RPCs bind auth users to capability-verified memberships, never display names; serialized leave/disband operations invalidate leases. Dashboard schedules project only into screen-private drafts and save through existing planning validation.

@@ -49,3 +49,7 @@
 - [x] Add optional bounded Google route overlays with graceful failure; 526 tests passed, 30 isolated database tests skipped, and preview compilation passed without live Google requests.
 - [ ] Verify Google Maps rendering and route overlays on an authorized deployed origin — live Maps testing is unsupported in the agent sandbox.
 - [x] Stabilize QR invitation entry and polling; remove the retired standalone map screen and controls while preserving old-link redirects to the plan map. 22 focused tests pass; real invitation form preserves text/focus without repeated reads or navigation for 9.5 seconds, and old map links reach plan results without page errors. Preview compilation passes; no database changes or publication.
+- [ ] Add capability-verified leaving and host disbanding that closes the entire party and returns members to entry.
+- [ ] Add party friend requests only between securely linked registered accounts.
+- [ ] Reuse confirmed private recurring availability in party wizards without resubmitting dashboard edits automatically.
+- [ ] Verify permissions, private schedule mappings, party controls, and real user flows.

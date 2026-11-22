@@ -18,6 +18,7 @@ import {
   type PartyWorkflow,
 } from "@/components/planning/usePartyWorkflow";
 import { accessParty } from "@/lib/party";
+import { PartyControls, usePartyExit } from "@/components/PartyControls";
 
 export const Route = createFileRoute("/party/$code_/plan")({
   head: () => ({
@@ -64,6 +65,7 @@ function PlanningPage() {
     retry: false,
   });
   const workflow = usePartyWorkflow(code, hydrated && !!party.data && !party.isError);
+  usePartyExit(code, party.error);
   const { state, days, mutation } = workflow;
   const readiness = party.data && workflowReadiness(party.data, workflow);
   const v3 = backendSupportsV3(state.data);
@@ -254,6 +256,7 @@ function PlanningPage() {
           </>
         )}
       </main>
+      {party.data && !party.isError && <div className="mx-auto max-w-6xl px-5 pb-8 sm:px-10"><PartyControls party={party.data} /></div>}
     </div>
   );
 }

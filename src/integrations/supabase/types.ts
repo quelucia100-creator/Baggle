@@ -300,6 +300,7 @@ export type Database = {
         Row: {
           code: string
           created_at: string
+          disbanded_at: string | null
           event_state: Json | null
           hangout: Json | null
           id: string
@@ -311,6 +312,7 @@ export type Database = {
         Insert: {
           code: string
           created_at?: string
+          disbanded_at?: string | null
           event_state?: Json | null
           hangout?: Json | null
           id?: string
@@ -322,6 +324,7 @@ export type Database = {
         Update: {
           code?: string
           created_at?: string
+          disbanded_at?: string | null
           event_state?: Json | null
           hangout?: Json | null
           id?: string
@@ -332,6 +335,46 @@ export type Database = {
         }
         Relationships: []
       }
+      party_account_members: {
+        Row: {
+          member_id: string
+          party_id: string
+          user_id: string
+        }
+        Insert: {
+          member_id: string
+          party_id: string
+          user_id: string
+        }
+        Update: {
+          member_id?: string
+          party_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "party_account_members_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: true
+            referencedRelation: "party_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "party_account_members_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: false
+            referencedRelation: "parties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "party_account_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       party_members: {
         Row: {
           display_name: string
@@ -341,6 +384,7 @@ export type Database = {
           is_host: boolean
           joined_at: string
           latitude: number | null
+          left_at: string | null
           location_updated_at: string | null
           longitude: number | null
           party_id: string
@@ -356,6 +400,7 @@ export type Database = {
           is_host?: boolean
           joined_at?: string
           latitude?: number | null
+          left_at?: string | null
           location_updated_at?: string | null
           longitude?: number | null
           party_id: string
@@ -371,6 +416,7 @@ export type Database = {
           is_host?: boolean
           joined_at?: string
           latitude?: number | null
+          left_at?: string | null
           location_updated_at?: string | null
           longitude?: number | null
           party_id?: string
@@ -737,6 +783,15 @@ export type Database = {
         Returns: Json
       }
       party_planning_phase: { Args: { p_party: string }; Returns: string }
+      party_social: {
+        Args: {
+          p_action: string
+          p_code: string
+          p_member?: string
+          p_token: string
+        }
+        Returns: Json
+      }
       party_v2_dates: { Args: { p: Json }; Returns: string[] }
       party_v2_preferences: { Args: { p: Json }; Returns: Json }
       party_v2_store_preferences: {

@@ -13,6 +13,7 @@ import { usePartyWorkflow, workflowReadiness } from "@/components/planning/usePa
 import { supabase } from "@/integrations/supabase/client";
 import { PartyInviteQR } from "@/components/PartyInviteQR";
 import { hasPendingGroupInvite, sendPendingGroupInvite } from "@/lib/pending-group-invite";
+import { PartyControls, usePartyExit } from "@/components/PartyControls";
 
 export const Route = createFileRoute("/party/$code")({
   head: () => ({
@@ -48,6 +49,7 @@ function Party() {
     retry: false,
   });
   const [name, setName] = useState("");
+  usePartyExit(code, query.error);
   const [busy, setBusy] = useState(false);
   const [removing, setRemoving] = useState<string | null>(null);
   const [copied, setCopied] = useState<"code" | "link" | null>(null);
@@ -204,6 +206,7 @@ function Party() {
                   </li>
                 ))}
               </ul>
+              <PartyControls party={party} />
             </section>
           </div>
         ) : query.isError ? (
