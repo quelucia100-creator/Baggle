@@ -5,7 +5,8 @@ import type { ComponentType } from "react";
 import { guestId, hostId, party, thirdId, v2State, v3Config, v3Plan, v3State } from "./test-utils";
 
 // MOCKED server function and party RPC: these tests never reach a database.
-const mocks = vi.hoisted(() => ({ planning: vi.fn(), party: vi.fn(), navigate: vi.fn() }));
+const mocks = vi.hoisted(() => ({ planning: vi.fn(), party: vi.fn(), navigate: vi.fn(), days: vi.fn() }));
+vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: mocks.days, auth: { getSession: async () => ({ data: { session: null } }) } } }));
 vi.mock("@tanstack/react-start", () => ({ useServerFn: () => mocks.planning }));
 vi.mock("@/lib/planning.functions", () => ({ updatePartyPlanning: vi.fn() }));
 vi.mock("@/lib/party", () => ({ accessParty: mocks.party, membershipToken: () => "b".repeat(64) }));
@@ -23,7 +24,8 @@ vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => mocks.navigate,
   Link: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
 }));
-import { Route, planningRequest } from "@/routes/party.$code_.plan";
+import { Route } from "@/routes/party.$code_.plan";
+import { planningRequest } from "../usePartyWorkflow";
 
 // These flows render large accessible grids; role queries are slow under a parallel run.
 vi.setConfig({ testTimeout: 20_000 });
@@ -66,6 +68,9 @@ function answerAll() {
 beforeEach(() => {
   mocks.planning.mockReset();
   mocks.party.mockReset();
+  mocks.days.mockReset().mockResolvedValue({
+    data: { dates: [], hostReady: true, selfWindows: null, revision: 4 }, error: null,
+  });
   mocks.party.mockResolvedValue({ ...party, selfId: guestId, isHost: false });
 });
 afterEach(() => {
@@ -75,7 +80,7 @@ afterEach(() => {
 
 describe("Planning route V3 integration", () => {
   it("keeps the current V2 planner by default and offers a labelled, local-only preview", async () => {
-    mocks.planning.mockResolvedValue(v2State);
+    mocks.planning.mockResolvedValue({ ...v2State, members: [{ id: hostId, submitted: true }, { id: guestId, submitted: false }] });
     open();
     fireEvent.click(await screen.findByRole("button", { name: "Preview the new planner" }));
     expect(screen.getByText("This party still uses the current planner")).toBeInTheDocument();
@@ -106,7 +111,9 @@ describe("Planning route V3 integration", () => {
     expect(screen.queryByText("This party still uses the current planner")).toBeNull();
     answerAll();
     fireEvent.click(screen.getByRole("button", { name: "Save & join the plan" }));
-    expect(await screen.findByText("Your answers are saved. You're ready!")).toBeInTheDocument();
+    await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith({
+      to: "/party/$code", params: { code: "ABC123" }, replace: true,
+    }));
     const save = mocks.planning.mock.calls.find(([call]) => call.data.action === "save")![0];
     expect(save.data).toMatchObject({
       action: "save",
@@ -145,6 +152,7 @@ describe("Planning route V3 integration", () => {
       JSON.stringify([
         ["party", "ABC123"],
         ["party-planning", "ABC123"],
+        ["party-planning-days", "ABC123"],
       ]),
     );
     expect(keys).not.toContain("b".repeat(64));

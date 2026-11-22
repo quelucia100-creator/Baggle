@@ -48,6 +48,7 @@ const venue: Venue = {
   mapsUrl: "https://www.google.com/maps/search/?api=1&query=Montreal",
 };
 const legacyMessage = "Longer travel for 1 person";
+const now = Date.parse("2026-11-22T12:00:00Z");
 const state = {
   status: "locked",
   revision: 1,
@@ -66,7 +67,7 @@ const state = {
 };
 
 function rankedOption() {
-  const [option] = solvePlans(snapshot, [venue]).options;
+  const [option] = solvePlans(snapshot, [venue], [], now).options;
   if (!option) throw new Error("Expected a feasible option");
   return option;
 }
@@ -77,7 +78,7 @@ describe("Shared plan privacy", () => {
       ...snapshot,
       members: members.map((member) => ({ ...member, budget: 4, maxTravelMin: 90 })),
     };
-    const options = solvePlans(loose, [venue]).options;
+    const options = solvePlans(loose, [venue], [], now).options;
     expect(options.length).toBeGreaterThan(0);
     expect(
       [rankedOption(), ...options].every((option) => option.compromise === NEUTRAL_COMPROMISE),

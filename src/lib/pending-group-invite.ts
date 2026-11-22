@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { membershipToken } from "./party";
 import { readStored, writeStored } from "./planning-client";
 
 /**
@@ -20,16 +21,21 @@ export function hasPendingGroupInvite(code: string): boolean {
 export async function sendPendingGroupInvite(code: string): Promise<boolean> {
   const groupId = readStored("session", key(code));
   if (!groupId || !GROUP_ID.test(groupId)) return false;
+  // The installed generated type may still describe the pre-host-first signature.
+  const invite = supabase.rpc.bind(supabase) as unknown as (
+    name: "invite_group_to_journey",
+    args: { p_group: string; p_code: string; p_token: string },
+  ) => PromiseLike<{ data: unknown; error: unknown }>;
   try {
-    const { data, error } = await supabase.rpc("invite_group_to_journey", {
-      p_group: groupId,
-      p_code: code,
+    const { data, error } = await invite("invite_group_to_journey", {
+    p_group: groupId,
+    p_code: code,
+    p_token: membershipToken(),
     });
     if (error || !(data as { ok?: boolean } | null)?.ok) return false;
     writeStored("session", key(code), null);
     return true;
   } catch {
-    // Preserve the choice and release the caller's sending guard after a transport failure.
     return false;
   }
 }

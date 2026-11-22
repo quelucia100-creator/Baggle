@@ -7,11 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.18"
-  }
   public: {
     Tables: {
       account_availability: {
@@ -393,6 +388,7 @@ export type Database = {
           area_label: string
           area_lat: number
           area_lng: number
+          candidate_dates: string[]
           category: string
           config_v3: Json | null
           duration_min: number
@@ -415,6 +411,7 @@ export type Database = {
           area_label?: string
           area_lat?: number
           area_lng?: number
+          candidate_dates?: string[]
           category?: string
           config_v3?: Json | null
           duration_min?: number
@@ -437,6 +434,7 @@ export type Database = {
           area_label?: string
           area_lat?: number
           area_lng?: number
+          candidate_dates?: string[]
           category?: string
           config_v3?: Json | null
           duration_min?: number
@@ -465,9 +463,39 @@ export type Database = {
           },
         ]
       }
+      party_preference_days: {
+        Row: {
+          candidate_dates: string[]
+          member_id: string
+          updated_at: string
+          windows: Json
+        }
+        Insert: {
+          candidate_dates: string[]
+          member_id: string
+          updated_at?: string
+          windows: Json
+        }
+        Update: {
+          candidate_dates?: string[]
+          member_id?: string
+          updated_at?: string
+          windows?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "party_preference_days_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: true
+            referencedRelation: "party_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       party_preferences: {
         Row: {
           budget: number
+          confirmed: boolean
           free_from: string
           free_to: string
           max_travel_min: number
@@ -478,6 +506,7 @@ export type Database = {
         }
         Insert: {
           budget: number
+          confirmed?: boolean
           free_from: string
           free_to: string
           max_travel_min: number
@@ -488,6 +517,7 @@ export type Database = {
         }
         Update: {
           budget?: number
+          confirmed?: boolean
           free_from?: string
           free_to?: string
           max_travel_min?: number
@@ -621,10 +651,12 @@ export type Database = {
         Args: { p_action: string; p_group: string; p_weekday?: number }
         Returns: Json
       }
-      invite_group_to_journey: {
-        Args: { p_code: string; p_group: string }
-        Returns: Json
-      }
+      invite_group_to_journey:
+        | { Args: { p_code: string; p_group: string }; Returns: Json }
+        | {
+            Args: { p_code: string; p_group: string; p_token: string }
+            Returns: Json
+          }
       party_access: {
         Args: {
           p_action: string
@@ -648,6 +680,7 @@ export type Database = {
         }
         Returns: Json
       }
+      party_host_ready: { Args: { p_party: string }; Returns: boolean }
       party_journey: {
         Args: {
           p_action: string
@@ -660,6 +693,7 @@ export type Database = {
         }
         Returns: Json
       }
+      party_member_ready: { Args: { p_member: string }; Returns: boolean }
       party_plan: {
         Args: {
           p_action: string
@@ -682,10 +716,30 @@ export type Database = {
         }
         Returns: boolean
       }
+      party_plan_days: {
+        Args: {
+          p_action: string
+          p_code: string
+          p_payload?: Json
+          p_token: string
+        }
+        Returns: Json
+      }
       party_plan_public_option: { Args: { o: Json }; Returns: Json }
       party_plan_public_option_v3: { Args: { c: Json; o: Json }; Returns: Json }
       party_plan_snapshot: {
         Args: { p_code: string; p_lease: string }
+        Returns: Json
+      }
+      party_planning_phase: { Args: { p_party: string }; Returns: string }
+      party_v2_dates: { Args: { p: Json }; Returns: string[] }
+      party_v2_preferences: { Args: { p: Json }; Returns: Json }
+      party_v2_store_preferences: {
+        Args: { p: Json; p_member: string }
+        Returns: undefined
+      }
+      party_v2_windows: {
+        Args: { p: Json; p_dates: string[]; p_duration: number }
         Returns: Json
       }
       party_v3_anchor_open: {
@@ -859,3 +913,4 @@ export const Constants = {
     Enums: {},
   },
 } as const
+

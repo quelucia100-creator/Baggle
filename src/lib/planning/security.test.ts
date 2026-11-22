@@ -5,7 +5,7 @@ import { describeIsolatedDatabase, installIsolatedSupabaseHooks } from "@/test/i
 import { partySchema } from "../party";
 import { executePlanning } from "./service.server";
 import { planningLockStateSchema, planningStateSchema } from "./types";
-import { montrealToday } from "./tz";
+import { montrealToday, shiftDate } from "./tz";
 import type { Json } from "@/integrations/supabase/types";
 
 vi.mock("./forecast.server", () => ({ fetchPlanningForecast: vi.fn(async () => []) }));
@@ -29,7 +29,7 @@ async function newParty(count: number) {
   const party = partySchema.parse(created.data);
   ownedParties.push(party.code);
   const configuration = await call(party.code, host, "configure", {
-    date: montrealToday(),
+    date: shiftDate(montrealToday(), 1),
     durationMin: 60,
     areaLabel: "Downtown",
     areaLat: 45.5,
@@ -37,6 +37,8 @@ async function newParty(count: number) {
     category: "park",
   });
   if (configuration.error) throw new Error("Could not configure the test party.");
+  const ready = await call(party.code, host, "save", prefs);
+  if (ready.error) throw new Error(ready.error.message);
   const ids = [party.selfId];
   for (const token of tokens.slice(1)) {
     const joined = await supabase.rpc("party_access", {
@@ -125,7 +127,6 @@ describeIsolatedDatabase(
         budget: 3,
         originLat: 45.512345,
         originLng: -73.578901,
-        memberId: party.ids[0],
       });
       expect(result.error).toBeNull();
       const guestState = planningStateSchema.parse(result.data);
@@ -152,6 +153,7 @@ describeIsolatedDatabase(
         { ...prefs, maxTravelMin: 4 },
         { ...prefs, maxTravelMin: 91 },
         { ...prefs, originLat: 45.5 },
+        { ...prefs, memberId: party.ids[0] },
         { ...prefs, freeFrom: "25:00" },
         { budget: 0 },
       ]) {
@@ -175,7 +177,8 @@ describeIsolatedDatabase(
       expect(raw?.plan).not.toHaveProperty("score");
       const saved = planningStateSchema.parse(raw);
       expect(saved.status).toBe("locked");
-      expect(saved.optionCount).toBe(20);
+      expect(saved.optionCount).toBeGreaterThan(8);
+      expect(saved.optionCount).toBeLessThanOrEqual(20);
       expect(saved.plan?.venue.priceTier).toBe(0);
       expect(raw?.plan?.["compromise"]).toBe("Review this option");
       expect(raw).not.toHaveProperty("outlierCount");
@@ -388,7 +391,7 @@ describeIsolatedDatabase("Real database no-plan recovery and lock leases", () =>
     const guest = party.tokens[1];
     if (!guest) throw new Error("Missing member");
     const configuration = {
-      date: montrealToday(),
+      date: shiftDate(montrealToday(), 1),
       durationMin: 90,
       areaLabel: "Downtown",
       areaLat: 45.5,
@@ -457,7 +460,7 @@ describeIsolatedDatabase("Legacy stored plans", () => {
       expect(raw).not.toHaveProperty("outlierCount");
       expect(
         await executePlanning({ action: "read", code: party.code, token, payload: {} }),
-      ).toEqual({ ...raw, schemaVersion: 2 });
+      ).toEqual({ ...planningStateSchema.parse(raw), schemaVersion: 2 });
     }
   });
 

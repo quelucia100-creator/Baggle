@@ -1,55 +1,34 @@
 import { createFileRoute, Link, useHydrated, useNavigate } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useState, type ComponentProps } from "react";
+import { useCallback, useEffect, useState, type ComponentProps } from "react";
+import { toast } from "sonner";
 import { PartyHeader } from "@/components/PartyHeader";
 import { PopButton } from "@/components/Field";
 import { PlanningExperience } from "@/components/planning/PlanningExperience";
 import { PlanWizard } from "@/components/planning/PlanWizard";
 import { LegacyPlanWizard } from "@/components/planning/LegacyPlanWizard";
-import { planSteps as legacyPlanSteps } from "@/lib/planning/legacy-wizard";
-import { planSteps, type PlanStep } from "@/lib/planning/wizard";
-import { planningError, type PlanningCommand } from "@/components/planning/model";
+import { planSteps, planStepsFor, type PlanStep } from "@/lib/planning/wizard";
+import { planningError } from "@/components/planning/model";
 import { PlanningV3Experience } from "@/components/planning/v3/PlanningV3Experience";
+import { backendSupportsV3 } from "@/components/planning/v3/contract";
+import { PartyPlanningActions } from "@/components/planning/PartyPlanningActions";
 import {
-  backendSupportsV3,
-  type PlanningCommandV3,
-  type VersionedPlanningState,
-} from "@/components/planning/v3/contract";
-import { accessParty, membershipToken } from "@/lib/party";
-import { updatePartyPlanning } from "@/lib/planning.functions";
-import { isPlanningDaysUnavailable, planningDaysKey, planningDaysQuery } from "@/lib/planning-days";
-import type { PlanningRequest } from "@/lib/planning-v3/request";
-
-type Command = PlanningCommand | PlanningCommandV3;
-type VersionedCall = (options: { data: PlanningRequest }) => Promise<VersionedPlanningState>;
-/**
- * Every request carries the party's planning version. A V3 `configure` on a legacy party
- * is the host's bootstrap into V3; every other command follows the version last read.
- */
-export function planningRequest(
-  command: Command,
-  current: VersionedPlanningState | undefined,
-  code: string,
-  token: string,
-): PlanningRequest {
-  const bootstrap =
-    command.action === "configure" && "version" in command.config && command.config.version === 3;
-  if (bootstrap || current?.schemaVersion === 3)
-    return { ...command, code, token, schemaVersion: 3 } as PlanningRequest;
-  return { ...command, code, token, schemaVersion: 2 } as PlanningRequest;
-}
+  usePartyWorkflow,
+  workflowReadiness,
+  type PartyWorkflow,
+} from "@/components/planning/usePartyWorkflow";
+import { accessParty } from "@/lib/party";
 
 export const Route = createFileRoute("/party/$code_/plan")({
-  head: ({ params }) => ({
+  head: () => ({
     meta: [
-      { title: `Plan an event · ${params.code} — Baggle` },
+      { title: `Plan an event — Baggle` },
       {
         name: "description",
         content:
           "Privately share your availability and choose one shared event with your Baggle crew.",
       },
-      { property: "og:title", content: `Your crew's event · ${params.code} — Baggle` },
+      { property: "og:title", content: `Your crew's event — Baggle` },
       {
         property: "og:description",
         content: "Bring friends together with private preferences and a shared plan.",
@@ -60,24 +39,20 @@ export const Route = createFileRoute("/party/$code_/plan")({
   }),
   // ?step= opens the one-question-per-screen wizard; without it this is the shared results page.
   // Each step is a history entry, so browser Back returns to the previous question.
-  validateSearch: (search: Record<string, unknown>): { step?: PlanStep } => {
+  validateSearch: (search: Record<string, unknown>): { step?: PlanStep; edit?: true } => {
     const step = planSteps.find((value) => value === search["step"]);
-    return step ? { step } : {};
+    return step ? { step, ...(search["edit"] === true ? { edit: true } : {}) } : {};
   },
   component: PlanningPage,
 });
 
 function PlanningPage() {
   const { code } = Route.useParams();
-  const { step } = Route.useSearch();
+  const { step, edit } = Route.useSearch();
   const hydrated = useHydrated();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  // The backend export is an intersection of the versioned and legacy call signatures;
-  // pick the versioned one explicitly so V3 reads and commands type-check.
-  const planning = useServerFn(updatePartyPlanning as VersionedCall);
   const [error, setError] = useState("");
-  // Screen-local only: never in the URL, storage or query keys.
   const [previewV3, setPreviewV3] = useState(false);
   const partyKey = ["party", code];
   // Capability storage is browser-only. Never put it into keys, URLs or SSR loaders.
@@ -88,74 +63,53 @@ function PlanningPage() {
     refetchInterval: 3000,
     retry: false,
   });
-  const planningKey = ["party-planning", code];
-  // selfPreferences stay in this browser's active screen cache, discarded on leaving.
-  const mutationKey = ["party-planning-change", code];
-  const state = useQuery({
-    queryKey: planningKey,
-    // Reading as V3 returns either a V3 party or an explicitly versioned legacy party.
-    queryFn: () =>
-      planning({ data: { action: "read", code, token: membershipToken(), schemaVersion: 3 } }),
-    enabled: hydrated && !!party.data && !party.isError,
-    refetchInterval: () => (queryClient.isMutating({ mutationKey }) ? false : 3000),
-    retry: false,
-    gcTime: 0,
-  });
-  const mutation = useMutation({
-    mutationKey,
-    gcTime: 0,
-    mutationFn: (command: Command) =>
-      planning({
-        data: planningRequest(
-          command,
-          queryClient.getQueryData<VersionedPlanningState>(planningKey),
-          code,
-          membershipToken(),
-        ),
-      }),
-    onMutate: async () => {
-      setError("");
-      await queryClient.cancelQueries({ queryKey: planningKey });
-    },
-    onSuccess: async (data) => {
-      queryClient.setQueryData(planningKey, data);
-      await queryClient.invalidateQueries({ queryKey: planningKey });
-    },
-    onError: async (err) => {
-      setError(planningError(err));
-      // A failed response may still have completed a lock/vote. Read before retrying.
-      await state.refetch();
-      await party.refetch();
-    },
-    retry: false,
-  });
+  const workflow = usePartyWorkflow(code, hydrated && !!party.data && !party.isError);
+  const { state, days, mutation } = workflow;
+  const readiness = party.data && workflowReadiness(party.data, workflow);
+  const v3 = backendSupportsV3(state.data);
+  const collecting = state.data?.status === "collecting";
+  const needsSetup =
+    readiness && party.data?.isHost && !readiness.hostReady && !readiness.legacyReady;
+  const needsAnswers = readiness && (!readiness.selfReady || needsSetup);
+  const showWizard = collecting && (edit || needsAnswers || previewV3);
+  useEffect(() => {
+    // Saved collecting answers already render the shared view. Let a successful
+    // submission return to the lobby without a competing URL replacement.
+    if (step && state.data && !state.isError && !collecting)
+      void navigate({ to: "/party/$code/plan", params: { code }, search: {}, replace: true });
+  }, [step, state.data, state.isError, collecting, navigate, code]);
   const back = useMutation({
     mutationFn: () => accessParty("team", code),
+    onMutate: () => queryClient.cancelQueries({ queryKey: partyKey }),
     onSuccess: async (data) => {
       queryClient.setQueryData(partyKey, data);
-      await navigate({ to: "/party/$code", params: { code } });
+      await navigate({ to: "/party/$code", params: { code }, replace: true });
     },
     onError: () => setError("Couldn't return to your team. Check your connection and try again."),
   });
   const busy = mutation.isPending || back.isPending;
   const goToStep = useCallback(
     (next: PlanStep, replace = false) =>
-      void navigate({ to: "/party/$code/plan", params: { code }, search: { step: next }, replace }),
-    [navigate, code],
+      void navigate({
+        to: "/party/$code/plan",
+        params: { code },
+        search: { step: next, ...(edit ? { edit } : {}) },
+        replace: replace || !!edit,
+      }),
+    [navigate, code, edit],
   );
-  const toMap = useCallback(
-    (replace = false) => void navigate({ to: "/party/$code/map", params: { code }, replace }),
-    [navigate, code],
-  );
-  // Resolves true only after the server confirms the change.
-  const submit = async (command: Command) => {
-    if (busy || state.isError) return false;
-    try {
-      await mutation.mutateAsync(command);
-      return true;
-    } catch {
-      return false;
+  const finish = async () => {
+    await workflow.refresh();
+    if (party.data?.view === "map") {
+      back.mutate();
+    } else {
+      await navigate({ to: "/party/$code", params: { code }, replace: true });
     }
+  };
+  const exit = () => back.mutate();
+  const submit: typeof workflow.submit = async (command) => {
+    if (back.isPending) return;
+    return workflow.submit(command);
   };
   return (
     <div className="paper-sheet min-h-screen bg-offwhite">
@@ -163,16 +117,17 @@ function PlanningPage() {
         code={code}
         party={party.isError ? undefined : party.data}
         plan
+        showCode={readiness?.hostReady === true}
         busy={busy || !party.data || party.isError}
         onTeam={() => back.mutate()}
       />
       <main className="mx-auto max-w-6xl px-5 py-8 sm:px-10 sm:py-12">
-        {error && (
+        {(error || mutation.error) && (
           <div
             role="alert"
             className="paper mb-6 rounded-lg border-2 border-crust bg-apricot p-4 text-sm font-semibold"
           >
-            {error}
+            {error || planningError(mutation.error)}
           </div>
         )}
         {party.isError ? (
@@ -238,20 +193,30 @@ function PlanningPage() {
                   : "Saving your change…"
                 : ""}
             </div>
-            {backendSupportsV3(state.data) || previewV3 ? (
+            {collecting &&
+            !party.data.isHost &&
+            days.data?.hostReady !== true &&
+            !readiness?.legacyReady ? (
+              <PartyPlanningActions party={party.data} workflow={workflow} busy={busy} />
+            ) : (v3 && (showWizard || !collecting)) || (previewV3 && collecting) ? (
               <PlanningV3Experience
                 key={party.data.selfId}
                 party={party.data}
                 state={state.data}
                 busy={busy || state.isError}
-                submit={submit}
-                onExitPreview={
-                  backendSupportsV3(state.data) ? undefined : () => setPreviewV3(false)
+                submit={async (command) => !!(await submit(command))}
+                startInPreferences={v3 && !!step}
+                onPreferencesSaved={
+                  v3
+                    ? () => {
+                        toast.success("You're ready! Your answers are saved privately.");
+                        finish();
+                      }
+                    : undefined
                 }
+                onExitPreview={v3 ? undefined : () => setPreviewV3(false)}
               />
-            ) : state.data.status === "collecting" ? (
-              // While answers are open, every entry point (including "Plan an event") uses the
-              // slider wizard; a bare /plan starts at the first step.
+            ) : showWizard && !backendSupportsV3(state.data) ? (
               <>
                 <button
                   type="button"
@@ -265,54 +230,27 @@ function PlanningPage() {
                   code={code}
                   party={party.data}
                   state={state.data}
+                  workflow={workflow}
                   {...(step ? { step } : {})}
                   goToStep={goToStep}
-                  exit={() => toMap()}
-                  finish={() => {
-                    void queryClient.invalidateQueries({ queryKey: planningKey });
-                    // A host who just finished setting up goes to the lobby to invite the crew.
-                    if (party.data.isHost && party.data.members.length === 1)
-                      void navigate({ to: "/party/$code", params: { code }, replace: true });
-                    else toMap(true);
-                  }}
+                  exit={exit}
+                  finish={finish}
                 />
               </>
-            ) : step ? (
+            ) : collecting ? (
               <section className="paper mx-auto max-w-md rounded-2xl border-2 border-crust bg-offwhite p-6 shadow-pop">
-                <h1 className="text-2xl font-extrabold">Planning is locked</h1>
-                <p className="mt-3 text-sm">
-                  The host is already finding or has found the hangout, so answers can't change
-                  right now.
-                </p>
-                <PopButton tone="sage" className="mt-6" onClick={() => toMap()}>
-                  Back to map
-                </PopButton>
-                <Link
-                  to="/party/$code/plan"
-                  params={{ code }}
-                  className="mt-4 block text-center font-bold underline underline-offset-4"
-                >
-                  See the plan
-                </Link>
+                <h1 className="text-2xl font-extrabold">Your shared hangout</h1>
+                <PartyPlanningActions party={party.data} workflow={workflow} busy={busy} />
               </section>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setPreviewV3(true)}
-                  className="mb-4 text-sm font-bold underline underline-offset-4"
-                >
-                  Preview the new planner
-                </button>
-                <PlanningExperience
-                  key={party.data.selfId}
-                  party={party.data}
-                  state={state.data}
-                  busy={busy || state.isError}
-                  submit={submit}
-                />
-              </>
-            )}
+            ) : !backendSupportsV3(state.data) ? (
+              <PlanningExperience
+                key={party.data.selfId}
+                party={party.data}
+                state={state.data}
+                busy={busy || state.isError}
+                submit={async (command) => !!(await submit(command))}
+              />
+            ) : null}
           </>
         )}
       </main>
@@ -320,35 +258,27 @@ function PlanningPage() {
   );
 }
 
-type WizardProps = Omit<ComponentProps<typeof PlanWizard>, "days" | "step"> & { step?: PlanStep };
-/** Loads the host's offered days (and host readiness) only while the slider wizard is open. */
-function SliderWizard(props: WizardProps) {
-  const queryClient = useQueryClient();
-  const days = useQuery(planningDaysQuery(props.code));
-  if (!days.data && isPlanningDaysUnavailable(days.error))
-    return <LegacyPlanWizard {...props} step={props.step ?? legacyPlanSteps[0]} />;
-  // A failed background poll keeps the wizard (and its draft) on screen.
+type WizardProps = Omit<ComponentProps<typeof PlanWizard>, "days" | "step" | "refresh"> & {
+  step?: PlanStep;
+  workflow: PartyWorkflow;
+};
+
+function SliderWizard({ workflow, ...props }: WizardProps) {
+  const { days, refresh } = workflow;
+  const first = planStepsFor(props.party.isHost)[0] ?? "budget";
+  if (!days.data && workflowReadiness(props.party, workflow).legacyReady)
+    return <LegacyPlanWizard {...props} step={props.step ?? first} />;
   if (!days.data && days.isError)
     return (
       <section className="mx-auto max-w-md">
         <p role="alert" className="font-bold">
           Couldn't check the hangout's days. Check your connection and try again.
         </p>
-        <PopButton tone="sage" className="mt-4" onClick={() => void days.refetch()}>
+        <PopButton tone="sage" className="mt-4" onClick={() => void refresh()}>
           Check again
         </PopButton>
       </section>
     );
-  if (!days.data) return <p role="status">Opening your event…</p>;
-  return (
-    <PlanWizard
-      {...props}
-      step={props.step ?? planSteps[0]}
-      days={days.data}
-      finish={() => {
-        void queryClient.invalidateQueries({ queryKey: planningDaysKey(props.code) });
-        props.finish();
-      }}
-    />
-  );
+  if (!days.data) return <p role="status">Opening your event?</p>;
+  return <PlanWizard {...props} step={props.step ?? first} days={days.data} refresh={refresh} />;
 }

@@ -141,12 +141,14 @@ export function solvePlans(
   snapshot: Snapshot,
   venues: Venue[],
   forecast: ForecastHour[] = [],
+  now = Date.now(),
 ): { options: PlanOption[] } {
   const { config, members } = snapshot;
   const duration = config.durationMin * MINUTE_MS;
   if (members.length < 2) return { options: [] };
   const windows = candidateDates(config)
     .flatMap((date) => sharedWindows(members, date, config.date))
+    .map(({ start, end }) => ({ start: Math.max(start, now), end }))
     .filter((window) => window.end - window.start >= duration);
   if (!windows.length) return { options: [] };
 

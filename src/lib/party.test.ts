@@ -40,6 +40,14 @@ describeIsolatedDatabase("Guest party access rules", { sequential: true }, () =>
     code = party.code;
     ownedParties.push(code);
     hostId = party.selfId;
+    expect((await rpc("join", tokens[1]!)).error?.code).toBe("55000");
+    const ready = await supabase.rpc("party_plan", {
+      p_action: "save",
+      p_code: code,
+      p_token: host,
+      p_payload: { budget: 0, freeFrom: "18:00", freeTo: "23:00", maxTravelMin: 30 },
+    });
+    if (ready.error) throw new Error(ready.error.message);
     for (const token of tokens.slice(1, 10)) {
       const joined = await rpc("join", token);
       if (joined.error) throw new Error(joined.error.message);

@@ -73,6 +73,8 @@ export function PlanningV3Experience({
   submit,
   now: fixedNow,
   onExitPreview,
+  startInPreferences = false,
+  onPreferencesSaved,
 }: {
   party: PartyState;
   state: VersionedPlanningState;
@@ -80,6 +82,8 @@ export function PlanningV3Experience({
   submit: (command: PlanningCommandV3) => Promise<boolean>;
   now?: number | undefined;
   onExitPreview?: (() => void) | undefined;
+  startInPreferences?: boolean;
+  onPreferencesSaved?: (() => void) | undefined;
 }) {
   const now = useNow(fixedNow);
   const today = todayIn(now);
@@ -93,7 +97,7 @@ export function PlanningV3Experience({
   const collecting = state.status === "collecting";
   const canConfigure = party.isHost && collecting;
   const [view, setView] = useState<"overview" | "private" | "setup">(() =>
-    party.isHost || selfReady || !v3 ? "overview" : "private",
+    (v3 && startInPreferences) || (!party.isHost && !selfReady && v3) ? "private" : "overview",
   );
   const [hostDraft, setHostDraft] = useState<HostDraft>(() => savedConfig);
   const groupArea = savedConfig.areaMode === "host_area" ? savedConfig.area : null;
@@ -113,6 +117,7 @@ export function PlanningV3Experience({
   }, [state.status, view]);
 
   const context = memberContextFrom(savedConfig, today, now);
+  if (v3) context.candidateDates = state.config.dateSelection.candidateDates;
   const saveConfig = async (config: HostConfigV3) => {
     const confirmed = await submit({ action: "configure", config });
     if (confirmed) {
@@ -132,6 +137,7 @@ export function PlanningV3Experience({
     if (!confirmed) setDraftRevision(latestRevision.current);
     if (confirmed) {
       setSuccess("Your answers are saved. You're ready!");
+      onPreferencesSaved?.();
       setView("overview");
     }
     return confirmed;
@@ -249,7 +255,7 @@ export function PlanningV3Experience({
               busy={busy}
               submit={submit}
               selfReady={selfReady}
-              lockAvailable={v3}
+              lockAvailable={v3 && !onPreferencesSaved}
             />
           )}
         </aside>
