@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import logo from "@/assets/baggle-logo.png.asset.json";
 import bagelPlain from "@/assets/bagel-single.png.asset.json";
 import bagelCream from "@/assets/bagel-cream.png.asset.json";
@@ -9,6 +9,7 @@ import { Field, PopButton } from "@/components/Field";
 import { PaperIcon } from "@/components/PaperIcon";
 import { normalizePartyCode } from "@/lib/password";
 import { accessParty } from "@/lib/party";
+import { readGuestEntry, rememberGuestEntry, type GuestEntry } from "@/lib/guest-entry";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/")({
@@ -32,13 +33,25 @@ function Welcome() {
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [recentEntry, setRecentEntry] = useState<GuestEntry | null>(null);
   const { setActive } = useBagelTransition();
   const navigate = useNavigate();
+  useEffect(() => {
+    const entry = readGuestEntry();
+    if (entry) {
+      setName(entry.name);
+      setCode(entry.code);
+      setRecentEntry(entry);
+    }
+  }, []);
 
   const go = async (created: boolean) => {
     setBusy(true);
     try {
       const party = await accessParty(created ? "create" : "join", normalizePartyCode(code), name.trim());
+      const entry = { name: name.trim(), code: party.code };
+      rememberGuestEntry(entry);
+      setRecentEntry(entry);
       setActive(true);
       await navigate({ to: "/party/$code", params: { code: party.code } });
     } catch (error) { toast.error(error instanceof Error ? error.message : "Could not open party."); }
@@ -76,6 +89,7 @@ function Welcome() {
             void go(false);
           }}
         >
+          {recentEntry && <Link to="/party/$code" params={{ code: recentEntry.code }} className="paper block rounded-lg border-2 border-crust bg-sage px-4 py-3 text-center font-bold shadow-pop focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-crust">Return to party {recentEntry.code}</Link>}
           <Field label="Display name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Sesame Sam" required maxLength={30} />
           <Field label="Party code" value={code} onChange={(e) => setCode(normalizePartyCode(e.target.value))} placeholder="ABC123" className="tracking-[0.3em]" />
           <PopButton type="submit" disabled={busy || !name.trim() || code.length !== 6}>{busy ? "One sec…" : "Join party"}</PopButton>

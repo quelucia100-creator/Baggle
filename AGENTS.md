@@ -32,6 +32,7 @@ use the editor.
 - Auth/welcome screens wrap content in `AuthShell` (src/components/BagelScene.tsx) so the split banner/bagel layout stays consistent.
 - Route loading and root BagelTransitionProvider share BagelLoadingScreen; suppress the route loader during guest/auth navigation so only one rotating bagel appears until navigation settles.
 - Guest and authentication form screens use validated route search state so browser Back restores the preceding screen rather than an unrelated older party.
+- Guest lobby Back returns to the guest entry screen; a validated session-only last-entry record restores the name/code and return link without storing or replacing membership credentials.
 - Automatic journey and post-authentication transitions replace history entries; sign-out cancels queries and clears cached data before replacing the current screen with sign-in to avoid stale-screen loops.
 - Signup display names live in `public.profiles`, created by an auth trigger from `display_name` metadata.
 - Guest parties use a security-definer RPC with hashed, random membership capabilities; direct table access is denied and host permissions plus the member limit are checked atomically in the database.

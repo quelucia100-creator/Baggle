@@ -38,3 +38,5 @@
 - [x] Show only shared recurring openings in Groups and send member hangout pokes with private schedules protected.
 - [x] Verify aggregate privacy, missing schedules, overnight slots, membership and notification delivery in isolated PostgreSQL and UI tests; 384 tests passed, 30 skipped, preview build passed, and live owner-only access metadata checked.
 - [ ] Verify shared openings and poke delivery through signed-in live accounts — blocked because temporary test-account creation was declined.
+- [x] Fix guest lobby Back navigation, restore guest entry details, and provide a return link without changing membership credentials.
+- [x] Verify create → Back → return → create again, original-party rejoin, and refresh through the real guest flow without generating plans; guest and signed-in Back regression tests pass.
