@@ -197,6 +197,8 @@ export class DemoPlanningServer {
         if (s.schemaVersion !== 3) throw new Error("The host must enable V3 planning first.");
         if (s.status !== "collecting")
           throw new Error("Preferences are frozen until the host reopens planning.");
+        if (command.revision !== s.revision)
+          throw new Error("This plan changed. Refresh and try again.");
         // The backend's own validator: the same rules a real save is checked against.
         const preferences = normalizePreferences(
           structuredClone(command.preferences),

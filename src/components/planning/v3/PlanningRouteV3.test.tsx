@@ -107,6 +107,8 @@ describe("Planning route V3 integration", () => {
     expect(save.data).toMatchObject({
       action: "save",
       schemaVersion: 3,
+      // The engine requires the revision the draft was based on for every V3 save.
+      revision: 4,
       code: "ABC123",
       token: "b".repeat(64),
       preferences: {

@@ -73,7 +73,8 @@ export type PlanWarning = PublicPlanV3["warnings"][number];
 /** Commands as the V3 UI issues them; the route adds version and capability. */
 export type PlanningCommandV3 =
   | { action: "configure"; config: HostConfigV3 }
-  | { action: "save"; preferences: MemberPreferencesV3 }
+  /** `revision` is the party revision the draft was based on (required by the server). */
+  | { action: "save"; preferences: MemberPreferencesV3; revision: number }
   | { action: "lock" | "reopen" }
   | { action: "vote" | "host_reroll" | "finalize"; revision: number };
 

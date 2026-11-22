@@ -338,10 +338,9 @@ export function ResultV3({
     (warning) =>
       warning !== "cost_unknown" && warning !== "booking_unknown" && warning !== "route_estimates",
   );
+  // V3 options are currently curated-only (the engine narrows `venue.source` to "curated").
   const sourceLabel = v3
-    ? v3.venue.source === "google_places"
-      ? "Venue data: Google Maps"
-      : "Baggle curated venue"
+    ? "Baggle curated venue"
     : state.venueSource === "google_places"
       ? "Venue data: Google Maps"
       : state.venueSource === "fallback"

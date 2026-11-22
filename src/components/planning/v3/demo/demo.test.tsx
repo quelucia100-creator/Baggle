@@ -32,9 +32,17 @@ describe("Demo fake server", () => {
     const server = new DemoPlanningServer("overnight");
     const read = () => server.read(HOST_ID);
     expect(() => server.handle(HOST_ID, { action: "lock" })).toThrow(/own preferences/);
+    expect(() =>
+      server.handle(HOST_ID, {
+        action: "save",
+        revision: read().revision - 1,
+        preferences: syntheticAnswers(SAM_ID, scenarioConfigOf(server), Date.now()),
+      }),
+    ).toThrow(/changed/);
     const config = scenarioConfigOf(server);
     server.handle(HOST_ID, {
       action: "save",
+      revision: read().revision,
       preferences: syntheticAnswers(SAM_ID, config, Date.now()),
     });
     expect(() => server.handle(MISHA_ID, { action: "lock" })).toThrow(/Only the host/);
@@ -74,7 +82,11 @@ describe("Demo fake server", () => {
     const server = new DemoPlanningServer("tonight");
     const good = syntheticAnswers(SAM_ID, scenarioConfigOf(server), Date.now());
     expect(() =>
-      server.handle(SAM_ID, { action: "save", preferences: { ...good, vibes: [] } }),
+      server.handle(SAM_ID, {
+        action: "save",
+        preferences: { ...good, vibes: [] },
+        revision: server.read(SAM_ID).revision,
+      }),
     ).toThrow();
     server.dispose();
   });

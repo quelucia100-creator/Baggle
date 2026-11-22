@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, Check, Settings2 } from "lucide-react";
 import { PopButton } from "@/components/Field";
 import type { PartyState } from "@/lib/party";
@@ -101,6 +101,11 @@ export function PlanningV3Experience({
     savedPreferences ? memberDraftFromV3(savedPreferences, groupArea) : emptyMemberDraft(),
   );
   const [success, setSuccess] = useState("");
+  // The revision the private draft is based on. If the host changes settings meanwhile,
+  // the server rejects the save and the member reviews the draft instead of overwriting.
+  const [draftRevision, setDraftRevision] = useState(state.revision);
+  const latestRevision = useRef(state.revision);
+  latestRevision.current = state.revision;
   useEffect(() => {
     window.scrollTo?.({ top: 0, behavior: "instant" });
   }, [state.status, view]);
@@ -119,7 +124,10 @@ export function PlanningV3Experience({
     return confirmed;
   };
   const savePreferences = async (preferences: MemberPreferencesV3) => {
-    const confirmed = await submit({ action: "save", preferences });
+    const confirmed = await submit({ action: "save", preferences, revision: draftRevision });
+    // After a rejected save the member sees the error and their draft; an explicit retry is
+    // based on the latest read (and re-validated against the current settings first).
+    if (!confirmed) setDraftRevision(latestRevision.current);
     if (confirmed) {
       setSuccess("Your answers are saved. You're ready!");
       setView("overview");
@@ -206,6 +214,7 @@ export function PlanningV3Experience({
                 }}
                 onPrivate={() => {
                   setSuccess("");
+                  setDraftRevision(state.revision);
                   setView("private");
                 }}
               />
