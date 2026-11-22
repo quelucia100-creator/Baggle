@@ -24,8 +24,12 @@ beforeAll(async () => {
     ALTER TABLE public.account_weekly_availability ENABLE ROW LEVEL SECURITY;
     CREATE POLICY own_schedule ON public.account_weekly_availability TO authenticated USING(user_id=auth.uid());
     CREATE TABLE public.notifications(id uuid DEFAULT gen_random_uuid(),user_id uuid,kind text,actor_username text,detail text);
+    GRANT SELECT ON public.notifications TO authenticated;
+    ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+    CREATE POLICY own_notifications ON public.notifications TO authenticated USING(user_id=auth.uid());
   `);
-  await db.exec(await readFile(new URL("../../drizzle/migrations/0022_private_group_weekly_openings_and_pokes.sql", import.meta.url), "utf8"));
+  await db.exec(await readFile(`${process.cwd()}/drizzle/migrations/0022_private_group_weekly_openings_and_pokes.sql`, "utf8"));
+  await db.exec(await readFile(`${process.cwd()}/drizzle/migrations/0023_recheck_group_membership_after_poke_lock.sql`, "utf8"));
 }, 30000);
 afterAll(async () => { await db?.close(); });
 
@@ -89,6 +93,22 @@ it("notifies every other joined member once and never pending invitees or the se
   await db.exec("SET ROLE authenticated");
   expect(await action("poke", 1)).toEqual({ ok: false, error: "cooldown" });
   expect((await action("read"))["canPoke"]).toBe(false);
+  expect((await db.query("SELECT * FROM public.notifications")).rows).toEqual([]);
+  await db.query("SELECT set_config('request.jwt.claim.sub',$1,false)", [other]);
+  expect((await db.query("SELECT user_id,kind FROM public.notifications")).rows).toEqual([{ user_id: other, kind: "group_poke" }]);
+});
+
+it("allows another group poke only after the one-hour cooldown", async () => {
+  expect(await action("poke", 1)).toEqual({ ok: true });
+  await db.exec("RESET ROLE; UPDATE public.group_hangout_pokes SET last_sent_at=now()-interval '61 minutes'; SET ROLE authenticated;");
+  expect((await action("read"))["canPoke"]).toBe(true);
+  expect(await action("poke", 1)).toEqual({ ok: true });
+});
+
+it("rejects former members after removal", async () => {
+  await db.exec(`RESET ROLE; DELETE FROM public.friend_group_members WHERE user_id='${me}'; SET ROLE authenticated;`);
+  expect(await action("read")).toEqual({ ok: false, error: "not_allowed" });
+  expect(await action("poke", 1)).toEqual({ ok: false, error: "not_allowed" });
 });
 
 it("rechecks the shared weekday before sending any notification", async () => {
