@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
+import { rememberGuestEntry } from "./guest-entry";
 
 export const MAX_PARTY_MEMBERS = 10;
 export const LOCATION_RADIUS_METRES = 0;
@@ -31,5 +32,9 @@ export async function accessParty(action: PartyAction, code = "", name = "", mem
     ...(coords ? { p_lat: coords.lat, p_lng: coords.lng } : {}),
   });
   if (error) throw new Error(error.message);
-  return partySchema.parse(data);
+  const party = partySchema.parse(data);
+  if (action === "create" || action === "join") {
+    rememberGuestEntry({ code: party.code, name: party.members.find((member) => member.id === party.selfId)?.name ?? name.trim() });
+  }
+  return party;
 }

@@ -14,6 +14,38 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_availability: {
+        Row: {
+          available_date: string
+          busy_slots: number[]
+          confirmed: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          available_date: string
+          busy_slots?: number[]
+          confirmed?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          available_date?: string
+          busy_slots?: number[]
+          confirmed?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_availability_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       account_preferences: {
         Row: {
           accessibility: string[] | null
@@ -59,6 +91,38 @@ export type Database = {
             foreignKeyName: "account_preferences_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      account_weekly_availability: {
+        Row: {
+          busy_slots: number[]
+          confirmed: boolean
+          updated_at: string
+          user_id: string
+          weekday: number
+        }
+        Insert: {
+          busy_slots?: number[]
+          confirmed?: boolean
+          updated_at?: string
+          user_id: string
+          weekday: number
+        }
+        Update: {
+          busy_slots?: number[]
+          confirmed?: boolean
+          updated_at?: string
+          user_id?: string
+          weekday?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_weekly_availability_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -167,6 +231,29 @@ export type Database = {
             columns: ["requester_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      group_hangout_pokes: {
+        Row: {
+          group_id: string
+          last_sent_at: string
+        }
+        Insert: {
+          group_id: string
+          last_sent_at?: string
+        }
+        Update: {
+          group_id?: string
+          last_sent_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_hangout_pokes_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: true
+            referencedRelation: "friend_groups"
             referencedColumns: ["id"]
           },
         ]
@@ -530,6 +617,10 @@ export type Database = {
         }
         Returns: Json
       }
+      group_weekly_action: {
+        Args: { p_action: string; p_group: string; p_weekday?: number }
+        Returns: Json
+      }
       invite_group_to_journey: {
         Args: { p_code: string; p_group: string }
         Returns: Json
@@ -579,6 +670,7 @@ export type Database = {
         Returns: Json
       }
       party_plan_cleanup: { Args: never; Returns: number }
+      party_plan_cleanup_status: { Args: never; Returns: Json }
       party_plan_complete: {
         Args: {
           p_code: string
@@ -596,14 +688,9 @@ export type Database = {
         Args: { p_code: string; p_lease: string }
         Returns: Json
       }
-      party_plan_days: {
-        Args: {
-          p_action: string
-          p_code: string
-          p_payload?: Json
-          p_token: string
-        }
-        Returns: Json
+      party_v3_anchor_open: {
+        Args: { c: Json; p_at: string }
+        Returns: boolean
       }
       party_v3_bool: { Args: { v: Json }; Returns: boolean }
       party_v3_config: { Args: { p: Json }; Returns: Json }
@@ -621,6 +708,11 @@ export type Database = {
       }
       party_v3_iso: { Args: { t: string }; Returns: string }
       party_v3_keys: { Args: { k: string[]; o: Json }; Returns: boolean }
+      party_v3_lease_valid: {
+        Args: { s: Database["public"]["Tables"]["party_planning"]["Row"] }
+        Returns: boolean
+      }
+      party_v3_minute_ok: { Args: { t: string }; Returns: boolean }
       party_v3_num: {
         Args: { hi: number; lo: number; v: Json }
         Returns: number
@@ -631,6 +723,7 @@ export type Database = {
         Returns: Json
       }
       party_v3_self_doc: { Args: { c: Json; p: Json }; Returns: Json }
+      party_v3_slot_ok: { Args: { t: string }; Returns: boolean }
       party_v3_str: { Args: { maxlen: number; v: Json }; Returns: string }
       party_v3_tags: { Args: { maxn: number; v: Json }; Returns: Json }
       party_v3_ts: { Args: { v: Json }; Returns: string }

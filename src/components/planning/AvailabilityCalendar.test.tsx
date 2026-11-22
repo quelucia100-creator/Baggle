@@ -48,7 +48,7 @@ const at = (columnIndex: number, slot: number) => ({
   clientX: columnIndex * COLUMN_WIDTH + 10,
   clientY: slot * SLOT_PX + 5,
 });
-const scroller = () => column("Wednesday, November 25").parentElement!.parentElement!;
+const scroller = () => { const element = column("Wednesday, November 25").parentElement?.parentElement; if (!element) throw new Error("Missing calendar scroller"); return element; };
 function press(target: Element, columnIndex: number, slot: number) {
   fireEvent.pointerDown(target, {
     pointerId: 1,
@@ -133,7 +133,8 @@ describe("Availability calendar", () => {
 
   it("resizes a block by dragging its bottom edge", () => {
     const { container } = render(<Harness initial={{ [wed]: [18, 19, 20, 21] }} />);
-    const edge = container.querySelector('[data-edge="end"]')!;
+    const edge = container.querySelector('[data-edge="end"]');
+    if (!edge) throw new Error("Missing resize handle");
     press(edge, 0, 21);
     moveTo(0, 25); // to 1:00 PM
     release();

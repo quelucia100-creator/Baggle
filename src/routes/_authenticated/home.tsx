@@ -35,7 +35,7 @@ type DashboardSection = {
   back: PaperTone;
   rotate: number;
   icon: React.ReactNode;
-  to?: "/friends" | "/groups";
+  to?: "/friends" | "/groups" | "/availability";
 };
 
 const SECTIONS: DashboardSection[] = [
@@ -59,7 +59,8 @@ const SECTIONS: DashboardSection[] = [
   },
   {
     title: "Availability",
-    description: "Set when you're usually free so planning is instant.",
+    to: "/availability",
+    description: "Your free times for the days ahead.",
     tone: "sage",
     back: "chartreuse",
     rotate: 6,

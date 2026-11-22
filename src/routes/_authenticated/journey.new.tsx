@@ -7,6 +7,8 @@ import { PopButton } from "@/components/Field";
 import { PaperIcon } from "@/components/PaperIcon";
 import { accessParty } from "@/lib/party";
 import { accountPreferencesQuery } from "@/lib/account-preferences";
+import { planningDaysQuery, isPlanningDaysUnavailable } from "@/lib/planning-days";
+import { useQueryClient } from "@tanstack/react-query";
 import { rememberGroupInvite } from "@/lib/pending-group-invite";
 
 export const Route = createFileRoute("/_authenticated/journey/new")({
@@ -26,6 +28,7 @@ export const Route = createFileRoute("/_authenticated/journey/new")({
 type Group = { id: string; name: string; members: { username: string | null; invited?: boolean }[] };
 
 function StartJourney() {
+  const queryClient = useQueryClient();
   const { data: prefs } = useSuspenseQuery(accountPreferencesQuery());
   const groups = useQuery({
     queryKey: ["groups"],
@@ -47,6 +50,14 @@ function StartJourney() {
       const party = await accessParty("create", "", prefs.preferences?.username ?? "Host");
       // The host sets up the whole hangout first; the group is invited once that's done.
       if (choice !== "solo") rememberGroupInvite(party.code, choice);
+      try {
+        await queryClient.fetchQuery(planningDaysQuery(party.code));
+      } catch (error) {
+        if (isPlanningDaysUnavailable(error)) {
+          await navigate({ to: "/party/$code", params: { code: party.code } });
+          return;
+        }
+      }
       await navigate({ to: "/party/$code/plan", params: { code: party.code }, search: { step: "day" } });
     } catch {
       setError("Couldn't start the journey. Please try again.");

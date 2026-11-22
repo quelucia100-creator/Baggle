@@ -6,6 +6,8 @@ import { PartyHeader } from "@/components/PartyHeader";
 import { PopButton } from "@/components/Field";
 import { PlanningExperience } from "@/components/planning/PlanningExperience";
 import { PlanWizard } from "@/components/planning/PlanWizard";
+import { LegacyPlanWizard } from "@/components/planning/LegacyPlanWizard";
+import { planSteps as legacyPlanSteps } from "@/lib/planning/legacy-wizard";
 import { planSteps, type PlanStep } from "@/lib/planning/wizard";
 import { planningError, type PlanningCommand } from "@/components/planning/model";
 import { PlanningV3Experience } from "@/components/planning/v3/PlanningV3Experience";
@@ -16,7 +18,7 @@ import {
 } from "@/components/planning/v3/contract";
 import { accessParty, membershipToken } from "@/lib/party";
 import { updatePartyPlanning } from "@/lib/planning.functions";
-import { planningDaysKey, planningDaysQuery } from "@/lib/planning-days";
+import { isPlanningDaysUnavailable, planningDaysKey, planningDaysQuery } from "@/lib/planning-days";
 import type { PlanningRequest } from "@/lib/planning-v3/request";
 
 type Command = PlanningCommand | PlanningCommandV3;
@@ -159,6 +161,7 @@ function PlanningPage() {
     <div className="paper-sheet min-h-screen bg-offwhite">
       <PartyHeader
         code={code}
+        party={party.isError ? undefined : party.data}
         plan
         busy={busy || !party.data || party.isError}
         onTeam={() => back.mutate()}
@@ -262,7 +265,7 @@ function PlanningPage() {
                   code={code}
                   party={party.data}
                   state={state.data}
-                  step={step ?? planSteps[0]}
+                  {...(step ? { step } : {})}
                   goToStep={goToStep}
                   exit={() => toMap()}
                   finish={() => {
@@ -317,11 +320,13 @@ function PlanningPage() {
   );
 }
 
-type WizardProps = Omit<ComponentProps<typeof PlanWizard>, "days">;
+type WizardProps = Omit<ComponentProps<typeof PlanWizard>, "days" | "step"> & { step?: PlanStep };
 /** Loads the host's offered days (and host readiness) only while the slider wizard is open. */
 function SliderWizard(props: WizardProps) {
   const queryClient = useQueryClient();
   const days = useQuery(planningDaysQuery(props.code));
+  if (!days.data && isPlanningDaysUnavailable(days.error))
+    return <LegacyPlanWizard {...props} step={props.step ?? legacyPlanSteps[0]} />;
   // A failed background poll keeps the wizard (and its draft) on screen.
   if (!days.data && days.isError)
     return (
@@ -338,6 +343,7 @@ function SliderWizard(props: WizardProps) {
   return (
     <PlanWizard
       {...props}
+      step={props.step ?? planSteps[0]}
       days={days.data}
       finish={() => {
         void queryClient.invalidateQueries({ queryKey: planningDaysKey(props.code) });

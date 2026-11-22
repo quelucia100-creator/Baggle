@@ -57,9 +57,11 @@ describe("Planning feasibility and ranking", () => {
     expect(solvePlans(paid, [{ ...venue, priceTier: 2 }]).options[0]?.venue.priceTier).toBe(2);
   });
   it("enforces every travel limit using the configured area when no origin is shared", () => {
+    const [firstMember, secondMember] = snapshot.members;
+    if (!firstMember || !secondMember) throw new Error("Two fixture members required");
     const short = {
       ...snapshot,
-      members: [snapshot.members[0]!, { ...snapshot.members[1]!, maxTravelMin: 5 }],
+      members: [firstMember, { ...secondMember, maxTravelMin: 5 }],
     };
     const farther = { ...venue, placeId: "farther", location: { ...area, lat: area.lat + 0.01 } };
     expect(solvePlans(short, [farther]).options).toEqual([]);
@@ -252,7 +254,7 @@ describe("Planning across several host-picked days", () => {
     expect(new Set(options.map((option) => dayOf(option.startAt)))).toEqual(
       new Set(["2026-11-22", "2026-11-23"]),
     );
-    expect(dayOf(options[0]!.startAt)).toBe("2026-11-22");
+    expect(dayOf(options[0]?.startAt ?? "")).toBe("2026-11-22");
   });
 
   it("plans only inside the free stretches each member painted around a busy midday", () => {

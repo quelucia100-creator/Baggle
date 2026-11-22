@@ -24,21 +24,26 @@ export function BusyGrid({
   onChange,
   onUndo,
   canUndo,
+  recurringWeekday,
 }: {
-  date: string;
-  now: number;
+  date?: string;
+  now?: number;
+  recurringWeekday?: string;
   value: DayDraft;
   onChange: (next: DayDraft) => void;
   onUndo: () => void;
   canUndo: boolean;
 }) {
-  const slots = useMemo(() => daySlots(date), [date]);
+  // A normal civil day supplies fixed clock labels for a recurring template;
+  // it never enters saved data or the rendered weekday UI.
+  const slots = useMemo(() => daySlots(recurringWeekday ? "2026-01-12" : date ?? ""), [date, recurringWeekday]);
+  const dayLabel = recurringWeekday ?? formatLongDate(date ?? "");
   const busy = useMemo(() => new Set(value.busy), [value.busy]);
   const [tool, setTool] = useState<Tool>("paint");
   const [drag, setDrag] = useState<Drag | null>(null);
   const suppressClick = useRef(false);
   const cellRefs = useRef<(HTMLButtonElement | null)[]>([]);
-  const paintable = (slot: Slot) => slot.startMs !== null && !isPastSlot(slot, now);
+  const paintable = (slot: Slot) => Boolean(recurringWeekday) || (slot.startMs !== null && !isPastSlot(slot, now ?? Date.now()));
   const commit = (next: Set<number>, confirmed = false) =>
     onChange({ busy: [...next].sort((a, b) => a - b), confirmed });
 
@@ -63,6 +68,7 @@ export function BusyGrid({
     const index = Number(cell.getAttribute("data-slot"));
     const slot = slots[index];
     if (!slot || !paintable(slot)) return;
+    suppressClick.current = false;
     event.currentTarget.setPointerCapture?.(event.pointerId);
     setDrag({ pointerId: event.pointerId, anchor: index, current: index, moved: false });
   };
@@ -75,16 +81,20 @@ export function BusyGrid({
   const onPointerUp = (event: PointerEvent<HTMLDivElement>) => {
     if (!drag || drag.pointerId !== event.pointerId) return;
     event.currentTarget.releasePointerCapture?.(event.pointerId);
+    // Pointer capture retargets a tap's click to the grid, not the cell.
+    // Commit both taps and drags here, and ignore their following synthetic click.
+    suppressClick.current = true;
+    const next = new Set(busy);
     if (drag.moved) {
-      // A drag ends with a synthetic click on the start cell; don't let it toggle again.
-      suppressClick.current = true;
-      const next = new Set(busy);
       for (const index of range(drag.anchor, drag.current)) {
         if (tool === "paint") next.add(index);
         else next.delete(index);
       }
-      commit(next);
+    } else {
+      if (next.has(drag.anchor)) next.delete(drag.anchor);
+      else next.add(drag.anchor);
     }
+    commit(next);
     setDrag(null);
   };
   const toggle = (index: number) => {
@@ -121,7 +131,7 @@ export function BusyGrid({
       <div
         className="mb-3 flex flex-wrap items-center gap-2"
         role="toolbar"
-        aria-label={`Tools for ${formatLongDate(date)}`}
+        aria-label={`Tools for ${dayLabel}`}
       >
         <ToolButton
           pressed={tool === "paint"}
@@ -173,18 +183,19 @@ export function BusyGrid({
       </p>
       <div
         role="group"
-        aria-label={`Busy times on ${formatLongDate(date)}, Montréal time`}
+        aria-label={`Busy times on ${dayLabel}, Montréal time`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={() => setDrag(null)}
+        onClick={() => { suppressClick.current = false; }}
         className="select-none"
       >
         {rows.map((row, rowIndex) => (
           <div key={rowIndex}>
             {rowIndex === 8 && (
               <p className="mb-1 mt-3 border-t-2 border-dashed border-crust/30 pt-2 text-xs font-extrabold uppercase">
-                After midnight · {formatDate(row[0]?.civilDate ?? date)}
+                After midnight · {recurringWeekday ? "Next day" : formatDate(row[0]?.civilDate ?? date ?? "")}
               </p>
             )}
             <div className="mb-1.5 grid grid-cols-[3.25rem_repeat(6,minmax(0,1fr))] gap-1">

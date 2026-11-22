@@ -15,7 +15,7 @@ import {
   runPlanning,
   vibeStorageKey,
 } from "@/lib/planning-client";
-import { planningDaysQuery } from "@/lib/planning-days";
+import { isPlanningDaysUnavailable, planningDaysQuery } from "@/lib/planning-days";
 import { formatPlanTime, planningError, type PlanningCommand } from "./model";
 
 const MAX_HANGOUT_NAME = 80;
@@ -40,7 +40,7 @@ export function HangoutPanel({ code, party, isEnabled, isBusy, pinHangout, clear
     enabled: isEnabled && state?.status === "collecting",
   });
   // Until the host has finished their own answers, nobody else can join or answer.
-  const hostReady = days.data?.hostReady ?? false;
+  const hostReady = days.data?.hostReady ?? isPlanningDaysUnavailable(days.error);
   const ready = state?.members.filter((member) => member.submitted).length ?? 0;
   const total = state?.members.length ?? party.members.length;
   const selfReady = !!state?.members.find((member) => member.id === party.selfId)?.submitted;

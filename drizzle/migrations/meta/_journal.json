@@ -141,6 +141,76 @@
       "when": 1795346659526,
       "tag": "0019_journey_group_invites",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1795350199781,
+      "tag": "0020_private_account_availability",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1795350803431,
+      "tag": "0021_private_recurring_weekday_availability",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1795352360287,
+      "tag": "0022_private_group_weekly_openings_and_pokes",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1795352620287,
+      "tag": "0023_recheck_group_membership_after_poke_lock",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1795352620288,
+      "tag": "0024_planning_v3_rpc_corrections",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1795352620289,
+      "tag": "0025_enable_pg_cron_for_planning_cleanup",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1795352620290,
+      "tag": "0026_planning_v3_review_followups",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1795352620291,
+      "tag": "0027_schedule_planning_v3_cleanup",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1795352620292,
+      "tag": "0028_planning_v3_contract_alignment",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1795352620293,
+      "tag": "0029_planning_v3_precise_manual_origin",
+      "breakpoints": true
     }
   ]
 }

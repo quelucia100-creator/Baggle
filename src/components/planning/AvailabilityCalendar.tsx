@@ -216,8 +216,8 @@ export function AvailabilityCalendar({ days, value, gap, minSlotFor = () => 0, o
           ? block.to < DAY_SLOTS &&
             update(date, replaceBlock(free, block, { ...block, to: block.to + 1 }, min))
           : block.to < DAY_SLOTS && update(date, replaceBlock(free, block, shift(1), min)),
-      ArrowLeft: () => index > 0 && moveToDay(date, block, days[index - 1]!),
-      ArrowRight: () => index < days.length - 1 && moveToDay(date, block, days[index + 1]!),
+      ArrowLeft: () => { const previous = days[index - 1]; if (previous) moveToDay(date, block, previous); },
+      ArrowRight: () => { const next = days[index + 1]; if (next) moveToDay(date, block, next); },
     };
     const action = actions[event.key];
     if (!action) return;
@@ -312,7 +312,7 @@ export function AvailabilityCalendar({ days, value, gap, minSlotFor = () => 0, o
                   className="relative touch-none border-r border-crust/15 last:border-r-0"
                   style={{
                     height: DAY_SLOTS * SLOT_PX,
-                    backgroundImage: `repeating-linear-gradient(to bottom, transparent 0, transparent ${2 * SLOT_PX - 1}px, rgb(0 0 0 / 0.08) ${2 * SLOT_PX - 1}px, rgb(0 0 0 / 0.08) ${2 * SLOT_PX}px)`,
+                    backgroundImage: `repeating-linear-gradient(to bottom, transparent 0, transparent ${2 * SLOT_PX - 1}px, color-mix(in srgb, var(--color-crust) 8%, transparent) ${2 * SLOT_PX - 1}px, color-mix(in srgb, var(--color-crust) 8%, transparent) ${2 * SLOT_PX}px)`,
                   }}
                 >
                   {/* The thick rail you draw free time onto. */}

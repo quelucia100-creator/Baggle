@@ -113,6 +113,34 @@ afterEach(() => {
 });
 
 describe("Planning screen polling and recovery", () => {
+  it("keeps the working single-day wizard when the days update is not installed", async () => {
+    mocks.days.mockResolvedValue({ data: null, error: {
+      code: "PGRST202", message: "Could not find the function public.party_plan_days",
+    } });
+    open();
+    const slider = await screen.findByRole("slider", { name: "Budget per person" });
+    fireEvent.focus(slider);
+    fireEvent.keyDown(slider, { key: "End" });
+    expect(slider).toHaveAttribute("aria-valuenow", "100");
+    expect(mocks.navigate).not.toHaveBeenCalled();
+    expect(mocks.planning.mock.calls.every(([input]) => input.data.action === "read")).toBe(true);
+  });
+  it("does not fall back on a rejected membership check", async () => {
+    mocks.days.mockResolvedValue({ data: null, error: { code: "42501", message: "Invalid membership" } });
+    open();
+    await screen.findByRole("alert");
+    expect(screen.queryByRole("slider")).toBeNull();
+    expect(mocks.planning.mock.calls.every(([input]) => input.data.action === "read")).toBe(true);
+  });
+  it("clears both private planning caches when leaving the multi-day screen", async () => {
+    const view = open();
+    await screen.findByRole("heading", { name: "When's the hangout?" });
+    view.unmount();
+    await waitFor(() => {
+      expect(client.getQueryData(["party-planning", "ABC123"])).toBeUndefined();
+      expect(client.getQueryData(["party-planning-days", "ABC123"])).toBeUndefined();
+    });
+  });
   it("checks guest party access before reading planning", async () => {
     mocks.party.mockRejectedValue(new Error("Join this party"));
     open();

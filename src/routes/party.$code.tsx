@@ -10,7 +10,7 @@ import { PaperIcon } from "@/components/PaperIcon";
 import { accessParty, canRemoveMember, MAX_PARTY_MEMBERS } from "@/lib/party";
 import { PlanningLink } from "@/components/planning/PlanningLink";
 import { PartyInviteQR } from "@/components/PartyInviteQR";
-import { planningDaysQuery } from "@/lib/planning-days";
+import { isPlanningDaysUnavailable, planningDaysQuery } from "@/lib/planning-days";
 import { hasPendingGroupInvite, sendPendingGroupInvite } from "@/lib/pending-group-invite";
 
 export const Route = createFileRoute("/party/$code")({
@@ -56,7 +56,7 @@ function Party() {
   const hostReady = days.data?.hostReady ?? days.isError;
   const readinessKnown = !!days.data || days.isError;
   // Only a confirmed-ready host sends the remembered group invite; a failure can retry.
-  const confirmedReady = days.data?.hostReady === true;
+  const confirmedReady = days.data?.hostReady === true || isPlanningDaysUnavailable(days.error);
   const invitingGroup = useRef(false);
   useEffect(() => {
     if (!party?.isHost || !confirmedReady || invitingGroup.current || !hasPendingGroupInvite(code))
@@ -87,7 +87,7 @@ function Party() {
 
   return (
     <div className="paper-sheet min-h-screen bg-offwhite">
-      <PartyHeader code={code} />
+      <PartyHeader code={code} party={party} />
       <main className="mx-auto max-w-5xl px-5 py-10 sm:px-10 sm:py-14">
         <div className="mb-10 flex items-center justify-between gap-4">
           <div>

@@ -33,7 +33,7 @@ export function spendLabel(spend: number): string {
 export function spendNote(spend: number): string {
   return ["Free stuff only", "Cheap eats", "A normal night out", "A bit fancy", "Treat ourselves"][
     spendToBudgetLevel(spend)
-  ]!;
+  ] ?? "A normal night out";
 }
 
 /* ---------- Vibe ---------- */

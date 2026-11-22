@@ -2,6 +2,7 @@ import { queryOptions } from "@tanstack/react-query";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { membershipToken } from "./party";
+import type { Json } from "@/integrations/supabase/types";
 import {
   dateSchema,
   dayWindowsSchema,
@@ -27,14 +28,28 @@ type DaysCommand =
   | { action: "configure"; dates: string[]; windows?: DayWindows }
   | { action: "save"; windows: DayWindows };
 
+/** Optional rollout contract: generated types always describe the installed schema, not a pending migration. */
+type OptionalDaysRpc = (name: "party_plan_days", args: {
+  p_action: DaysCommand["action"]; p_code: string; p_token: string; p_payload: Json;
+}) => PromiseLike<{ data: unknown; error: { code?: string; message: string } | null }>;
+
+export class PlanningDaysUnavailable extends Error {
+  constructor() { super("Multi-day planning is not installed yet."); }
+}
+export const isPlanningDaysUnavailable = (error: unknown): error is PlanningDaysUnavailable =>
+  error instanceof PlanningDaysUnavailable;
+
 export async function runPlanningDays(code: string, command: DaysCommand): Promise<PlanningDays> {
   const { action, ...payload } = command;
-  const { data, error } = await supabase.rpc("party_plan_days", {
+  const rpc = supabase.rpc.bind(supabase) as unknown as OptionalDaysRpc;
+  const { data, error } = await rpc("party_plan_days", {
     p_action: action,
     p_code: code,
     p_token: membershipToken(),
     p_payload: payload,
   });
+  if (error?.code === "PGRST202" && error.message.includes("party_plan_days"))
+    throw new PlanningDaysUnavailable();
   if (error) throw new Error(error.message);
   const parsed = planningDaysSchema.safeParse(data);
   if (!parsed.success) throw new Error("Planning is temporarily unavailable.");
