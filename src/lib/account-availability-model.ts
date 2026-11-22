@@ -1,5 +1,12 @@
 import { z } from "zod";
-import { daySlots, inHorizon, isPastSlot, isValidIsoDate, todayIn } from "@/components/planning/v3/time";
+import { addDays, daySlots, inHorizon, isPastSlot, isValidIsoDate, todayIn, weekdayIndex } from "@/components/planning/v3/time";
+
+export const AVAILABILITY_WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+export function availabilityWeek(today: string, week: 0 | 1) {
+  const monday = addDays(today, -((weekdayIndex(today) + 6) % 7) + week * 7);
+  return AVAILABILITY_WEEKDAYS.map((label, index) => ({ label, date: addDays(monday, index) }));
+}
 
 export const availabilityDaySchema = z.object({
   date: z.string().refine(isValidIsoDate, "Choose a valid date."),

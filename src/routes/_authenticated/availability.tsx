@@ -9,9 +9,9 @@ export const Route = createFileRoute("/_authenticated/availability")({
   loader: ({ context }) => context.queryClient.ensureQueryData(accountAvailabilityQuery()),
   head: () => ({ meta: [
     { title: "Your availability — Baggle" },
-    { name: "description", content: "Save your private availability in Montréal time for upcoming days." },
+    { name: "description", content: "Choose a weekday and save your private availability in Montréal time for this week or next." },
     { property: "og:title", content: "Your availability — Baggle" },
-    { property: "og:description", content: "Manage your private upcoming availability with Baggle." },
+    { property: "og:description", content: "Manage your private weekday availability for this week and next with Baggle." },
     { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" },
   ] }),
   component: AvailabilityPage,

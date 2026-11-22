@@ -3,8 +3,8 @@ import { ArrowLeft, ArrowRight, Check, Pencil, Trash2, CalendarDays } from "luci
 import { Button } from "@/components/ui/button";
 import { PopButton } from "@/components/Field";
 import { BusyGrid } from "@/components/planning/v3/BusyGrid";
-import { formatDate, formatLongDate, horizonDates, todayIn } from "@/components/planning/v3/time";
-import { freeSlotCount, validateAvailability, type AvailabilityDay } from "@/lib/account-availability-model";
+import { formatDate, formatLongDate, todayIn } from "@/components/planning/v3/time";
+import { availabilityWeek, freeSlotCount, validateAvailability, type AvailabilityDay } from "@/lib/account-availability-model";
 
 export function AvailabilityEditor({ days, onSave, onRemove }: {
   days: AvailabilityDay[];
@@ -13,6 +13,7 @@ export function AvailabilityEditor({ days, onSave, onRemove }: {
 }) {
   const [now] = useState(() => Date.now());
   const today = todayIn(now);
+  const [week, setWeek] = useState<0 | 1>(0);
   const [draft, setDraft] = useState<AvailabilityDay | null>(null);
   const [drafts, setDrafts] = useState<Record<string, AvailabilityDay>>({});
   const [history, setHistory] = useState<AvailabilityDay[]>([]);
@@ -54,10 +55,14 @@ export function AvailabilityEditor({ days, onSave, onRemove }: {
     {notice && <p role="status" className="mb-5 border-l-4 border-sage bg-sage/30 p-3 font-bold">{notice}</p>}
     {error && <p role="alert" className="mb-5 border-l-4 border-crust bg-apricot p-3 font-bold">{error}</p>}
     {!draft ? <>
-      <h2 className="mb-4 text-xl font-extrabold">Which day?</h2>
+      <h2 className="mb-4 text-xl font-extrabold">Which day of the week?</h2>
+      <div role="group" aria-label="Choose week" className="mb-5 flex gap-3">
+        {([0, 1] as const).map((value) => <Button key={value} variant="outline" aria-pressed={week === value} disabled={busy} onClick={() => setWeek(value)} className={`paper min-h-12 flex-1 border-2 border-crust text-crust ${week === value ? "bg-chartreuse shadow-pop" : "bg-cream"}`}>{value === 0 ? "This week" : "Next week"}</Button>)}
+      </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {horizonDates(today).map((date) => <Button key={date} variant="outline" disabled={busy} onClick={() => choose(date)} className="paper h-auto min-h-16 flex-col gap-1 border-2 border-crust bg-cream py-3 text-crust shadow-pop">
-          <span>{formatDate(date)}</span>
+        {availabilityWeek(today, week).map(({ label, date }) => <Button key={date} variant="outline" aria-label={label} disabled={busy || date < today} onClick={() => choose(date)} className="paper h-auto min-h-16 flex-col gap-1 border-2 border-crust bg-cream py-3 text-crust shadow-pop">
+          <span>{label}</span>
+          <span className="text-xs text-muted-foreground">{formatDate(date).split(", ")[1]}</span>
           {days.some((d) => d.date === date && d.confirmed) && <span className="flex items-center gap-1 text-xs text-muted-foreground"><Check className="h-3 w-3" />Saved</span>}
         </Button>)}
       </div>

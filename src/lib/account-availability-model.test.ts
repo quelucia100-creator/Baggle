@@ -1,9 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { availabilityDaySchema, freeSlotCount, validateAvailability } from "./account-availability-model";
+import { availabilityDaySchema, availabilityWeek, freeSlotCount, validateAvailability } from "./account-availability-model";
 import { todayIn } from "@/components/planning/v3/time";
 
 const now = Date.parse("2026-11-22T05:00:00Z");
 describe("Private account availability matches the guest calendar", () => {
+  it("lists Monday through Sunday in the chosen Montreal calendar week", () => {
+    expect(availabilityWeek("2026-11-22", 0)).toEqual([
+      { label: "Monday", date: "2026-11-16" }, { label: "Tuesday", date: "2026-11-17" },
+      { label: "Wednesday", date: "2026-11-18" }, { label: "Thursday", date: "2026-11-19" },
+      { label: "Friday", date: "2026-11-20" }, { label: "Saturday", date: "2026-11-21" },
+      { label: "Sunday", date: "2026-11-22" },
+    ]);
+    expect(availabilityWeek("2026-11-22", 1)[0]).toEqual({ label: "Monday", date: "2026-11-23" });
+  });
   it("uses Montreal dates rather than UTC at midnight", () => {
     expect(todayIn(Date.parse("2026-11-22T02:00:00Z"))).toBe("2026-11-21");
   });
