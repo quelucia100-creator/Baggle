@@ -71,7 +71,7 @@ function MapPage() {
   }, [party]);
 
   return <div className="paper-sheet min-h-screen bg-offwhite">
-    <PartyHeader code={code} map busy={busy} onTeam={() => void mutate("team")} />
+    <PartyHeader code={code} party={party} map busy={busy} onTeam={() => void mutate("team")} />
     {!party ? <main className="mx-auto max-w-4xl px-6 py-12"><h1 className="text-2xl font-extrabold">Your journey</h1><p className="mt-4" role="status">{query.error instanceof Error ? query.error.message : "Opening your map…"}</p></main> : <>
       <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-crust/20 px-5 py-5 sm:px-10"><div><h1 className="text-2xl font-extrabold">Where are we heading?</h1><p className="mt-1 text-sm text-muted-foreground">{party.members.length} friends · Exact shared locations</p></div><span className="flex items-center gap-2 text-sm font-bold"><Navigation className="h-4 w-4" />Journey started</span></div>
       <main className="grid min-h-[calc(100dvh-190px)] lg:grid-cols-[1fr_340px]">

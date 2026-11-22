@@ -158,6 +158,7 @@ function PlanningPage() {
     <div className="paper-sheet min-h-screen bg-offwhite">
       <PartyHeader
         code={code}
+        party={party.isError ? undefined : party.data}
         plan
         busy={busy || !party.data || party.isError}
         onTeam={() => back.mutate()}

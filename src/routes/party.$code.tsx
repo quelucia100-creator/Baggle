@@ -67,7 +67,7 @@ function Party() {
 
   return (
     <div className="paper-sheet min-h-screen bg-offwhite">
-      <PartyHeader code={code} />
+      <PartyHeader code={code} party={party} />
       <main className="mx-auto max-w-5xl px-5 py-10 sm:px-10 sm:py-14">
         <div className="mb-10 flex items-center justify-between gap-4">
           <div>

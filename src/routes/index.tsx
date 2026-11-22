@@ -9,7 +9,7 @@ import { Field, PopButton } from "@/components/Field";
 import { PaperIcon } from "@/components/PaperIcon";
 import { normalizePartyCode } from "@/lib/password";
 import { accessParty } from "@/lib/party";
-import { readGuestEntry, rememberGuestEntry, type GuestEntry } from "@/lib/guest-entry";
+import { readGuestEntry, type GuestEntry } from "@/lib/guest-entry";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/")({
@@ -49,9 +49,7 @@ function Welcome() {
     setBusy(true);
     try {
       const party = await accessParty(created ? "create" : "join", normalizePartyCode(code), name.trim());
-      const entry = { name: name.trim(), code: party.code };
-      rememberGuestEntry(entry);
-      setRecentEntry(entry);
+      setRecentEntry(readGuestEntry());
       setActive(true);
       await navigate({ to: "/party/$code", params: { code: party.code } });
     } catch (error) { toast.error(error instanceof Error ? error.message : "Could not open party."); }
