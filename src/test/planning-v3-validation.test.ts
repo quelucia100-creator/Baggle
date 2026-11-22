@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { localDay, shiftDate, wallTime } from "@/lib/planning/tz";
 import {
   availableWindows,
+  memberPreferencesV3Schema,
   normalizeConfig,
   normalizePreferences,
   unambiguous,
@@ -10,6 +11,21 @@ import { parsePlanningRequest, preparePlanningCommand } from "@/lib/planning-v3/
 import { clock, day, hostConfig, iso, now, prefs } from "./planning-v3-fixtures";
 
 describe("Planning V3 canonical requests", () => {
+  it("rejects notes, tags and hard caps that the RPC cannot store", () => {
+    const base = prefs();
+    expect(
+      memberPreferencesV3Schema.safeParse({ ...base, optionalNote: "é".repeat(280) }).success,
+    ).toBe(true);
+    for (const value of [
+      { ...base, optionalNote: "second\nline" },
+      { ...base, optionalNote: "a".repeat(281) },
+      { ...base, accessibilityHardRequirements: ["invalid tag"] },
+      { ...base, budget: { ...base.budget, hardMaxCad: 505 } },
+    ]) {
+      expect(memberPreferencesV3Schema.safeParse(value).success).toBe(false);
+    }
+  });
+
   it("keeps the legacy RPC payload untagged and requires revision for V3 save and finalize", () => {
     const credentials = { code: "ABC123", token: "a".repeat(64) };
     const v2 = {

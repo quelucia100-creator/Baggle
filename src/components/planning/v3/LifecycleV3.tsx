@@ -283,7 +283,11 @@ function V3Facts({ plan }: { plan: PublicPlanV3 }) {
           "Booking need unknown — check before you go."
         )}
       </li>
-      {venue.accessibilityVerified && <li>Accessibility details come from the venue source.</li>}
+      {venue.accessibilityVerified && (
+        <li>
+          The venue publishes some accessibility details. Check the venue source for specifics.
+        </li>
+      )}
       <li>
         {plan.warnings.includes("route_estimates")
           ? "Travel was checked with a routing provider, but some times are estimates."

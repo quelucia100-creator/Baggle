@@ -435,7 +435,7 @@ describe("Payloads accepted by the backend validators", () => {
     expect(() => normalizePreferences(structuredClone(anytime), tonightConfig, now)).not.toThrow();
   });
 
-  it("rejects too-short windows and days the database won't store, before sending", () => {
+  it("rejects too-short windows and sends a fully busy day alongside an available day", () => {
     const shortWindow = {
       ...memberBase,
       days: {
@@ -453,9 +453,9 @@ describe("Payloads accepted by the backend validators", () => {
         "2026-11-25": { busy: [], confirmed: true },
       },
     };
-    expect(validateMemberStep(oneFullyBusy, "availability", calendarContext)).toMatch(
-      /busy all day/,
-    );
+    const payload = memberPayload(oneFullyBusy, calendarContext);
+    expect(payload.availability.days[0]?.busyIntervals).toHaveLength(1);
+    expect(normalizePreferences(payload, calendarConfig, now)).toEqual(payload);
   });
 });
 

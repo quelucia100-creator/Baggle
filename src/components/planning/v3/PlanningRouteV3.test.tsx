@@ -102,7 +102,7 @@ describe("Planning route V3 integration", () => {
     expect(screen.queryByText("This party still uses the current planner")).toBeNull();
     answerAll();
     fireEvent.click(screen.getByRole("button", { name: "Save & join the plan" }));
-    expect(await screen.findByText("Your answers are saved. You're ready!")).toBeInTheDocument();
+    expect(await screen.findByText("Your answers are saved.")).toBeInTheDocument();
     const save = mocks.planning.mock.calls.find(([call]) => call.data.action === "save")![0];
     expect(save.data).toMatchObject({
       action: "save",
@@ -155,7 +155,7 @@ describe("Planning route V3 integration", () => {
     answerAll();
     fireEvent.click(screen.getByRole("button", { name: "Save & join the plan" }));
     expect(await screen.findByText(/Your save wasn't confirmed/)).toBeInTheDocument();
-    expect(screen.queryByText("Your answers are saved. You're ready!")).toBeNull();
+    expect(screen.queryByText("Your answers are saved.")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Edit Vibe" }));
     expect(screen.getByRole("button", { name: "Adventurous" })).toHaveAttribute(
       "aria-pressed",

@@ -21,6 +21,7 @@ import type {
 import type { PublicPlanV3 } from "@/lib/planning-v3/venue";
 
 export { hostConfigV3Schema, memberPreferencesV3Schema };
+export { MAX_NOTE_LENGTH, optionalNoteSchema } from "@/lib/planning-v3/schema";
 export type {
   HostConfigV3,
   LegacyPlanningState,

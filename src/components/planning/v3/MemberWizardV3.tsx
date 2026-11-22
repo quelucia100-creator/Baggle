@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowRight, Bike, Bus, Car, Footprints, LockKeyhole } from "
 import { PopButton } from "@/components/Field";
 import {
   ACCESSIBILITY_LABELS,
+  MAX_NOTE_LENGTH,
   ACCESSIBILITY_TAGS,
   ACTIVITIES,
   ACTIVITY_LABELS,
@@ -373,16 +374,15 @@ function ActivitiesStep({ draft, update }: StepProps) {
         <span className="mb-1.5 block text-lg font-extrabold">
           Anything else? <span className="text-sm font-bold">(optional)</span>
         </span>
-        <textarea
+        <input
+          type="text"
           value={draft.note}
-          maxLength={280}
-          rows={3}
+          maxLength={MAX_NOTE_LENGTH}
           onChange={(event) => update({ note: event.target.value })}
           className="paper w-full rounded-2xl border-2 border-crust bg-cream p-3 text-sm focus:outline-none focus:ring-4 focus:ring-vista/40"
         />
         <span className="mt-1 block text-xs text-muted-foreground">
-          {draft.note.length}/280 · Saved as written. A note is never turned into a hard rule — use
-          the choices above for anything that must be respected.
+          {draft.note.length}/{MAX_NOTE_LENGTH} · Use the choices above for hard requirements.
         </span>
       </label>
     </>

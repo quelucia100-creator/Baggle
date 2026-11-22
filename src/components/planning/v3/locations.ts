@@ -1,14 +1,17 @@
 import { areas } from "../wizard-model";
 import { approximate } from "./member-model";
 
-/** Real Montréal neighbourhoods with their actual coordinates (shared with the V2 presets). */
-export const PLACE_PRESETS = areas.map((area) => ({
-  id: area.id,
-  label: area.label,
-  note: area.note,
-  lat: area.lat,
-  lng: area.lng,
-}));
+/** Montréal starting areas, including the City-listed library as the Lachine reference point. */
+export const PLACE_PRESETS = [
+  ...areas,
+  {
+    id: "lachine",
+    label: "Lachine",
+    note: "Around Bibliothèque Saul-Bellow",
+    lat: 45.440449,
+    lng: -73.691033,
+  },
+];
 export type PlacePreset = (typeof PLACE_PRESETS)[number];
 
 export function searchPlaces(query: string) {

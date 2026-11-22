@@ -39,7 +39,17 @@ const coord = {
 };
 export const pointV3 = z.object(coord).strict();
 const minutes = z.number().int().min(30).max(240).multipleOf(30);
-const tags = z.array(z.string().trim().min(1).max(80)).max(24).refine(unique);
+const tags = z
+  .array(z.string().regex(/^[a-z0-9_]{1,40}$/))
+  .max(20)
+  .refine(unique);
+export const MAX_NOTE_LENGTH = 280;
+export const optionalNoteSchema = z
+  .string()
+  .refine((note) => !/\p{Cc}/u.test(note))
+  .transform((note) => note.trim())
+  .pipe(z.string().max(MAX_NOTE_LENGTH))
+  .nullable();
 const instant = z
   .string()
   .datetime({ precision: 0 })
@@ -192,7 +202,7 @@ export const memberPreferencesV3Schema = z
         currency: z.literal("CAD"),
         preferredMinCad: budget,
         preferredMaxCad: budget,
-        hardMaxCad: z.number().finite().nonnegative().nullable(),
+        hardMaxCad: budget.nullable(),
         explicitlyUnlimited: z.boolean(),
       })
       .strict()
@@ -228,7 +238,7 @@ export const memberPreferencesV3Schema = z
       .strict(),
     accessibilityHardRequirements: tags,
     dietaryHardRequirements: tags,
-    optionalNote: z.string().trim().max(500).nullable(),
+    optionalNote: optionalNoteSchema,
   })
   .strict()
   .refine(

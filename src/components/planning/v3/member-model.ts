@@ -1,6 +1,8 @@
 import {
   MAX_EXCLUSIONS,
+  MAX_NOTE_LENGTH,
   memberPreferencesV3Schema,
+  optionalNoteSchema,
   type Activity,
   type ExcludableActivity,
   type MemberPreferencesV3,
@@ -191,13 +193,6 @@ export function longestFreeMinutes(date: string, day: DayDraft | undefined, now:
   return best;
 }
 
-/** The planning database rejects a confirmed day whose busy time covers the whole day. */
-export function dayFullyBusy(date: string, day: DayDraft | undefined) {
-  if (!day) return false;
-  const busy = new Set(day.busy);
-  return daySlots(date).every((slot) => slot.startMs === null || busy.has(slot.index));
-}
-
 export function validateMemberStep(
   draft: MemberDraft,
   step: MemberStep,
@@ -213,7 +208,8 @@ export function validateMemberStep(
         return "Choose at most three hard no's.";
       if (draft.excludedActivities.some((entry) => draft.likedActivities.includes(entry)))
         return "An activity can't be both a like and a hard no.";
-      if (draft.note.length > 280) return "Keep your note under 280 characters.";
+      if (!optionalNoteSchema.safeParse(draft.note).success)
+        return `Use a single line of up to ${MAX_NOTE_LENGTH} characters for your note.`;
       return undefined;
     case "budget":
       if (draft.preferredMinCad > draft.preferredMaxCad)
@@ -254,11 +250,6 @@ export function validateMemberStep(
           )
         )
           return `None of your free windows is ${context.minMinutes} minutes long, the shortest this hangout can be.`;
-        const fullyBusy = context.candidateDates.find((date) =>
-          dayFullyBusy(date, draft.days[date]),
-        );
-        if (fullyBusy)
-          return "The planning server can't yet save a day marked busy all day. This is a known issue being fixed; until then you can't submit with a fully busy day.";
       }
       return undefined;
     case "origin":

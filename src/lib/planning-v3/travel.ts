@@ -24,8 +24,7 @@ export function originFor(p: MemberPreferencesV3, config: HostConfigV3): Point |
 
 async function leg(provider: RouteProvider, query: RouteQuery): Promise<Route | null> {
   if (query.at < query.earliest) return null;
-  if (query.from.lat === query.to.lat && query.from.lng === query.to.lng)
-    return { start: query.at, end: query.at };
+  // A matching pair of rounded coordinates does not prove a member is at the destination.
   try {
     const route = await provider.route(query);
     if (

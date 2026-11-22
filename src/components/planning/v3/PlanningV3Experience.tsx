@@ -129,7 +129,7 @@ export function PlanningV3Experience({
     // based on the latest read (and re-validated against the current settings first).
     if (!confirmed) setDraftRevision(latestRevision.current);
     if (confirmed) {
-      setSuccess("Your answers are saved. You're ready!");
+      setSuccess("Your answers are saved.");
       setView("overview");
     }
     return confirmed;

@@ -248,13 +248,15 @@ describe("Busy-time calendar", () => {
     ).toBeInTheDocument();
   });
 
-  it("blocks a fully busy day before sending, because the database rejects it", () => {
+  it("allows a fully busy day when a different confirmed day has enough free time", () => {
     renderGrid();
     fireEvent.click(screen.getByRole("button", { name: "Busy all day" }));
     fireEvent.click(screen.getByRole("button", { name: "Confirm Tue, Nov 24" }));
     fireEvent.click(screen.getByRole("button", { name: "I'm free all day" }));
     next();
-    expect(screen.getByRole("alert")).toHaveTextContent(/can't yet save a day marked busy all day/);
+    expect(
+      screen.getByRole("heading", { name: "Where are you starting from?" }),
+    ).toBeInTheDocument();
   });
 
   it("disables slots that already passed today", () => {

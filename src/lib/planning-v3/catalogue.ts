@@ -107,3 +107,54 @@ curatedVenuesV3.push({
   bookingRequired: "yes",
   bookingUrl: "https://forms.cloud.microsoft/r/swLinWUdFD",
 });
+
+const lachineExhibition =
+  "https://montreal.ca/evenements/les-filles-de-lair-marie-blanche-rossi-109178";
+const lachineVenue = "https://montreal.ca/lieux/lentrepot-maison-de-la-culture-de-lachine";
+// The City publishes hours for this exhibition. Limit the evidence to the two pilot weekends.
+const exhibitionOpening = (
+  [
+    ["2026-11-27", "18:00", "21:00"],
+    ["2026-11-28", "12:00", "17:00"],
+    ["2026-11-29", "12:00", "17:00"],
+    ["2026-12-04", "18:00", "21:00"],
+    ["2026-12-05", "12:00", "17:00"],
+    ["2026-12-06", "12:00", "17:00"],
+  ] as const
+).map(([date, from, to]) => ({ start: wallTime(date, from), end: wallTime(date, to) }));
+
+curatedVenuesV3.push({
+  placeId: "curated:lachine-les-filles-de-lair-2026",
+  name: "Les filles de l’air at L’Entrepôt",
+  address: "2901 Boulevard Saint-Joseph, Montréal, QC H8S 4B7",
+  location: { lat: 45.433338, lng: -73.68961 },
+  mapsUrl: "https://www.google.com/maps/search/?api=1&query=45.433338%2C-73.68961",
+  activities: ["arts_culture"],
+  vibes: ["chill_cozy", "creative"],
+  outdoor: false,
+  season: null,
+  rating: null,
+  source: "curated",
+  sourceTimestamp: checkedAt,
+  expiresAt: wallTime("2026-12-06", "17:00"),
+  attribution: [
+    { name: "Ville de Montréal (exhibition)", url: lachineExhibition },
+    { name: "Ville de Montréal (venue)", url: lachineVenue },
+  ],
+  opening: exhibitionOpening,
+  cost: {
+    currency: "CAD",
+    minCad: 0,
+    maxCad: 0,
+    free: true,
+    confidence: "verified",
+    checkedAt,
+    sourceUrl: lachineExhibition,
+  },
+  under18Allowed: true,
+  alcoholFree: null,
+  accessibility: ["wheelchair_accessible_parking"],
+  dietary: [],
+  bookingRequired: "no",
+  bookingUrl: null,
+});

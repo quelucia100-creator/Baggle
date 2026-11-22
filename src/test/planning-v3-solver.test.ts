@@ -239,6 +239,12 @@ describe("V3 match engine", () => {
 });
 
 describe("V3 route feasibility", () => {
+  it("requires route evidence even when a rounded origin equals the destination", async () => {
+    expect(
+      await matching({ ...venue(), location: point }, snapshot(), { route: async () => null }),
+    ).toEqual([]);
+  });
+
   it("rejects unreachable, thrown, late or over-cap routes independently in either direction", async () => {
     expect(await matching(venue(), snapshot(), { route: async () => null })).toEqual([]);
     expect(
