@@ -28,6 +28,14 @@ const matching = (v: VenueCandidateV3, input = snapshot(), routes = mockRoute())
   solveV3(input, [v], routes, new Map(), now);
 
 describe("V3 match engine", () => {
+  it("excludes a matching slot as soon as its start has passed", async () => {
+    const venues = [venue()];
+    expect(await solveV3(snapshot(), venues, mockRoute(), new Map(), clock("18:00"))).toHaveLength(
+      1,
+    );
+    expect(await solveV3(snapshot(), venues, mockRoute(), new Map(), clock("19:01"))).toEqual([]);
+  });
+
   it("allows cheaper options, enforces the hard cap and separates unknown from explicit free", async () => {
     const v = venue();
     expect(await matching(v)).toHaveLength(1);
