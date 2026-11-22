@@ -1,0 +1,5 @@
+ALTER TABLE public.account_preferences ADD COLUMN food_preferences text[];
+ALTER TABLE public.account_preferences ADD COLUMN food_allergies text[];
+ALTER TABLE public.account_preferences ADD CONSTRAINT account_food_choices CHECK (food_preferences IS NULL OR (cardinality(food_preferences)>0 AND food_preferences <@ ARRAY['No preference','Italian','Asian','Middle Eastern','Mexican','Indian','Local & comfort food','Bakery & desserts','Other']::text[] AND (NOT ('No preference'=ANY(food_preferences)) OR cardinality(food_preferences)=1)));
+ALTER TABLE public.account_preferences ADD CONSTRAINT account_allergy_choices CHECK (food_allergies IS NULL OR (cardinality(food_allergies)>0 AND food_allergies <@ ARRAY['None','Peanuts','Tree nuts','Milk','Eggs','Wheat','Soy','Fish','Shellfish','Sesame','Other']::text[] AND (NOT ('None'=ANY(food_allergies)) OR cardinality(food_allergies)=1)));
+ALTER TABLE public.account_preferences ADD CONSTRAINT account_food_setup_complete CHECK (NOT completed OR (food_preferences IS NOT NULL AND food_allergies IS NOT NULL));

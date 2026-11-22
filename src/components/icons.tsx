@@ -20,12 +20,12 @@ export function TicketIcon({ className = "h-6 w-6" }: IconProps) {
   );
 }
 
-export function BagelIcon({ className = "h-6 w-6" }: IconProps) {
+export function BagelIcon({ className = "h-6 w-6", seasoned = true }: IconProps & { seasoned?: boolean }) {
   return (
     <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
       <circle {...stroke} cx="12" cy="12" r="9" />
       <circle {...stroke} cx="12" cy="12" r="3.4" />
-      <path {...stroke} strokeWidth={1.7} d="M8.6 8.2l1-1M12.6 6.2l.4 1.1M16 8.6l1.2.5M16.6 13.2l1.3.2M14.2 16.4l.8 1" />
+      {seasoned && <path {...stroke} strokeWidth={1.7} d="M8.6 8.2l1-1M12.6 6.2l.4 1.1M16 8.6l1.2.5M16.6 13.2l1.3.2M14.2 16.4l.8 1" />}
     </svg>
   );
 }
