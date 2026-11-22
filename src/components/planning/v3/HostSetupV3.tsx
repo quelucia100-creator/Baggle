@@ -8,6 +8,7 @@ import {
   ALCOHOL_POLICIES,
   DIETARY_LABELS,
   DIETARY_TAGS,
+  DIETARY_UNVERIFIED_NOTE,
   TRAVEL_LABELS,
   TRAVEL_MODES,
   type HostConfigV3,
@@ -41,6 +42,7 @@ export function HostSetupV3({
   onDraft,
   today,
   canSave,
+  bootstrap = false,
   busy,
   save,
   onCancel,
@@ -50,6 +52,8 @@ export function HostSetupV3({
   today: string;
   /** False while the server is still V2: drafts are kept but never sent. */
   canSave: boolean;
+  /** Saving converts a legacy (V2) party to the new planner. */
+  bootstrap?: boolean | undefined;
   busy: boolean;
   save: (config: HostConfigV3) => Promise<boolean>;
   onCancel: () => void;
@@ -322,6 +326,7 @@ export function HostSetupV3({
                 </ToggleTile>
               ))}
             </div>
+            {draft.dietaryHardRequirements.length > 0 && <Hint>{DIETARY_UNVERIFIED_NOTE}</Hint>}
           </fieldset>
         </Section>
 
@@ -428,7 +433,23 @@ export function HostSetupV3({
       </fieldset>
 
       <div className="paper sticky bottom-0 z-10 -mx-5 mt-4 space-y-3 border-t-2 border-crust/15 bg-offwhite px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:mx-0 sm:px-0">
-        {!canSave && <BackendPendingNotice what="Hangout settings" />}
+        {!canSave && (
+          <BackendPendingNotice title="Can't save settings here">
+            Only the host can change settings, and only while the crew is still answering. Your
+            draft stays on this screen only.
+          </BackendPendingNotice>
+        )}
+        {canSave && bootstrap && (
+          <p className="text-sm font-bold">
+            Saving switches this party to the new planner. Everyone's readiness resets, and each
+            person (you too) answers the new questions.
+          </p>
+        )}
+        {canSave && !bootstrap && (
+          <p className="text-xs text-muted-foreground">
+            Changing dates or rules may ask the crew to confirm their answers again.
+          </p>
+        )}
         {errorCount > 0 && (
           <p role="alert" className="text-sm font-bold">
             {errorCount === 1
@@ -449,9 +470,11 @@ export function HostSetupV3({
           <Check aria-hidden="true" className="h-4 w-4" />
           {status === "saving"
             ? "Saving…"
-            : canSave
-              ? "Save hangout settings"
-              : "Saving requires backend update"}
+            : !canSave
+              ? "Can't save settings"
+              : bootstrap
+                ? "Switch to the new planner & save"
+                : "Save hangout settings"}
         </PopButton>
         {!canSave && (
           <button

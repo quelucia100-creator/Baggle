@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ComponentType } from "react";
-import { guestId, hostId, party, v2State, v3State } from "./test-utils";
+import { guestId, hostId, party, thirdId, v2State, v3Config, v3Plan, v3State } from "./test-utils";
 
 // MOCKED server function and party RPC: these tests never reach a database.
 const mocks = vi.hoisted(() => ({ planning: vi.fn(), party: vi.fn(), navigate: vi.fn() }));
@@ -19,7 +19,7 @@ vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => mocks.navigate,
   Link: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
 }));
-import { Route } from "@/routes/party.$code_.plan";
+import { Route, planningRequest } from "@/routes/party.$code_.plan";
 
 // These flows render large accessible grids; role queries are slow under a parallel run.
 vi.setConfig({ testTimeout: 20_000 });
@@ -74,13 +74,17 @@ describe("Planning route V3 integration", () => {
     mocks.planning.mockResolvedValue(v2State);
     open();
     fireEvent.click(await screen.findByRole("button", { name: "Preview the new planner" }));
-    expect(screen.getByText("New planner preview")).toBeInTheDocument();
+    expect(screen.getByText("This party still uses the current planner")).toBeInTheDocument();
     expect(window.location.search).toBe("");
     fireEvent.click(screen.getByRole("button", { name: "Back to the current planner" }));
     expect(
       await screen.findByRole("button", { name: "Preview the new planner" }),
     ).toBeInTheDocument();
-    expect(mocks.planning.mock.calls.every(([call]) => call.data.action === "read")).toBe(true);
+    expect(
+      mocks.planning.mock.calls.every(
+        ([call]) => call.data.action === "read" && call.data.schemaVersion === 3,
+      ),
+    ).toBe(true);
   });
 
   it("uses V3 screens when the server advertises schemaVersion 3 and saves the canonical payload", async () => {
@@ -95,13 +99,14 @@ describe("Planning route V3 integration", () => {
     );
     open();
     expect(await screen.findByRole("heading", { name: "What's the vibe?" })).toBeInTheDocument();
-    expect(screen.queryByText("New planner preview")).toBeNull();
+    expect(screen.queryByText("This party still uses the current planner")).toBeNull();
     answerAll();
     fireEvent.click(screen.getByRole("button", { name: "Save & join the plan" }));
     expect(await screen.findByText("Your answers are saved. You're ready!")).toBeInTheDocument();
     const save = mocks.planning.mock.calls.find(([call]) => call.data.action === "save")![0];
     expect(save.data).toMatchObject({
       action: "save",
+      schemaVersion: 3,
       code: "ABC123",
       token: "b".repeat(64),
       preferences: {
@@ -154,5 +159,87 @@ describe("Planning route V3 integration", () => {
       "aria-pressed",
       "true",
     );
+  });
+
+  it("bootstraps a collecting V2 party into V3 with the host's first configure", async () => {
+    mocks.party.mockResolvedValue(party);
+    let current: unknown = { ...v2State };
+    mocks.planning.mockImplementation(({ data }: { data: { action: string } }) => {
+      if (data.action === "configure") current = v3State({ revision: 5 });
+      return Promise.resolve(current);
+    });
+    open();
+    fireEvent.click(await screen.findByRole("button", { name: "Switch to the new planner" }));
+    fireEvent.click(screen.getByRole("button", { name: "Switch to the new planner" }));
+    fireEvent.click(screen.getByRole("button", { name: "Switch to the new planner & save" }));
+    expect(await screen.findByText(/This party now uses the new planner/)).toBeInTheDocument();
+    const configure = mocks.planning.mock.calls.find(
+      ([call]) => call.data.action === "configure",
+    )![0];
+    expect(configure.data).toMatchObject({
+      action: "configure",
+      schemaVersion: 3,
+      code: "ABC123",
+      config: { version: 3, dateSelection: { mode: "today_tonight" } },
+    });
+    // The banner is gone: the server now reports a V3 party.
+    await waitFor(() =>
+      expect(screen.queryByText("This party still uses the current planner")).toBeNull(),
+    );
+  });
+
+  it("sends the current revision with V3 finalize", async () => {
+    mocks.party.mockResolvedValue(party);
+    const locked = v3State({
+      status: "locked",
+      plan: v3Plan,
+      optionCount: 2,
+      revision: 12,
+      members: [
+        { id: hostId, submitted: true },
+        { id: guestId, submitted: true },
+        { id: thirdId, submitted: false },
+      ],
+    });
+    mocks.planning.mockResolvedValue(locked);
+    open();
+    fireEvent.click(await screen.findByRole("button", { name: "Finalize" }));
+    await waitFor(() =>
+      expect(mocks.planning.mock.calls.some(([call]) => call.data.action === "finalize")).toBe(
+        true,
+      ),
+    );
+    const finalize = mocks.planning.mock.calls.find(
+      ([call]) => call.data.action === "finalize",
+    )![0];
+    expect(finalize.data).toEqual({
+      action: "finalize",
+      revision: 12,
+      schemaVersion: 3,
+      code: "ABC123",
+      token: "b".repeat(64),
+    });
+  });
+});
+
+describe("planningRequest", () => {
+  const token = "c".repeat(64);
+  it("tags legacy commands as V2 and everything on a V3 party as V3", () => {
+    expect(planningRequest({ action: "vote", revision: 3 }, v2State, "ABC123", token)).toEqual({
+      action: "vote",
+      revision: 3,
+      schemaVersion: 2,
+      code: "ABC123",
+      token,
+    });
+    expect(planningRequest({ action: "lock" }, v3State(), "ABC123", token)).toMatchObject({
+      action: "lock",
+      schemaVersion: 3,
+    });
+  });
+  it("treats a V3 configure as the bootstrap even while the party is still V2", () => {
+    expect(
+      planningRequest({ action: "configure", config: v3Config }, v2State, "ABC123", token),
+    ).toMatchObject({ action: "configure", schemaVersion: 3, config: { version: 3 } });
   });
 });

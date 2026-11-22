@@ -145,14 +145,33 @@ export function daySlots(date: string): Slot[] {
 
 export type Interval = { startAt: string; endAt: string };
 
+/** True when this instant's Montréal wall time occurs twice (fall-back hour). */
+export function isAmbiguousInstant(at: number) {
+  const local = Temporal.Instant.fromEpochMilliseconds(at)
+    .toZonedDateTimeISO(PLANNING_TIME_ZONE)
+    .toPlainDateTime();
+  const earlier = local.toZonedDateTime(PLANNING_TIME_ZONE, { disambiguation: "earlier" });
+  const later = local.toZonedDateTime(PLANNING_TIME_ZONE, { disambiguation: "later" });
+  return earlier.epochMilliseconds !== later.epochMilliseconds;
+}
+
 /** Merge busy slots into sorted, non-overlapping UTC intervals (never one per slot). */
 export function slotsToIntervals(slots: Slot[], busy: ReadonlySet<number>): Interval[] {
   const ranges = slots
     .filter((slot) => busy.has(slot.index) && slot.startMs !== null && slot.endMs !== null)
     .map((slot) => [slot.startMs as number, slot.endMs as number] as const)
     .sort((a, b) => a[0] - b[0]);
+  // The server rejects endpoints on a repeated (fall-back) wall time, so widen such an
+  // endpoint outward to the nearest unambiguous half hour. This only adds busy time.
+  const widened = ranges.map(([start, end]) => {
+    let from = start;
+    let to = end;
+    while (isAmbiguousInstant(from)) from -= SLOT_MINUTES * 60_000;
+    while (isAmbiguousInstant(to)) to += SLOT_MINUTES * 60_000;
+    return [from, to] as const;
+  });
   const merged: [number, number][] = [];
-  for (const [start, end] of ranges) {
+  for (const [start, end] of widened) {
     const last = merged.at(-1);
     if (last && start <= last[1]) last[1] = Math.max(last[1], end);
     else merged.push([start, end]);
@@ -187,18 +206,39 @@ export const isPastSlot = (slot: Slot, now: number) => slot.endMs !== null && sl
 export type TimeOption = { value: string; label: string; nextDay: boolean };
 
 /**
- * Tonight choices from the next 30-minute boundary after `now` to 06:00 tomorrow.
- * Values are UTC instants so 00:00–06:00 is always a next-day timestamp.
+ * Tonight choices as UTC instants, so 00:00–06:00 is always a next-day timestamp.
+ * The server accepts a departure before midnight tonight and a home-by time after 6 AM
+ * today and no later than 6 AM tomorrow; repeated fall-back wall times are left out.
  */
-export function tonightOptions(now: number): TimeOption[] {
-  const today = todayIn(now);
-  return daySlots(today)
-    .filter((slot) => slot.startMs !== null && slot.startMs >= now)
-    .map((slot) => ({
-      value: new Date(slot.startMs as number).toISOString(),
-      label: slot.overnight ? `${slot.label} (next day)` : slot.label,
-      nextDay: slot.overnight,
-    }));
+export function tonightOptions(now: number): { departures: TimeOption[]; returns: TimeOption[] } {
+  const slots = daySlots(todayIn(now));
+  const upcoming = slots.filter(
+    (slot) => slot.clock === "normal" && (slot.startMs as number) >= now,
+  );
+  const option = (slot: Slot, at: number): TimeOption => ({
+    value: new Date(at).toISOString(),
+    label: slot.overnight ? `${slot.label} (next day)` : slot.label,
+    nextDay: slot.overnight,
+  });
+  const afterSixToday = (slot: Slot) => slot.overnight || slot.hour * 60 + slot.minute > 6 * 60;
+  const last = slots.at(-1);
+  return {
+    departures: upcoming
+      .filter((slot) => !slot.overnight)
+      .map((slot) => option(slot, slot.startMs as number)),
+    returns: [
+      ...upcoming.filter(afterSixToday).map((slot) => option(slot, slot.startMs as number)),
+      ...(last?.endMs
+        ? [
+            {
+              value: new Date(last.endMs).toISOString(),
+              label: "6:00 AM (next day)",
+              nextDay: true,
+            },
+          ]
+        : []),
+    ],
+  };
 }
 
 export function formatInstant(at: string | number) {

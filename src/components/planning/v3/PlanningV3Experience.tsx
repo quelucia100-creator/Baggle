@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, Check, Settings2 } from "lucide-react";
 import { PopButton } from "@/components/Field";
 import type { PartyState } from "@/lib/party";
-import type { PlanningState } from "@/lib/planning/types";
 import {
   ALCOHOL_LABELS,
   TRAVEL_LABELS,
@@ -10,11 +9,10 @@ import {
   type HostConfigV3,
   type MemberPreferencesV3,
   type PlanningCommandV3,
-  type PlanningStateV3,
+  type VersionedPlanningState,
 } from "./contract";
 import { HostSetupV3 } from "./HostSetupV3";
 import {
-  emptyHostDraft,
   formatDuration,
   hostDraftFromV2,
   hostDraftFromV3,
@@ -55,14 +53,17 @@ function memberContextFrom(draft: HostDraft, today: string, now: number): Member
     sharedTravel: draft.travelMode === "together",
     groupArea: draft.areaMode === "host_area" ? draft.area : null,
     freeOnly: draft.freeOnly,
+    minMinutes: draft.durationMode === "fixed" ? draft.fixedMinutes : draft.minMinutes,
     now,
   };
 }
 
 /**
- * V3 planning screens. Persists only when the server advertises `schemaVersion: 3`; on
- * the current V2 server it runs as a clearly labelled preview where drafts stay on screen
- * and every save control explains that it requires the backend update.
+ * V3 planning screens over the versioned `party_plan` RPC.
+ * - `schemaVersion: 3` parties: every setting, answer and lifecycle action is persisted.
+ * - Legacy (`schemaVersion: 2`) parties in collecting: the host's first V3 `configure`
+ *   converts the party (server-side bootstrap); members can't save V3 answers until then.
+ * - Legacy parties that are locked/final/no-plan keep their V2 results.
  */
 export function PlanningV3Experience({
   party,
@@ -73,7 +74,7 @@ export function PlanningV3Experience({
   onExitPreview,
 }: {
   party: PartyState;
-  state: PlanningState | PlanningStateV3;
+  state: VersionedPlanningState;
   busy: boolean;
   submit: (command: PlanningCommandV3) => Promise<boolean>;
   now?: number | undefined;
@@ -82,35 +83,37 @@ export function PlanningV3Experience({
   const now = useNow(fixedNow);
   const today = todayIn(now);
   const v3 = backendSupportsV3(state);
-  const savedConfig: HostDraft | null = useMemo(() => {
-    if (v3) return state.config ? hostDraftFromV3(state.config) : null;
-    return hostDraftFromV2((state as PlanningState).config, today);
-  }, [v3, state, today]);
+  const savedConfig: HostDraft = useMemo(
+    () => (v3 ? hostDraftFromV3(state.config) : hostDraftFromV2(state.config, today)),
+    [v3, state, today],
+  );
   const savedPreferences = v3 ? state.selfPreferences : null;
   const selfReady = state.members.some((member) => member.id === party.selfId && member.submitted);
+  const collecting = state.status === "collecting";
+  const canConfigure = party.isHost && collecting;
   const [view, setView] = useState<"overview" | "private" | "setup">(() =>
-    party.isHost
-      ? v3 && !state.config
-        ? "setup"
-        : "overview"
-      : selfReady
-        ? "overview"
-        : "private",
+    party.isHost || selfReady || !v3 ? "overview" : "private",
   );
-  const [hostDraft, setHostDraft] = useState<HostDraft>(() => savedConfig ?? emptyHostDraft());
+  const [hostDraft, setHostDraft] = useState<HostDraft>(() => savedConfig);
+  const groupArea = savedConfig.areaMode === "host_area" ? savedConfig.area : null;
   const [ownDraft, setOwnDraft] = useState<MemberDraft>(() =>
-    savedPreferences ? memberDraftFromV3(savedPreferences) : emptyMemberDraft(),
+    // Retained answers are an owner-only draft; readiness comes from the roster.
+    savedPreferences ? memberDraftFromV3(savedPreferences, groupArea) : emptyMemberDraft(),
   );
   const [success, setSuccess] = useState("");
   useEffect(() => {
     window.scrollTo?.({ top: 0, behavior: "instant" });
   }, [state.status, view]);
 
-  const context = savedConfig ? memberContextFrom(savedConfig, today, now) : null;
+  const context = memberContextFrom(savedConfig, today, now);
   const saveConfig = async (config: HostConfigV3) => {
     const confirmed = await submit({ action: "configure", config });
     if (confirmed) {
-      setSuccess("Hangout settings saved for the crew.");
+      setSuccess(
+        v3
+          ? "Hangout settings saved for the crew."
+          : "This party now uses the new planner. Everyone, including you, answers the new questions.",
+      );
       setView("overview");
     }
     return confirmed;
@@ -137,10 +140,13 @@ export function PlanningV3Experience({
           role="note"
           className="paper mb-6 rounded-lg border-2 border-dashed border-crust bg-apricot p-4 text-sm"
         >
-          <p className="font-extrabold">New planner preview</p>
+          <p className="font-extrabold">This party still uses the current planner</p>
           <p className="mt-1">
-            This server still runs the current planner, so new answers and settings can't be saved
-            yet (requires backend update). Plan results, votes and finalizing below are live.
+            {!collecting
+              ? "The plan below came from the current planner. Votes and finalizing still work."
+              : party.isHost
+                ? "Saving the hangout settings switches the party to the new planner. Everyone's readiness resets and each person, including you, answers the new questions."
+                : "You can look around, but answers can only be saved once the host switches this party to the new planner."}
           </p>
           {onExitPreview && (
             <button
@@ -161,36 +167,39 @@ export function PlanningV3Experience({
       </div>
       <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1.5fr)_minmax(260px,1fr)] lg:gap-12">
         <div className="min-w-0 space-y-8">
-          {state.status === "collecting" ? (
+          {collecting ? (
             view === "setup" && party.isHost ? (
               <HostSetupV3
                 draft={hostDraft}
                 onDraft={setHostDraft}
                 today={today}
-                canSave={v3}
+                canSave={canConfigure}
+                bootstrap={!v3}
                 busy={busy}
                 save={saveConfig}
                 onCancel={() => setView("overview")}
               />
-            ) : view === "private" && context ? (
+            ) : view === "private" ? (
               <MemberWizardV3
                 draft={ownDraft}
                 onDraft={setOwnDraft}
                 context={context}
                 canSave={v3}
+                pendingMessage="Answers can be saved once the host switches this party to the new planner. Your draft stays on this screen only and has not been sent."
                 busy={busy}
-                hasSaved={!!savedPreferences}
+                hasSaved={selfReady}
                 save={savePreferences}
                 onCancel={() => setView("overview")}
               />
             ) : (
               <Overview
                 party={party}
-                config={savedConfig}
+                config={v3 ? savedConfig : null}
                 today={today}
                 selfReady={selfReady}
                 success={success}
                 busy={busy}
+                legacy={!v3}
                 onSetup={() => {
                   setSuccess("");
                   setView("setup");
@@ -204,7 +213,12 @@ export function PlanningV3Experience({
           ) : state.status === "locking" ? (
             <RevealV3 isHost={party.isHost} busy={busy} submit={submit} />
           ) : state.status === "no_plan" ? (
-            <NoPlanV3 isHost={party.isHost} busy={busy} submit={submit} />
+            <NoPlanV3
+              isHost={party.isHost}
+              busy={busy}
+              submit={submit}
+              actions={v3 ? state.suggestedActions : null}
+            />
           ) : state.plan ? (
             <ResultV3 party={party} state={state} busy={busy} submit={submit} />
           ) : (
@@ -216,19 +230,15 @@ export function PlanningV3Experience({
           aria-label="Crew readiness"
         >
           <CrewRoster party={party} state={state} />
-          {state.status === "collecting" && (
+          {collecting && (
             <LobbyActions
               party={party}
               state={state}
-              busy={busy || (!v3 && party.isHost)}
+              busy={busy}
               submit={submit}
               selfReady={selfReady}
+              lockAvailable={v3}
             />
-          )}
-          {state.status === "collecting" && !v3 && party.isHost && (
-            <p className="mt-2 text-xs font-bold">
-              Finding a plan from the preview requires the backend update.
-            </p>
           )}
         </aside>
       </div>
@@ -243,6 +253,7 @@ function Overview({
   selfReady,
   success,
   busy,
+  legacy,
   onSetup,
   onPrivate,
 }: {
@@ -252,6 +263,7 @@ function Overview({
   selfReady: boolean;
   success: string;
   busy: boolean;
+  legacy: boolean;
   onSetup: () => void;
   onPrivate: () => void;
 }) {
@@ -279,7 +291,7 @@ function Overview({
               className="paper flex min-h-11 items-center gap-2 rounded-lg border-2 border-crust bg-cream px-3 text-sm font-bold disabled:opacity-50"
             >
               <Settings2 aria-hidden="true" className="h-4 w-4" />
-              {config ? "Edit settings" : "Set up"}
+              {legacy ? "Switch to the new planner" : "Edit settings"}
             </button>
           )}
         </div>
@@ -329,8 +341,8 @@ function Overview({
         ) : (
           <p role="status" className="text-sm font-bold">
             {party.isHost
-              ? "Set up the hangout so the crew can answer."
-              : "Waiting for the host to set up the hangout."}
+              ? "Set up the hangout in the new planner so the crew can answer."
+              : "Waiting for the host to switch this party to the new planner."}
           </p>
         )}
       </section>

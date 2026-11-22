@@ -8,6 +8,8 @@ import {
   ACTIVITY_LABELS,
   DIETARY_LABELS,
   DIETARY_TAGS,
+  DIETARY_UNVERIFIED_NOTE,
+  MAX_EXCLUSIONS,
   EXCLUDABLE_ACTIVITIES,
   TRAVEL_LABELS,
   TRAVEL_MODES,
@@ -81,6 +83,7 @@ export function MemberWizardV3({
   onDraft,
   context,
   canSave,
+  pendingMessage = "Your answers can't be saved right now. Your draft stays on this screen only.",
   busy,
   hasSaved,
   save,
@@ -91,6 +94,7 @@ export function MemberWizardV3({
   onDraft: (draft: MemberDraft) => void;
   context: MemberContext;
   canSave: boolean;
+  pendingMessage?: string | undefined;
   busy: boolean;
   hasSaved: boolean;
   save: (preferences: MemberPreferencesV3) => Promise<boolean>;
@@ -139,7 +143,7 @@ export function MemberWizardV3({
       : saving
         ? "Saving…"
         : !canSave
-          ? "Saving requires backend update"
+          ? "Can't save yet"
           : hasSaved
             ? "Update my answers"
             : "Save & join the plan";
@@ -213,7 +217,7 @@ export function MemberWizardV3({
         )}
         {key === "review" && !canSave && (
           <div className="mt-5">
-            <BackendPendingNotice what="Your V3 answers" />
+            <BackendPendingNotice title="Not saved yet">{pendingMessage}</BackendPendingNotice>
           </div>
         )}
       </div>
@@ -313,7 +317,7 @@ function ActivitiesStep({ draft, update }: StepProps) {
                 key={activity}
                 label={`Never ${ACTIVITY_LABELS[activity]}`}
                 pressed={pressed}
-                disabled={!pressed && (liked || draft.excludedActivities.length >= 3)}
+                disabled={!pressed && (liked || draft.excludedActivities.length >= MAX_EXCLUSIONS)}
                 hint={liked ? "You liked this" : undefined}
                 onToggle={() =>
                   update({ excludedActivities: toggle(draft.excludedActivities, activity) })
@@ -344,6 +348,7 @@ function ActivitiesStep({ draft, update }: StepProps) {
           <PrivateNote>
             Only checked against verified venue information. Never shown to the crew.
           </PrivateNote>
+          {draft.dietary.length > 0 && <Hint>{DIETARY_UNVERIFIED_NOTE}</Hint>}
         </fieldset>
       )}
       <fieldset className="min-w-0">
@@ -391,7 +396,9 @@ function OriginStep({ draft, update, context }: StepProps & { context: MemberCon
       {context.groupArea && (
         <ToggleTile
           pressed={draft.origin?.source === "group_area"}
-          onToggle={() => update({ origin: { source: "group_area", ...context.groupArea! } })}
+          onToggle={() =>
+            update({ origin: { source: "group_area", label: context.groupArea!.label } })
+          }
           hint="I'll already be near the host's chosen area."
         >
           Start from the group area: {context.groupArea.label}
@@ -402,7 +409,9 @@ function OriginStep({ draft, update, context }: StepProps & { context: MemberCon
         value={draft.origin && draft.origin.source !== "group_area" ? draft.origin : null}
         onChange={(place) => update({ origin: place })}
       />
-      {draft.origin?.source === "group_area" && <SelectedPlace place={draft.origin} />}
+      {draft.origin?.source === "group_area" && context.groupArea && (
+        <SelectedPlace place={context.groupArea} />
+      )}
       {days > 1 && <Hint>This starting point applies to all {days} days.</Hint>}
       <PrivateNote>
         Not shared with the host or crew. Rounded to about 1 km before saving.

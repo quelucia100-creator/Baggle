@@ -18,7 +18,8 @@ import {
   type MemberDraft,
 } from "./member-model";
 import { daySlots, expandRange, intervalsToSlots, slotsToIntervals, tonightOptions } from "./time";
-import { backendSupportsV3 } from "./contract";
+import { backendSupportsV3, type HostConfigV3 } from "./contract";
+import { normalizeConfig, normalizePreferences, unambiguous } from "@/lib/planning-v3/schema";
 
 const today = "2026-11-22";
 // 2026-11-22 19:10 in Montreal (EST, UTC-5).
@@ -61,17 +62,29 @@ describe("V3 time grid", () => {
   it("blocks both occurrences of a repeated fall-back slot", () => {
     const slots = daySlots("2026-11-01");
     expect(slots[2]!.clock).toBe("repeated");
-    expect(slotsToIntervals(slots, new Set([2]))).toEqual([
-      { startAt: "2026-11-01T05:00:00.000Z", endAt: "2026-11-01T06:30:00.000Z" },
-    ]);
+    // The server rejects endpoints on the repeated 1:00/1:30 wall times, so the interval is
+    // widened outward (00:30 EDT → 02:00 EST). It can only add busy time.
+    const [interval] = slotsToIntervals(slots, new Set([2]));
+    expect(interval).toEqual({
+      startAt: "2026-11-01T04:30:00.000Z",
+      endAt: "2026-11-01T07:00:00.000Z",
+    });
+    expect(unambiguous(Date.parse(interval!.startAt), true)).toBe(true);
+    expect(unambiguous(Date.parse(interval!.endAt), true)).toBe(true);
   });
 
   it("offers tonight times from now with next-day labels after midnight", () => {
-    const options = tonightOptions(now);
-    expect(options[0]).toMatchObject({ label: "7:30 PM", nextDay: false });
-    const late = options.find((entry) => entry.value === "2026-11-23T06:00:00.000Z");
+    const { departures, returns } = tonightOptions(now);
+    expect(departures[0]).toMatchObject({ label: "7:30 PM", nextDay: false });
+    // The server only accepts departures before midnight tonight.
+    expect(departures.at(-1)?.label).toBe("11:30 PM");
+    expect(departures.some((entry) => entry.nextDay)).toBe(false);
+    const late = returns.find((entry) => entry.value === "2026-11-23T06:00:00.000Z");
     expect(late?.label).toBe("1:00 AM (next day)");
-    expect(options.at(-1)?.label).toBe("5:30 AM (next day)");
+    expect(returns.at(-1)).toMatchObject({
+      label: "6:00 AM (next day)",
+      value: "2026-11-23T11:00:00.000Z",
+    });
   });
 });
 
@@ -162,7 +175,7 @@ describe("V3 host setup model", () => {
         meetingPoint: { label: "Downtown", lat: 45.5, lng: -73.57 },
         sharedMode: "transit",
         alcoholPolicy: "alcohol_free_only",
-        requiredAccessibility: ["step_free_entrance"],
+        requiredAccessibility: ["wheelchair_accessible_entrance"],
       },
       today,
     );
@@ -177,6 +190,7 @@ describe("V3 member model", () => {
     sharedTravel: false,
     groupArea: null,
     freeOnly: false,
+    minMinutes: 60,
     now,
   };
   const complete: MemberDraft = {
@@ -283,6 +297,171 @@ describe("V3 member model", () => {
     );
   });
 });
+
+/**
+ * Contract checks against the AUTHORITATIVE backend validators (src/lib/planning-v3/schema.ts).
+ * These prove the frontend payload shape; they don't exercise the database.
+ */
+describe("Payloads accepted by the backend validators", () => {
+  const area = { label: "Le Plateau", lat: 45.52, lng: -73.58 };
+  const hostBase = { ...emptyHostDraft(), areaMode: "host_area" as const, area, fixedMinutes: 60 };
+  const memberBase: MemberDraft = {
+    ...emptyMemberDraft(),
+    vibes: ["social_lively"],
+    likedActivities: ["surprise"],
+    ceiling: { kind: "cap", cad: 40 },
+    origin: { source: "manual", label: "Mile End", lat: 45.52, lng: -73.6 },
+    travelMode: "transit",
+  };
+
+  it.each([
+    ["today", { ...hostBase, dateMode: "today_tonight" as const }],
+    ["single", { ...hostBase, dateMode: "future_dates" as const, pickedDates: ["2026-11-25"] }],
+    [
+      "multiple",
+      {
+        ...hostBase,
+        dateMode: "future_dates" as const,
+        selectionStyle: "multiple" as const,
+        pickedDates: ["2026-11-25", "2026-11-28"],
+      },
+    ],
+    [
+      "range",
+      {
+        ...hostBase,
+        dateMode: "future_dates" as const,
+        selectionStyle: "range" as const,
+        rangeStart: "2026-11-23",
+        rangeEnd: "2026-12-06",
+      },
+    ],
+    [
+      "best day + together + optimize",
+      {
+        ...hostBase,
+        dateMode: "best_day" as const,
+        rangeStart: "2026-11-24",
+        rangeEnd: "2026-11-27",
+        areaMode: "optimize_for_group" as const,
+        travelMode: "together" as const,
+        meetingPoint: { label: "Downtown", lat: 45.5, lng: -73.57 },
+        sharedMode: "bike" as const,
+        durationMode: "flexible" as const,
+        minMinutes: 60,
+        maxMinutes: 180,
+        requiredAccessibility: ["wheelchair_accessible_entrance"],
+      },
+    ],
+  ])("host config: %s", (_name, draft) => {
+    const config = hostPayload(draft, today);
+    expect(normalizeConfig(config, now)).toEqual(config);
+  });
+
+  const calendarConfig: HostConfigV3 = hostPayload(
+    {
+      ...hostBase,
+      dateMode: "future_dates",
+      selectionStyle: "multiple",
+      pickedDates: ["2026-11-24", "2026-11-25"],
+    },
+    today,
+  );
+  const calendarContext: MemberContext = {
+    availabilityMode: "calendar",
+    candidateDates: ["2026-11-24", "2026-11-25"],
+    sharedTravel: false,
+    groupArea: area,
+    freeOnly: false,
+    minMinutes: 60,
+    now,
+  };
+
+  it("member answers with painted days, including an overnight block", () => {
+    const draft = {
+      ...memberBase,
+      days: {
+        "2026-11-24": { busy: [18, 19, 20, 46, 47, 48, 49], confirmed: true },
+        "2026-11-25": { busy: [], confirmed: true },
+      },
+    };
+    const payload = memberPayload(draft, calendarContext);
+    expect(normalizePreferences(structuredClone(payload), calendarConfig, now)).toEqual(payload);
+  });
+
+  it("group-area origin is sent without coordinates or label", () => {
+    const payload = memberPayload(
+      {
+        ...memberBase,
+        origin: { source: "group_area", label: "Le Plateau" },
+        days: {
+          "2026-11-24": { busy: [], confirmed: true },
+          "2026-11-25": { busy: [], confirmed: true },
+        },
+      },
+      calendarContext,
+    );
+    expect(payload.origin).toEqual({
+      source: "group_area",
+      label: null,
+      lat: null,
+      lng: null,
+      accuracy: "approximate",
+    });
+    expect(() => normalizePreferences(structuredClone(payload), calendarConfig, now)).not.toThrow();
+  });
+
+  it("tonight answers with specific times and with both I-don't-care choices", () => {
+    const tonightConfig = hostPayload({ ...hostBase, dateMode: "today_tonight" }, today);
+    const tonight = {
+      ...calendarContext,
+      availabilityMode: "tonight" as const,
+      candidateDates: [today],
+    };
+    const { departures, returns } = tonightOptions(now);
+    const timed = memberPayload(
+      {
+        ...memberBase,
+        departure: { kind: "at", at: departures.at(-1)!.value },
+        returnBy: { kind: "at", at: returns.at(-1)!.value },
+      },
+      tonight,
+    );
+    expect(() => normalizePreferences(structuredClone(timed), tonightConfig, now)).not.toThrow();
+    const anytime = memberPayload(
+      { ...memberBase, departure: { kind: "anytime" }, returnBy: { kind: "none" } },
+      tonight,
+    );
+    expect(() => normalizePreferences(structuredClone(anytime), tonightConfig, now)).not.toThrow();
+  });
+
+  it("rejects too-short windows and days the database won't store, before sending", () => {
+    const shortWindow = {
+      ...memberBase,
+      days: {
+        "2026-11-24": { busy: daySlotsBusyExcept([20]), confirmed: true },
+        "2026-11-25": { busy: daySlotsBusyExcept([30]), confirmed: true },
+      },
+    };
+    expect(validateMemberStep(shortWindow, "availability", calendarContext)).toMatch(
+      /60 minutes long/,
+    );
+    const oneFullyBusy = {
+      ...memberBase,
+      days: {
+        "2026-11-24": { busy: daySlotsBusyExcept([]), confirmed: true },
+        "2026-11-25": { busy: [], confirmed: true },
+      },
+    };
+    expect(validateMemberStep(oneFullyBusy, "availability", calendarContext)).toMatch(
+      /busy all day/,
+    );
+  });
+});
+
+function daySlotsBusyExcept(free: number[]) {
+  return Array.from({ length: 60 }, (_, index) => index).filter((index) => !free.includes(index));
+}
 
 describe("V3 helpers", () => {
   it("only treats explicit schemaVersion 3 state as V3-capable", () => {

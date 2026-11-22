@@ -15,9 +15,11 @@ export function TonightAvailability({
   now: number;
 }) {
   const id = useId();
-  const options = useMemo(() => tonightOptions(now), [now]);
+  const { departures: options, returns } = useMemo(() => tonightOptions(now), [now]);
   const from = draft.departure?.kind === "at" ? draft.departure.at : null;
-  const returnOptions = options.filter((option) => !from || option.value > from);
+  const returnOptions = returns.filter(
+    (option) => !from || Date.parse(option.value) > Date.parse(from),
+  );
   const savedDeparture = from && !options.some((option) => option.value === from);
   const returnAt = draft.returnBy?.kind === "at" ? draft.returnBy.at : null;
   const savedReturn = returnAt && !returnOptions.some((option) => option.value === returnAt);

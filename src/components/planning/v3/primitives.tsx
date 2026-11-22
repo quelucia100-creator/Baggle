@@ -156,17 +156,14 @@ export function PrivateNote({ children }: { children: ReactNode }) {
 }
 
 /** Explains why something cannot be saved yet. Never presented as success. */
-export function BackendPendingNotice({ what }: { what: string }) {
+export function BackendPendingNotice({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div
       role="note"
       className="paper rounded-lg border-2 border-dashed border-crust bg-cream p-4 text-sm"
     >
-      <p className="font-extrabold">Requires backend update</p>
-      <p className="mt-1">
-        {what} can't be saved until the V3 planning server is live. Your draft stays on this screen
-        only and has not been sent or stored.
-      </p>
+      <p className="font-extrabold">{title}</p>
+      <p className="mt-1">{children}</p>
     </div>
   );
 }

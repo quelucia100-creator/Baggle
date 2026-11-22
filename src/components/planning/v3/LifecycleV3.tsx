@@ -16,16 +16,23 @@ import { PopButton } from "@/components/Field";
 import { PaperIcon } from "@/components/PaperIcon";
 import { PartyInviteQR } from "@/components/PartyInviteQR";
 import type { PartyState } from "@/lib/party";
-import type { PlanningState } from "@/lib/planning/types";
+import type { PlanningState, PublicPlanOption } from "@/lib/planning/types";
 import { planningControls } from "../model";
-import type { PlanningCommandV3, PublicOptionV3Extras } from "./contract";
+import {
+  NO_MATCH_ACTION_LABELS,
+  WARNING_LABELS,
+  isPlanV3,
+  type PlanningCommandV3,
+  type PublicPlanV3,
+  type VersionedPlanningState,
+} from "./contract";
 import { buildIcs, downloadIcs } from "./ics";
 import { formatInstant } from "./time";
 import { formatDuration } from "./host-model";
 
 type Submit = (command: PlanningCommandV3) => Promise<boolean>;
 type LifecycleState = Pick<
-  PlanningState,
+  VersionedPlanningState,
   | "status"
   | "revision"
   | "members"
@@ -111,17 +118,22 @@ export function LobbyActions({
   busy,
   submit,
   selfReady,
+  lockAvailable,
 }: {
   party: PartyState;
   state: LifecycleState;
   busy: boolean;
   submit: Submit;
   selfReady: boolean;
+  /** False on a legacy party: the host must switch it to the new planner first. */
+  lockAvailable: boolean;
 }) {
   const ready = state.members.filter((member) => member.submitted).length;
   const waiting = party.members.length - ready;
   const [pending, setPending] = useState(false);
-  const canLock = party.isHost && state.status === "collecting" && ready >= 2;
+  // The server requires the host's own submission plus at least one more.
+  const canLock =
+    lockAvailable && party.isHost && state.status === "collecting" && ready >= 2 && selfReady;
   return (
     <div className="mt-5 space-y-3">
       {party.isHost && (
@@ -140,11 +152,15 @@ export function LobbyActions({
             {pending ? "Starting…" : "Find our plan"}
           </PopButton>
           <p className="text-sm text-muted-foreground">
-            {ready < 2
-              ? `At least 2 people must be ready (${ready} so far).`
-              : waiting > 0
-                ? `${waiting} ${waiting === 1 ? "person hasn't" : "people haven't"} finished. If you start now, only the ${ready} ready people are included.`
-                : "Everyone is ready."}
+            {!lockAvailable
+              ? "Switch the party to the new planner before finding a plan."
+              : !selfReady
+                ? "Add your own answers first — the host takes part like everyone else."
+                : ready < 2
+                  ? `At least 2 people must be ready (${ready} so far).`
+                  : waiting > 0
+                    ? `${waiting} ${waiting === 1 ? "person hasn't" : "people haven't"} finished. If you start now, only the ${ready} ready people are included.`
+                    : "Everyone is ready."}
           </p>
         </>
       )}
@@ -203,16 +219,93 @@ export function RevealV3({
   );
 }
 
-const costText = (extras: Partial<PublicOptionV3Extras>, priceTier: number | null) => {
-  const cost = extras.cost;
-  if (cost?.kind === "free") return "Free";
-  if (cost?.kind === "estimate")
-    return `Estimated $${cost.minCad}${cost.maxCad !== cost.minCad ? `–$${cost.maxCad}` : ""} CAD per person${cost.includesFood === false ? " · food not included" : ""}`;
-  // Price tiers are not dollar amounts; never convert them.
-  return priceTier === null
-    ? "Cost unknown — check with the venue"
-    : "Cost not verified (map price level only) — check with the venue";
-};
+const dayFormat = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "UTC",
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+});
+const checkedOn = (at: string) => dayFormat.format(new Date(at));
+
+function costLine(plan: PublicPlanV3) {
+  const cost = plan.venue.cost;
+  if (!cost) return "Cost unknown — check with the venue.";
+  if (cost.free) return `Free · verified ${checkedOn(cost.checkedAt)}`;
+  const range = cost.minCad === cost.maxCad ? `$${cost.minCad}` : `$${cost.minCad}–$${cost.maxCad}`;
+  return `Estimated ${range} CAD per person · checked ${checkedOn(cost.checkedAt)}`;
+}
+
+/** V3 evidence: each line appears only because the server returned it. */
+function V3Facts({ plan }: { plan: PublicPlanV3 }) {
+  const { venue } = plan;
+  const cost = venue.cost;
+  return (
+    <>
+      <li>
+        {costLine(plan)}
+        {cost && (
+          <>
+            {" · "}
+            <a
+              href={cost.sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-bold underline"
+            >
+              price source
+            </a>
+          </>
+        )}
+      </li>
+      <li>Opening hours checked for this date and time.</li>
+      <li>
+        {venue.bookingRequired === "yes" ? (
+          <>
+            Booking required
+            {venue.bookingUrl && (
+              <>
+                {" · "}
+                <a
+                  href={venue.bookingUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-bold underline"
+                >
+                  Booking page
+                </a>
+              </>
+            )}{" "}
+            — nothing is reserved for you.
+          </>
+        ) : venue.bookingRequired === "no" ? (
+          "No booking needed."
+        ) : (
+          "Booking need unknown — check before you go."
+        )}
+      </li>
+      {venue.accessibilityVerified && <li>Accessibility details come from the venue source.</li>}
+      <li>Travel times were checked with a routing provider for everyone who was ready.</li>
+    </>
+  );
+}
+
+function LegacyFacts({ plan }: { plan: PublicPlanOption }) {
+  return (
+    <>
+      {/* Price tiers are not dollar amounts; never convert them. */}
+      <li>
+        {plan.venue.priceTier === null
+          ? "Cost unknown — check with the venue."
+          : "Cost not verified (map price level only) — check with the venue."}
+      </li>
+      <li>
+        {plan.hoursUnknown
+          ? "Opening hours not verified — check with the venue."
+          : "Opening hours checked for this time."}
+      </li>
+    </>
+  );
+}
 
 /** One actionable venue card. Claims appear only when the server supplied evidence. */
 export function ResultV3({
@@ -229,16 +322,25 @@ export function ResultV3({
   const plan = state.plan;
   const [icsError, setIcsError] = useState("");
   if (!plan) return null;
-  const extras = plan as unknown as Partial<PublicOptionV3Extras> & {
-    venue: PublicOptionV3Extras["venue"];
-  };
+  const v3 = isPlanV3(plan) ? plan : null;
   const controls = planningControls(state as PlanningState, party.isHost, party.selfId);
   const final = state.status === "final";
   const minutes =
-    extras.durationMinutes ??
-    Math.round((Date.parse(plan.endAt) - Date.parse(plan.startAt)) / 60_000);
-  const hoursVerified = extras.hoursVerified ?? !plan.hoursUnknown;
-  const address = extras.venue?.address ?? null;
+    v3?.durationMinutes ?? Math.round((Date.parse(plan.endAt) - Date.parse(plan.startAt)) / 60_000);
+  const address = v3?.venue.address ?? null;
+  // Cost and booking unknowns are already stated in the facts list.
+  const warnings = (v3?.warnings ?? []).filter(
+    (warning) => warning !== "cost_unknown" && warning !== "booking_unknown",
+  );
+  const sourceLabel = v3
+    ? v3.venue.source === "google_places"
+      ? "Venue data: Google Maps"
+      : "Baggle curated venue"
+    : state.venueSource === "google_places"
+      ? "Venue data: Google Maps"
+      : state.venueSource === "fallback"
+        ? "Baggle Montréal list"
+        : "Venue source unavailable";
   const download = () => {
     try {
       setIcsError("");
@@ -271,14 +373,7 @@ export function ResultV3({
           </PaperIcon>
         </div>
         <div className="p-5 sm:p-7">
-          <p className="mb-2 text-xs font-bold uppercase text-muted-foreground">
-            {extras.venue?.sourceAttribution ??
-              (state.venueSource === "google_places"
-                ? "Venue data: Google Maps"
-                : state.venueSource === "fallback"
-                  ? "Baggle Montréal list"
-                  : "Venue source unavailable")}
-          </p>
+          <p className="mb-2 text-xs font-bold uppercase text-muted-foreground">{sourceLabel}</p>
           <h2 className="break-words text-2xl font-extrabold sm:text-3xl">{plan.venue.name}</h2>
           {address && <p className="mt-1 break-words text-sm">{address}</p>}
           <ul className="mt-6 space-y-3 text-sm">
@@ -290,58 +385,68 @@ export function ResultV3({
                 <span className="mt-0.5 block text-xs text-muted-foreground">Montréal time</span>
               </span>
             </li>
-            <li>{costText(extras, plan.venue.priceTier)}</li>
-            <li>
-              {hoursVerified
-                ? "Opening hours checked for this time."
-                : "Opening hours not verified — check with the venue."}
-            </li>
-            {extras.bookingRequired === "yes" && (
-              <li>
-                Booking required
-                {extras.bookingUrl && (
-                  <>
-                    {" · "}
+            {v3 ? <V3Facts plan={v3} /> : <LegacyFacts plan={plan as PublicPlanOption} />}
+            <li className="flex items-start gap-2">
+              <CloudSun aria-hidden="true" className="h-5 w-5 shrink-0" />
+              <span>
+                {plan.weather
+                  ? `Forecast summary for this time: ${Math.round(plan.weather.temperature)}°C · ${plan.weather.precipitation}% chance of precipitation`
+                  : "Forecast unavailable for this time."}
+                {plan.weather && (
+                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                    Weather data by{" "}
                     <a
-                      href={extras.bookingUrl}
+                      href="https://open-meteo.com/"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="font-bold underline"
+                      className="underline"
                     >
-                      Booking page
+                      Open-Meteo
+                    </a>{" "}
+                    (
+                    <a
+                      href="https://open-meteo.com/en/license"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline"
+                    >
+                      CC BY 4.0
                     </a>
-                  </>
-                )}{" "}
-                — availability isn't guaranteed.
-              </li>
-            )}
-            {extras.bookingRequired === "unknown" && (
-              <li>Booking need unknown — check before you go.</li>
-            )}
-            {extras.accessibilityConfidence === "verified" && (
-              <li>Accessibility details verified for the group's needs.</li>
-            )}
-            {extras.travelEstimated && <li>Travel times are estimates, not live routes.</li>}
-            <li className="flex items-center gap-2">
-              <CloudSun aria-hidden="true" className="h-5 w-5 shrink-0" />
-              {plan.weather
-                ? `${Math.round(plan.weather.temperature)}°C · ${plan.weather.precipitation}% chance of precipitation`
-                : "Forecast unavailable for this time."}
+                    ), summarised for this time slot.
+                  </span>
+                )}
+              </span>
             </li>
           </ul>
-          {!!extras.warnings?.length && (
+          {warnings.length > 0 && (
             <ul className="mt-4 space-y-1 border-l-4 border-crust bg-apricot p-3 text-sm font-bold">
-              {extras.warnings.map((warning) => (
-                <li key={warning}>{warning}</li>
+              {warnings.map((warning) => (
+                <li key={warning}>{WARNING_LABELS[warning]}</li>
               ))}
             </ul>
           )}
-          {!!extras.reasons?.length && (
-            <ul className="mt-4 list-disc space-y-1 pl-5 text-sm">
-              {extras.reasons.map((reason) => (
-                <li key={reason}>{reason}</li>
-              ))}
-            </ul>
+          {v3 && (
+            <p className="mt-4 text-xs text-muted-foreground">
+              Sources:{" "}
+              {v3.venue.attribution.map((entry, index) => (
+                <span key={`${entry.name}-${index}`}>
+                  {index > 0 && ", "}
+                  {entry.url ? (
+                    <a
+                      href={entry.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline"
+                    >
+                      {entry.name}
+                    </a>
+                  ) : (
+                    entry.name
+                  )}
+                </span>
+              ))}{" "}
+              · checked {checkedOn(v3.venue.sourceTimestamp)}
+            </p>
           )}
           <p className="mt-6 border-t-2 border-crust/15 pt-4 text-sm font-bold">
             {plan.compromise}
@@ -424,7 +529,7 @@ export function ResultV3({
               <PopButton
                 disabled={busy || !controls.canFinalize}
                 className="flex items-center justify-center gap-2"
-                onClick={() => void submit({ action: "finalize" })}
+                onClick={() => void submit({ action: "finalize", revision: state.revision })}
               >
                 <Check aria-hidden="true" className="h-4 w-4" />
                 Finalize
@@ -442,11 +547,17 @@ export function NoPlanV3({
   isHost,
   busy,
   submit,
+  actions,
 }: {
   isHost: boolean;
   busy: boolean;
   submit: Submit;
+  /** Server-provided generic suggestions (V3); legacy parties get the same neutral list. */
+  actions: readonly string[] | null;
 }) {
+  const suggestions = (actions ?? Object.keys(NO_MATCH_ACTION_LABELS))
+    .map((action) => NO_MATCH_ACTION_LABELS[action])
+    .filter((label): label is string => !!label);
   return (
     <section className="border-y-2 border-crust/20 py-8" aria-labelledby="no-plan-title">
       <PaperIcon tone="apricot" className="mb-6 h-12 w-12">
@@ -457,10 +568,9 @@ export function NoPlanV3({
       </h2>
       <p className="mt-4">Some ways to open things up:</p>
       <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
-        <li>Add more days or a wider date range</li>
-        <li>Choose a larger or more flexible area</li>
-        <li>Try a shorter duration</li>
-        <li>Everyone can review their own private answers</li>
+        {suggestions.map((suggestion) => (
+          <li key={suggestion}>{suggestion}</li>
+        ))}
       </ul>
       <p className="mt-3 text-sm text-muted-foreground">Saved private answers are kept.</p>
       {isHost ? (

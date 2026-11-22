@@ -7,9 +7,33 @@ import { PopButton } from "@/components/Field";
 import { PlanningExperience } from "@/components/planning/PlanningExperience";
 import { planningError, type PlanningCommand } from "@/components/planning/model";
 import { PlanningV3Experience } from "@/components/planning/v3/PlanningV3Experience";
-import { backendSupportsV3, type PlanningCommandV3 } from "@/components/planning/v3/contract";
+import {
+  backendSupportsV3,
+  type PlanningCommandV3,
+  type VersionedPlanningState,
+} from "@/components/planning/v3/contract";
 import { accessParty, membershipToken } from "@/lib/party";
 import { updatePartyPlanning } from "@/lib/planning.functions";
+import type { PlanningRequest } from "@/lib/planning-v3/request";
+
+type Command = PlanningCommand | PlanningCommandV3;
+type VersionedCall = (options: { data: PlanningRequest }) => Promise<VersionedPlanningState>;
+/**
+ * Every request carries the party's planning version. A V3 `configure` on a legacy party
+ * is the host's bootstrap into V3; every other command follows the version last read.
+ */
+export function planningRequest(
+  command: Command,
+  current: VersionedPlanningState | undefined,
+  code: string,
+  token: string,
+): PlanningRequest {
+  const bootstrap =
+    command.action === "configure" && "version" in command.config && command.config.version === 3;
+  if (bootstrap || current?.schemaVersion === 3)
+    return { ...command, code, token, schemaVersion: 3 } as PlanningRequest;
+  return { ...command, code, token, schemaVersion: 2 } as PlanningRequest;
+}
 
 export const Route = createFileRoute("/party/$code_/plan")({
   head: ({ params }) => ({
@@ -37,7 +61,9 @@ function PlanningPage() {
   const hydrated = useHydrated();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const planning = useServerFn(updatePartyPlanning);
+  // The backend export is an intersection of the versioned and legacy call signatures;
+  // pick the versioned one explicitly so V3 reads and commands type-check.
+  const planning = useServerFn(updatePartyPlanning as VersionedCall);
   const [error, setError] = useState("");
   // Screen-local only: never in the URL, storage or query keys.
   const [previewV3, setPreviewV3] = useState(false);
@@ -55,7 +81,9 @@ function PlanningPage() {
   const mutationKey = ["party-planning-change", code];
   const state = useQuery({
     queryKey: planningKey,
-    queryFn: () => planning({ data: { action: "read", code, token: membershipToken() } }),
+    // Reading as V3 returns either a V3 party or an explicitly versioned legacy party.
+    queryFn: () =>
+      planning({ data: { action: "read", code, token: membershipToken(), schemaVersion: 3 } }),
     enabled: hydrated && !!party.data && !party.isError,
     refetchInterval: () => (queryClient.isMutating({ mutationKey }) ? false : 3000),
     retry: false,
@@ -64,8 +92,15 @@ function PlanningPage() {
   const mutation = useMutation({
     mutationKey,
     gcTime: 0,
-    mutationFn: (command: PlanningCommand | PlanningCommandV3) =>
-      planning({ data: { ...command, code, token: membershipToken() } }),
+    mutationFn: (command: Command) =>
+      planning({
+        data: planningRequest(
+          command,
+          queryClient.getQueryData<VersionedPlanningState>(planningKey),
+          code,
+          membershipToken(),
+        ),
+      }),
     onMutate: async () => {
       setError("");
       await queryClient.cancelQueries({ queryKey: planningKey });
@@ -92,7 +127,7 @@ function PlanningPage() {
   });
   const busy = mutation.isPending || back.isPending;
   // Resolves true only after the server confirms the change.
-  const submit = async (command: PlanningCommand | PlanningCommandV3) => {
+  const submit = async (command: Command) => {
     if (busy || state.isError) return false;
     try {
       await mutation.mutateAsync(command);
@@ -199,7 +234,9 @@ function PlanningPage() {
                   onClick={() => setPreviewV3(true)}
                   className="mb-4 text-sm font-bold underline underline-offset-4"
                 >
-                  Preview the new planner
+                  {party.data.isHost && state.data.status === "collecting"
+                    ? "Switch to the new planner"
+                    : "Preview the new planner"}
                 </button>
                 <PlanningExperience
                   key={party.data.selfId}

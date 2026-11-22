@@ -234,7 +234,7 @@ describe("Busy-time calendar", () => {
     expect(screen.getByText("1 of 2 days confirmed")).toBeInTheDocument();
     // Confirming moves on to the next unreviewed day.
     expect(screen.getByRole("heading", { name: "Thursday, November 26" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Busy all day" }));
+    fireEvent.click(cell("6:00 PM"));
     fireEvent.click(screen.getByRole("button", { name: "Confirm Thu, Nov 26" }));
     fireEvent.click(screen.getByRole("button", { name: /Tuesday, November 24: Confirmed/ }));
     // Editing a confirmed day asks for confirmation again.
@@ -246,6 +246,15 @@ describe("Busy-time calendar", () => {
     expect(
       screen.getByRole("heading", { name: "Where are you starting from?" }),
     ).toBeInTheDocument();
+  });
+
+  it("blocks a fully busy day before sending, because the database rejects it", () => {
+    renderGrid();
+    fireEvent.click(screen.getByRole("button", { name: "Busy all day" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirm Tue, Nov 24" }));
+    fireEvent.click(screen.getByRole("button", { name: "I'm free all day" }));
+    next();
+    expect(screen.getByRole("alert")).toHaveTextContent(/can't yet save a day marked busy all day/);
   });
 
   it("disables slots that already passed today", () => {
@@ -401,13 +410,13 @@ describe("Review and save", () => {
     expect(screen.getByRole("heading", { name: "What's your budget?" })).toBeInTheDocument();
   });
 
-  it("never sends answers while the backend is still V2", () => {
+  it("never sends answers when saving isn't possible", () => {
     const save = vi.fn();
     render(
       <MemberHarness save={save} canSave={false} initialStep={step("review")} initial={filled} />,
     );
-    expect(screen.getByRole("button", { name: /Saving requires backend update/ })).toBeDisabled();
-    expect(screen.getByText("Requires backend update")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Can't save yet/ })).toBeDisabled();
+    expect(screen.getByText("Not saved yet")).toBeInTheDocument();
     expect(save).not.toHaveBeenCalled();
   });
 });

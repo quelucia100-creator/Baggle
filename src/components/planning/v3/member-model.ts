@@ -1,4 +1,5 @@
 import {
+  MAX_EXCLUSIONS,
   memberPreferencesV3Schema,
   type Activity,
   type ExcludableActivity,
@@ -6,7 +7,7 @@ import {
   type TravelMode,
   type Vibe,
 } from "./contract";
-import { daySlots, intervalsToSlots, isPastSlot, slotsToIntervals } from "./time";
+import { daySlots, intervalsToSlots, isPastSlot, slotsToIntervals, type Slot } from "./time";
 
 export const BUDGET_STEP = 5;
 export const BUDGET_MAX = 500;
@@ -23,7 +24,8 @@ export type DayDraft = { busy: number[]; confirmed: boolean };
 export type OriginDraft =
   | { source: "current_location"; label: string; lat: number; lng: number }
   | { source: "manual"; label: string; lat: number; lng: number }
-  | { source: "group_area"; label: string; lat: number; lng: number };
+  /** The host's area. Sent with null coordinates and label: the server resolves it. */
+  | { source: "group_area"; label: string };
 
 export type MemberDraft = {
   vibes: Vibe[];
@@ -63,6 +65,8 @@ export type MemberContext = {
   sharedTravel: boolean;
   groupArea: { label: string; lat: number; lng: number } | null;
   freeOnly: boolean;
+  /** Shortest allowed duration; at least one free window must be this long. */
+  minMinutes: number;
   now: number;
 };
 
@@ -88,7 +92,10 @@ export function emptyMemberDraft(): MemberDraft {
   };
 }
 
-export function memberDraftFromV3(saved: MemberPreferencesV3): MemberDraft {
+export function memberDraftFromV3(
+  saved: MemberPreferencesV3,
+  groupArea: { label: string } | null = null,
+): MemberDraft {
   const tonight = saved.availability.tonight;
   const days: Record<string, DayDraft> = {};
   for (const day of saved.availability.days) {
@@ -128,14 +135,18 @@ export function memberDraftFromV3(saved: MemberPreferencesV3): MemberDraft {
           : null,
     days,
     origin:
-      origin.lat !== null && origin.lng !== null
-        ? {
-            source: origin.source,
-            label: origin.label ?? "Saved starting point",
-            lat: origin.lat,
-            lng: origin.lng,
-          }
-        : null,
+      origin.source === "group_area"
+        ? groupArea
+          ? { source: "group_area", label: groupArea.label }
+          : null
+        : origin.lat !== null && origin.lng !== null
+          ? {
+              source: origin.source,
+              label: origin.label ?? "Saved starting point",
+              lat: origin.lat,
+              lng: origin.lng,
+            }
+          : null,
     travelMode: saved.travel.mode,
     maxOneWayMinutes: saved.travel.maxOneWayMinutes,
     returnMode: saved.travel.returnMode,
@@ -153,12 +164,38 @@ export function matchingPreset(draft: Pick<MemberDraft, "preferredMinCad" | "pre
   )?.id;
 }
 
+const isFree = (slot: Slot, busy: ReadonlySet<number>, now: number) =>
+  slot.startMs !== null && !busy.has(slot.index) && !isPastSlot(slot, now);
+
 export function dayHasFreeTime(date: string, day: DayDraft | undefined, now: number) {
   if (!day?.confirmed) return false;
   const busy = new Set(day.busy);
-  return daySlots(date).some(
-    (slot) => slot.startMs !== null && !busy.has(slot.index) && !isPastSlot(slot, now),
-  );
+  return daySlots(date).some((slot) => isFree(slot, busy, now));
+}
+
+/** Longest continuous free stretch on a confirmed day, in minutes (real elapsed time). */
+export function longestFreeMinutes(date: string, day: DayDraft | undefined, now: number) {
+  if (!day?.confirmed) return 0;
+  const busy = new Set(day.busy);
+  let best = 0;
+  let runStart: number | null = null;
+  let runEnd = 0;
+  for (const slot of daySlots(date)) {
+    if (slot.startMs === null) continue; // skipped wall times keep a run going
+    if (isFree(slot, busy, now)) {
+      if (runStart === null || slot.startMs !== runEnd) runStart = slot.startMs;
+      runEnd = slot.endMs as number;
+      best = Math.max(best, (runEnd - runStart) / 60_000);
+    } else runStart = null;
+  }
+  return best;
+}
+
+/** The planning database rejects a confirmed day whose busy time covers the whole day. */
+export function dayFullyBusy(date: string, day: DayDraft | undefined) {
+  if (!day) return false;
+  const busy = new Set(day.busy);
+  return daySlots(date).every((slot) => slot.startMs === null || busy.has(slot.index));
 }
 
 export function validateMemberStep(
@@ -172,7 +209,8 @@ export function validateMemberStep(
       if (draft.vibes.length > 2) return "Choose at most two vibes.";
       return undefined;
     case "activities":
-      if (draft.excludedActivities.length > 3) return "Choose at most three hard no's.";
+      if (draft.excludedActivities.length > MAX_EXCLUSIONS)
+        return "Choose at most three hard no's.";
       if (draft.excludedActivities.some((entry) => draft.likedActivities.includes(entry)))
         return "An activity can't be both a like and a hard no.";
       if (draft.note.length > 280) return "Keep your note under 280 characters.";
@@ -189,10 +227,15 @@ export function validateMemberStep(
         if (!draft.departure) return "Choose when you're free from, or Anytime.";
         if (!draft.returnBy) return "Choose when you need to be home, or No deadline.";
         const from = draft.departure.kind === "at" ? Date.parse(draft.departure.at) : context.now;
+        if (!Number.isFinite(from))
+          return "There are no start times left tonight. Choose Anytime from now.";
         if (draft.departure.kind === "at" && from + 30 * 60_000 <= context.now)
           return "That start time has passed. Choose a new time or Anytime.";
-        if (draft.returnBy.kind === "at" && Date.parse(draft.returnBy.at) <= from)
-          return "Your home-by time must be after the time you're free from.";
+        const until =
+          draft.returnBy.kind === "at" ? Date.parse(draft.returnBy.at) : Number.POSITIVE_INFINITY;
+        if (until <= from) return "Your home-by time must be after the time you're free from.";
+        if (until - from < context.minMinutes * 60_000)
+          return `Leave at least ${context.minMinutes} minutes between leaving and getting home.`;
         return undefined;
       }
       {
@@ -205,6 +248,17 @@ export function validateMemberStep(
           )
         )
           return "You're busy for every remaining slot. Free up at least one time window.";
+        if (
+          !context.candidateDates.some(
+            (date) => longestFreeMinutes(date, draft.days[date], context.now) >= context.minMinutes,
+          )
+        )
+          return `None of your free windows is ${context.minMinutes} minutes long, the shortest this hangout can be.`;
+        const fullyBusy = context.candidateDates.find((date) =>
+          dayFullyBusy(date, draft.days[date]),
+        );
+        if (fullyBusy)
+          return "The planning server can't yet save a day marked busy all day. This is a known issue being fixed; until then you can't submit with a fully busy day.";
       }
       return undefined;
     case "origin":
@@ -270,13 +324,16 @@ export function memberPayload(draft: MemberDraft, context: MemberContext): Membe
             busyIntervals: slotsToIntervals(daySlots(date), new Set(draft.days[date]?.busy ?? [])),
           })),
         },
-    origin: {
-      source: origin.source,
-      label: origin.label,
-      lat: origin.lat,
-      lng: origin.lng,
-      accuracy: "approximate",
-    },
+    origin:
+      origin.source === "group_area"
+        ? { source: "group_area", label: null, lat: null, lng: null, accuracy: "approximate" }
+        : {
+            source: origin.source,
+            label: origin.label,
+            lat: approximate(origin.lat),
+            lng: approximate(origin.lng),
+            accuracy: "approximate",
+          },
     travel: {
       mode: draft.travelMode as TravelMode,
       maxOneWayMinutes: draft.maxOneWayMinutes,

@@ -1,8 +1,13 @@
 /** Test-only helpers. All server interactions in these tests are MOCKS. */
 import { useState } from "react";
 import type { PartyState } from "@/lib/party";
-import type { PlanningState } from "@/lib/planning/types";
-import type { HostConfigV3, MemberPreferencesV3, PlanningStateV3 } from "./contract";
+import type {
+  HostConfigV3,
+  LegacyPlanningState,
+  MemberPreferencesV3,
+  PlanningStateV3,
+  PublicPlanV3,
+} from "./contract";
 import { HostSetupV3 } from "./HostSetupV3";
 import { emptyHostDraft, type HostDraft } from "./host-model";
 import { emptyMemberDraft, type MemberContext, type MemberDraft } from "./member-model";
@@ -29,7 +34,8 @@ export const party: PartyState = {
   ],
 };
 
-export const v2State: PlanningState = {
+export const v2State: LegacyPlanningState = {
+  schemaVersion: 2,
   status: "collecting",
   revision: 4,
   config: {
@@ -82,12 +88,66 @@ export const v3Config: HostConfigV3 = {
 };
 
 export const v3State = (patch: Partial<PlanningStateV3> = {}): PlanningStateV3 => ({
-  ...v2State,
+  status: "collecting",
+  revision: 4,
+  members: v2State.members,
+  planIndex: 0,
+  optionCount: 0,
+  groupRerollsUsed: 0,
+  votes: 0,
+  voteThreshold: 2,
+  selfVoted: false,
+  noPlanReason: null,
+  suggestedActions: [],
   schemaVersion: 3,
   config: v3Config,
   selfPreferences: null,
+  plan: null,
+  venueSource: null,
   ...patch,
 });
+
+/** A plan exactly as `publicPlanV3Schema` projects it. */
+export const v3Plan: PublicPlanV3 = {
+  version: 3,
+  venue: {
+    placeId: "fallback:parc-la-fontaine",
+    name: "Parc La Fontaine",
+    category: "outdoors",
+    priceTier: null,
+    location: { lat: 45.527, lng: -73.569 },
+    mapsUrl: "https://www.google.com/maps/search/?api=1&query=Parc+La+Fontaine",
+    outdoor: true,
+    address: "3819 Avenue Calixa-Lavallée, Montréal, QC H2L 3A7",
+    source: "curated",
+    sourceTimestamp: "2026-11-22T05:00:00.000Z",
+    attribution: [
+      { name: "Ville de Montréal", url: "https://montreal.ca/en/places/parc-la-fontaine" },
+    ],
+    cost: {
+      currency: "CAD",
+      minCad: 0,
+      maxCad: 0,
+      free: true,
+      confidence: "verified",
+      checkedAt: "2026-11-22T05:00:00.000Z",
+      sourceUrl: "https://montreal.ca/en/places/parc-la-fontaine",
+    },
+    bookingRequired: "no",
+    bookingUrl: null,
+    accessibilityVerified: false,
+  },
+  date: "2026-11-24",
+  startAt: "2026-11-24T23:00:00.000Z",
+  endAt: "2026-11-25T01:00:00.000Z",
+  durationMinutes: 120,
+  timeZone: "America/Montreal",
+  routeVerifiability: "provider_verified",
+  compromise: "Review this option",
+  hoursUnknown: false,
+  weather: { temperature: 3, precipitation: 10, code: 2 },
+  warnings: ["availability_not_reserved"],
+};
 
 export const calendarContext: MemberContext = {
   availabilityMode: "calendar",
@@ -95,6 +155,7 @@ export const calendarContext: MemberContext = {
   sharedTravel: false,
   groupArea: { label: "Le Plateau", lat: 45.52, lng: -73.58 },
   freeOnly: false,
+  minMinutes: 120,
   now: NOW,
 };
 

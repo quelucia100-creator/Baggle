@@ -126,7 +126,7 @@ describe("Host setup (single screen)", () => {
     fireEvent.click(screen.getByLabelText(/Under-18 friendly/));
     fireEvent.click(screen.getByLabelText(/Alcohol-free venues only/));
     fireEvent.click(screen.getByLabelText(/Free activities only/));
-    fireEvent.click(screen.getByRole("button", { name: "Step-free entrance" }));
+    fireEvent.click(screen.getByRole("button", { name: "Wheelchair-accessible entrance" }));
     fireEvent.click(screen.getByRole("button", { name: "Halal" }));
     fireEvent.click(screen.getByLabelText(/We travel together/));
     fireEvent.click(save());
@@ -150,17 +150,17 @@ describe("Host setup (single screen)", () => {
         under18Friendly: true,
         freeOnly: true,
         alcoholPolicy: "alcohol_free_only",
-        requiredAccessibility: ["step_free_entrance"],
+        requiredAccessibility: ["wheelchair_accessible_entrance"],
         dietaryHardRequirements: ["halal"],
       },
     });
   });
 
-  it("never sends settings while the server is still V2", () => {
+  it("never sends settings when saving isn't allowed", () => {
     const mock = vi.fn();
     render(<HostHarness save={mock} canSave={false} />);
-    expect(screen.getByText("Requires backend update")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Saving requires backend update" })).toBeDisabled();
+    expect(screen.getByText("Can't save settings here")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Can't save settings" })).toBeDisabled();
     fireEvent.click(screen.getByLabelText(/Today \/ Tonight/));
     fireEvent.click(screen.getByRole("button", { name: "Check my settings" }));
     expect(screen.getByText(/1 section needs attention/)).toBeInTheDocument();
