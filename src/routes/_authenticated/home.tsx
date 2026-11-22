@@ -55,7 +55,7 @@ const SECTIONS: DashboardSection[] = [
     icon: <UsersIcon className="h-6 w-6" />,
   },
   {
-    title: "Default groups",
+    title: "Groups",
     description: "Your go-to crews and recent groups will show up here.",
     tone: "vista",
     back: "apricot",
