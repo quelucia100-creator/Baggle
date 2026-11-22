@@ -17,3 +17,8 @@ export function localDay(at: number) {
 }
 export function shiftDate(date: string, days: number) { return Temporal.PlainDate.from(date).add({ days }).toString(); }
 export function montrealToday() { return Temporal.Now.plainDateISO(PLANNING_TIME_ZONE).toString(); }
+/** Minutes since Montreal midnight, floored to 5 minutes. */
+export function montrealNowMinutes() {
+  const now = Temporal.Now.plainTimeISO(PLANNING_TIME_ZONE);
+  return Math.floor((now.hour * 60 + now.minute) / 5) * 5;
+}
