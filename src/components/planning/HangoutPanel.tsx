@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Check, ExternalLink, MapPin, Search } from "lucide-react";
+import { ArrowRight, Check, ExternalLink, Link2, MapPin, Search } from "lucide-react";
 import { toast } from "sonner";
 import { PopButton } from "@/components/Field";
 import type { PartyState } from "@/lib/party";
@@ -53,10 +53,10 @@ export function HangoutPanel({ code, party, isEnabled, isBusy, pinHangout, clear
     try {
       const storedVibe = readStored("local", `${vibeStorageKey(code)}`);
       const category = isVibe(storedVibe) ? vibeCategory(storedVibe) : state.config.category;
-      await run({
-        action: "configure",
-        config: { ...state.config, date: montrealToday(), category },
-      });
+      // Keep a day the host picked; a date that has already passed becomes today.
+      const today = montrealToday();
+      const date = state.config.date >= today ? state.config.date : today;
+      await run({ action: "configure", config: { ...state.config, date, category } });
       const result = await run({ action: "lock" });
       if (result.status === "locked" && result.plan) await pin(result.plan);
       else if (result.status === "no_plan") toast.error("No time or place works for everyone.");
@@ -69,6 +69,14 @@ export function HangoutPanel({ code, party, isEnabled, isBusy, pinHangout, clear
       void planning.refetch();
     } finally {
       setIsWorking(false);
+    }
+  };
+  const copyInvite = async () => {
+    try {
+      await navigator.clipboard.writeText(`${location.origin}/party/${code}`);
+      toast.success("Invite link copied. Anyone with it can join the party.");
+    } catch {
+      toast.error(`Couldn't copy. Share the party code ${code} instead.`);
     }
   };
   const tryAgain = async () => {
@@ -93,7 +101,7 @@ export function HangoutPanel({ code, party, isEnabled, isBusy, pinHangout, clear
     <section className="border-b-2 border-crust/15 py-6">
       <h2 className="flex items-center gap-2 text-lg font-extrabold">
         <MapPin className="h-5 w-5" />
-        The hangout
+        The Hangout
       </h2>
       {showPlan && plan ? (
         <div className="mt-3 space-y-2">
@@ -147,8 +155,16 @@ export function HangoutPanel({ code, party, isEnabled, isBusy, pinHangout, clear
             )}
           </Link>
           <p role="status" className="mt-2 text-sm text-muted-foreground">
-            {ready} of {total} friends ready
+            {ready} of {total} {total === 1 ? "friend" : "friends"} ready
           </p>
+          <button
+            type="button"
+            onClick={() => void copyInvite()}
+            className="mt-1 inline-flex items-center gap-1 text-sm font-bold underline underline-offset-4"
+          >
+            <Link2 className="h-4 w-4" />
+            Copy invite link
+          </button>
           {party.isHost && (
             <>
               <PopButton

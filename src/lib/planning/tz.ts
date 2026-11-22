@@ -22,3 +22,11 @@ export function montrealNowMinutes() {
   const now = Temporal.Now.plainTimeISO(PLANNING_TIME_ZONE);
   return Math.floor((now.hour * 60 + now.minute) / 5) * 5;
 }
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+/** Display parts for a Montreal date, e.g. { short: "Sun", day: 23, long: "Sunday, November 23" }. */
+export function dayParts(date: string) {
+  const day = Temporal.PlainDate.from(date);
+  const weekday = WEEKDAYS[day.dayOfWeek % 7] ?? "";
+  return { short: weekday.slice(0, 3), day: day.day, long: `${weekday}, ${MONTHS[day.month - 1]} ${day.day}` };
+}

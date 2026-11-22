@@ -111,8 +111,8 @@ describe("Planning screen polling and recovery", () => {
   it("opens the slider wizard while collecting, even without a step in the URL", async () => {
     open();
     await screen.findByRole("heading", { name: "What's your budget?" });
-    expect(screen.getByRole("slider", { name: "Budget" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^Budget / })).toBeNull();
+    expect(screen.getByRole("slider", { name: "Budget per person" })).toBeInTheDocument();
+    expect(screen.queryByRole("radio")).toBeNull();
   });
   it("uses the existing capability only as RPC input, not in cache keys", async () => {
     open();
@@ -143,7 +143,14 @@ describe("Planning screen polling and recovery", () => {
   it("keeps private answers on screen when saving fails", async () => {
     sessionStorage.setItem(
       "baggle-plan-draft-ABC123",
-      JSON.stringify({ budget: 3, freeFrom: "18:00", freeTo: "22:00", km: 7, vibe: "food" }),
+      JSON.stringify({
+        spend: 50,
+        day: "today",
+        freeFrom: "18:00",
+        freeTo: "22:00",
+        km: 7,
+        vibe: "eats",
+      }),
     );
     mocks.search = { step: "vibe" };
     mocks.planning.mockImplementation(({ data }: { data: { action: string } }) =>
@@ -158,7 +165,7 @@ describe("Planning screen polling and recovery", () => {
       expect(screen.getByRole("button", { name: "Save my answers" })).toBeEnabled(),
     );
     expect(mocks.navigate).not.toHaveBeenCalled();
-    expect(screen.getByRole("radio", { name: "Getting food" })).toBeChecked();
+    expect(screen.getByRole("radio", { name: "Getting eats" })).toBeChecked();
   });
   it("discards private preference cache after leaving the screen", async () => {
     const view = open();
@@ -183,16 +190,16 @@ describe("Planning screen polling and recovery", () => {
   });
   it("preserves slider edits when a background read fails", async () => {
     open();
-    const slider = await screen.findByRole("slider", { name: "Budget" });
+    const slider = await screen.findByRole("slider", { name: "Budget per person" });
     fireEvent.focus(slider);
-    fireEvent.keyDown(slider, { key: "ArrowRight" });
-    expect(slider).toHaveAttribute("aria-valuetext", "$$$, A bit fancy");
+    fireEvent.keyDown(slider, { key: "End" });
+    expect(slider).toHaveAttribute("aria-valuetext", "$100+ per person, Treat ourselves");
     mocks.planning.mockRejectedValue(new Error("network unavailable"));
     await client.invalidateQueries({ queryKey: ["party-planning", "ABC123"] });
     await screen.findByRole("alert");
-    expect(screen.getByRole("slider", { name: "Budget" })).toHaveAttribute(
+    expect(screen.getByRole("slider", { name: "Budget per person" })).toHaveAttribute(
       "aria-valuetext",
-      "$$$, A bit fancy",
+      "$100+ per person, Treat ourselves",
     );
   });
 });

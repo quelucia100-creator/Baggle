@@ -100,14 +100,16 @@ type ChoiceProps = {
   selected: boolean;
   label: string;
   note?: string;
+  /** Decorative emoji shown before the label (hidden from screen readers). */
+  emoji?: string;
   onSelect: () => void;
 };
 
 /** Single-choice radio card in the paper style used by the account wizard. */
-export function ChoiceCard({ name, selected, label, note, onSelect }: ChoiceProps) {
+export function ChoiceCard({ name, selected, label, note, emoji, onSelect }: ChoiceProps) {
   return (
     <label
-      className={`paper flex min-h-14 cursor-pointer items-center gap-3 rounded-md border-2 border-crust px-4 py-3 ${selected ? "bg-sage" : "bg-cream"}`}
+      className={`paper flex min-h-14 cursor-pointer items-center gap-2.5 rounded-md border-2 border-crust px-3 py-3 ${selected ? "bg-sage" : "bg-cream"}`}
     >
       <input
         type="radio"
@@ -116,7 +118,12 @@ export function ChoiceCard({ name, selected, label, note, onSelect }: ChoiceProp
         onChange={onSelect}
         className="h-4 w-4 accent-crust"
       />
-      <span className="flex flex-col">
+      {emoji && (
+        <span aria-hidden="true" className="text-2xl leading-none">
+          {emoji}
+        </span>
+      )}
+      <span className="flex min-w-0 flex-col">
         <span className="font-bold">{label}</span>
         {note && <span className="text-xs text-muted-foreground">{note}</span>}
       </span>
