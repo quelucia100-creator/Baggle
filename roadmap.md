@@ -13,3 +13,7 @@
 - [x] Make team/map navigation independent for every member without granting host controls.
 - [x] Leave event choices blank and show inactive host-only prompt-vote/reroll buttons without enabling event voting yet.
 - [x] Test independent navigation, host-only controls, and exact location rules.
+- [x] Add additive capability-verified private planning preferences and shared submission status.
+- [x] Implement tested Montreal-time fairness ranking and atomic lock/reroll/final/reopen operations.
+- [x] Verify real-database privacy, permissions, concurrency, and existing party regressions — 49 tests pass; real guest browser RPC submission/lock/reroll/final/reload pass.
+- Planning screens and live Places/expanded verified catalogue remain separate workstreams; existing blank event buttons stay unchanged.
